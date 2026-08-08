@@ -294,7 +294,8 @@
   .wins-tot{font-size:14px;font-weight:800;color:var(--flow)}
   .wins-sub{font-size:12px;color:var(--muted);margin:2px 0 12px}
   .wins-totw{display:flex;flex-direction:column;align-items:flex-end;text-align:right}
-  .wins-note{font-size:12px;color:var(--muted);font-weight:500;margin-top:3px;max-width:280px}
+  .wins-note{font-size:12px;color:var(--muted);font-weight:500;margin-top:3px;white-space:nowrap}
+  @media(max-width:640px){.wins-totw{align-items:flex-start;text-align:left}.wins-note{white-space:normal}}
   .win{border-top:1px solid var(--border)}
   .win:first-of-type{border-top:none}
   .win-head{display:grid;grid-template-columns:24px 1fr auto 14px;gap:11px;align-items:center;width:100%;padding:9px 6px;background:none;border:0;text-align:left;font:inherit;color:inherit;cursor:pointer;border-radius:8px}
