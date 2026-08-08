@@ -236,6 +236,9 @@
     background:color-mix(in srgb,var(--good) 10%,var(--surface));border:1px solid color-mix(in srgb,var(--good) 30%,var(--border));
     border-radius:10px;padding:9px 13px;margin:18px 0 4px}
   .banner b{color:var(--ink)} .dot{width:7px;height:7px;border-radius:50%;background:var(--good);flex:none}
+  @keyframes livePulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--good) 55%,transparent)}70%{box-shadow:0 0 0 7px color-mix(in srgb,var(--good) 0%,transparent)}100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--good) 0%,transparent)}}
+  .banner .dot{animation:livePulse 2s ease-out infinite}
+  @media(prefers-reduced-motion:reduce){.banner .dot{animation:none}}
 
   section.view{padding:26px 24px 60px} section.view[hidden]{display:none}
   .eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
@@ -315,8 +318,11 @@
   .asec-name{flex:none;font-size:12.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink)}
   .asec-note{flex:1;min-width:0;font-size:13px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .asec-count{flex:none;font-size:11px;font-weight:800;color:var(--muted);background:var(--surface-2);border-radius:999px;padding:2px 9px}
-  .asec-body{display:none;padding-bottom:6px}
-  .asection.open .asec-body{display:block}
+  .asec-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .34s cubic-bezier(.4,0,.2,1)}
+  .asection.open .asec-body{grid-template-rows:1fr}
+  .asec-inner{overflow:hidden;min-height:0;opacity:0;transition:opacity .28s ease .04s}
+  .asection.open .asec-inner{opacity:1}
+  @media(prefers-reduced-motion:reduce){.asec-body,.asec-inner{transition:none}}
   @media(max-width:620px){.asec-note{display:none}}
   .afind.flash{animation:flashcard 1.3s ease}
   @keyframes flashcard{0%,100%{box-shadow:none}25%{box-shadow:0 0 0 3px color-mix(in srgb,var(--flow) 45%,transparent)}}
@@ -1079,7 +1085,9 @@ function renderAudit(){const S=SERIES[ACTIVE],A=S&&S.audit,body=document.getElem
     head.innerHTML='<span class="asec-chev">▸</span><span class="asec-name">'+esc(sec.name)+'</span>'
       +'<span class="asec-note">'+esc(sec.note||'')+'</span><span class="asec-count">'+idxs.length+'</span>';
     const bod=document.createElement('div');bod.className='asec-body';
-    idxs.forEach(i=>bod.appendChild(renderCardEl(A.findings[i],i)));
+    const inner=document.createElement('div');inner.className='asec-inner';
+    idxs.forEach(i=>inner.appendChild(renderCardEl(A.findings[i],i)));
+    bod.appendChild(inner);
     head.addEventListener('click',()=>wrap.classList.toggle('open'));
     wrap.appendChild(head);wrap.appendChild(bod);body.appendChild(wrap);});}
   A.findings.forEach((f,i)=>{if(!done.has(i))body.appendChild(renderCardEl(f,i));});
