@@ -284,6 +284,9 @@
   .cmt-empty{font-size:12.5px;color:var(--muted)}
   .cmt-fab{position:fixed;right:20px;bottom:20px;z-index:1500;width:52px;height:52px;border-radius:50%;border:none;background:var(--flow);color:var(--surface);font-size:22px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.28)}
   .cmt-fab:hover{filter:brightness(1.08)}
+  .totop{position:fixed;left:20px;bottom:20px;z-index:1400;width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--ink2);font-size:20px;line-height:1;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.18);opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity .25s ease,transform .25s ease}
+  .totop.show{opacity:1;pointer-events:auto;transform:translateY(0)}
+  .totop:hover{color:var(--ink);border-color:var(--flow)}
   .cmt-badge{position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;border-radius:10px;background:var(--crit);color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
   .cmt-fabpanel{position:fixed;right:20px;bottom:82px;z-index:1500;width:min(360px,92vw);max-height:70vh;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 16px 48px rgba(0,0,0,.3);padding:14px;display:flex;flex-direction:column;gap:8px}
   .cmt-fabhead{font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
@@ -1010,6 +1013,8 @@ function renderPins(){document.querySelectorAll('.cmt-pin').forEach(p=>p.remove(
   const view=curView();
   COMMENTS.filter(c=>c.slug===ACTIVE&&c.view===view&&c.containerId&&c.relX!=null).forEach(c=>{
     const cont=document.getElementById(c.containerId);if(!cont)return;
+    const sec=cont.closest?cont.closest('.asection'):null;if(sec)sec.classList.add('open');
+    const win=cont.closest?cont.closest('.win'):null;if(win)win.classList.add('open');
     if(getComputedStyle(cont).position==='static')cont.style.position='relative';
     const pin=document.createElement('button');pin.className='cmt-pin';pin.type='button';
     pin.style.left=(c.relX*100)+'%';pin.style.top=(c.relY*100)+'%';pin.title=c.body;pin.textContent='💬';
@@ -1071,10 +1076,16 @@ document.addEventListener('click',function(e){   // pin-mode capture: intercept 
   const cont=nearestAnchor(e.target);if(!cont||!cont.id)return;
   const rect=cont.getBoundingClientRect();
   const relX=Math.min(1,Math.max(0,(e.clientX-rect.left)/rect.width)),relY=Math.min(1,Math.max(0,(e.clientY-rect.top)/rect.height));
-  const clicked=(e.target.textContent||'').trim().replace(/\s+/g,' ').slice(0,70),ct=anchorTitle(cont);
-  openPinEditor({id:null,view:curView(),containerId:cont.id,containerLabel:ct,relX,relY,label:ct+(clicked?' — “'+clicked+'”':'')},e.clientX,e.clientY);
+  const clicked=(e.target.textContent||'').trim().replace(/\s+/g,' ').slice(0,120),ct=anchorTitle(cont);
+  const sec=cont.closest?cont.closest('.asection'):null,secName=sec?((sec.querySelector('.asec-name')||{}).textContent||''):'';
+  const full=(secName?secName+' › ':'')+ct;
+  openPinEditor({id:null,view:curView(),containerId:cont.id,containerLabel:full,relX,relY,label:full+(clicked?' — “'+clicked+'”':'')},e.clientX,e.clientY);
 },true);
 document.addEventListener('click',function(){const m=document.getElementById('cmtMenu');if(m)m.remove();const l=document.getElementById('cmtList');if(l)l.remove();closePop();});
+(function(){var b=document.createElement('button');b.className='totop';b.type='button';b.title='Back to top';b.setAttribute('aria-label','Back to top');b.innerHTML='↑';
+  b.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+  document.body.appendChild(b);var on=false;
+  window.addEventListener('scroll',function(){var s=(window.scrollY||document.documentElement.scrollTop)>420;if(s!==on){on=s;b.classList.toggle('show',s);}},{passive:true});})();
 function renderAudit(){const S=SERIES[ACTIVE],A=S&&S.audit,body=document.getElementById('audit-body');
   document.getElementById('audit-title').textContent=(A&&A.title)||'Account audit';
   document.getElementById('audit-eyebrow').textContent=(S.name||'')+' · audit';
