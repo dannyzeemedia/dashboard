@@ -139,7 +139,7 @@
   .sev.crit{color:var(--crit);background:color-mix(in srgb,var(--crit) 13%,var(--surface));border:1px solid color-mix(in srgb,var(--crit) 30%,var(--border))}
   .sev.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,var(--surface));border:1px solid color-mix(in srgb,var(--warn) 32%,var(--border))}
   .sev.note{color:var(--ink2);background:var(--surface-2);border:1px solid var(--border)}
-  .sev.cta{color:#fff;background:var(--good);border:1px solid var(--good)}
+  .sev.cta{color:var(--good);background:color-mix(in srgb,var(--good) 14%,var(--surface));border:1px solid color-mix(in srgb,var(--good) 32%,var(--border))}
   .sev.good{color:var(--good);background:color-mix(in srgb,var(--good) 14%,var(--surface));border:1px solid color-mix(in srgb,var(--good) 32%,var(--border))}
   .cta{border:1px solid color-mix(in srgb,var(--flow) 28%,var(--border));border-radius:14px;padding:24px;text-align:center;background:color-mix(in srgb,var(--flow) 6%,var(--surface))}
   .cta-lead{font-size:19px;color:var(--ink);font-weight:600}
@@ -147,10 +147,16 @@
   .cta-lead span{color:var(--muted);font-weight:500;font-size:15px}
   .cta-sub{font-size:13.5px;color:var(--ink2);margin:9px auto 18px;max-width:580px;line-height:1.55}
   .cta-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-  .cta-btn{display:inline-block;background:var(--flow);color:var(--surface);font-weight:700;font-size:14px;padding:12px 28px;border-radius:9px;text-decoration:none;border:1.5px solid var(--flow)}
-  .cta-btn:hover{filter:brightness(1.08)}
+  .cta-btn{display:inline-flex;align-items:center;gap:7px;background:var(--flow);color:var(--surface);font-weight:700;font-size:14px;padding:12px 28px;border-radius:9px;text-decoration:none;border:1.5px solid var(--flow);transition:transform .18s ease,box-shadow .18s ease,filter .18s ease,background .18s ease}
+  .cta-btn:hover{filter:brightness(1.08);transform:translateY(-2px);box-shadow:0 10px 24px color-mix(in srgb,var(--flow) 32%,transparent)}
+  .cta-arw{display:inline-block;transition:transform .18s ease}
+  .cta-btn:hover .cta-arw{transform:translateX(4px)}
   .cta-btn2{background:transparent;color:var(--flow)}
-  .cta-btn2:hover{background:color-mix(in srgb,var(--flow) 10%,transparent);filter:none}
+  .cta-btn2:hover{background:color-mix(in srgb,var(--flow) 10%,transparent);filter:none;transform:translateY(-2px);box-shadow:0 8px 20px color-mix(in srgb,var(--flow) 18%,transparent)}
+  @keyframes ctaBreathe{0%,100%{box-shadow:0 4px 14px color-mix(in srgb,var(--flow) 20%,transparent)}50%{box-shadow:0 7px 24px color-mix(in srgb,var(--flow) 44%,transparent)}}
+  .cta-go{animation:ctaBreathe 2.4s ease-in-out infinite}
+  .cta-go:hover{animation:none}
+  @media(prefers-reduced-motion:reduce){.cta-go{animation:none}}
   .anum{font-size:12px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
   .achart{margin-top:2px}
   .abars{display:flex;flex-direction:column;gap:8px;margin-top:2px}
@@ -1504,8 +1510,14 @@ function auditCampaigns(host,S,spec){spec=spec||{};const cur=(S.current&&S.curre
     h2.addEventListener('click',e=>{e.stopPropagation();const o=b2.hidden;b2.hidden=!o;wA.querySelector('.ideas-chev').textContent=o?'▴':'▾';});}}
 function auditCta(host,spec){
   const wrap=document.createElement('div');wrap.className='cta';
-  var btns='<a class="cta-btn" href="'+(spec.url||'https://zee.media/#pricing')+'" target="_blank" rel="noopener">'+(spec.label||'Check out our prices')+' →</a>';
-  if(spec.url2)btns+='<a class="cta-btn cta-btn2" href="'+spec.url2+'" target="_blank" rel="noopener">'+(spec.label2||'Get started')+' →</a>';
+  const arw='<span class="cta-arw">→</span>';
+  var btns='';
+  if(spec.url2){
+    btns+='<a class="cta-btn cta-go" href="'+spec.url2+'" target="_blank" rel="noopener">'+(spec.label2||'Get started')+' '+arw+'</a>';
+    btns+='<a class="cta-btn cta-btn2" href="'+(spec.url||'https://zee.media/#pricing')+'" target="_blank" rel="noopener">'+(spec.label||'Check out our prices')+' '+arw+'</a>';
+  } else {
+    btns+='<a class="cta-btn cta-go" href="'+(spec.url||'https://zee.media/#pricing')+'" target="_blank" rel="noopener">'+(spec.label||'Check out our prices')+' '+arw+'</a>';
+  }
   wrap.innerHTML='<div class="cta-lead">Typical client <b>'+(spec.range||'$3M–$20M')+'</b> in revenue <span>(average '+(spec.avg||'$5M–$8M')+')</span></div>'
     +'<div class="cta-sub">Smaller budget? We build a package to fit: a baseline of what we typically do, scaled to where you are. Pricing is public, no call required to see it.</div>'
     +'<div class="cta-btns">'+btns+'</div>';
@@ -1770,7 +1782,8 @@ function auditTrend(host,spec,S){host.innerHTML='';
         +'<a class="fl" href="https://www.klaviyo.com/flow/'+fid+'/edit" target="_blank" rel="noopener" title="'+fname+'">'+fname+'</a>'
         +'<span>'+u.toLocaleString()+'</span><span>'+rate.toFixed(2)+'%</span></div>';}).join('');
     const head='<div class="aflist-row aflist-head"><span style="text-align:left">Message</span><span style="text-align:left">Flow</span><span>Unsubs</span><span>Unsub rate</span></div>';
-    const email=S.msg_unsub.filter(f=>(f[6]||"email")==="email"),sms=S.msg_unsub.filter(f=>f[6]==="sms");
+    const _rt=f=>f[5]?f[4]/f[5]:0;
+    const email=S.msg_unsub.filter(f=>(f[6]||"email")==="email").sort((a,b)=>_rt(b)-_rt(a)),sms=S.msg_unsub.filter(f=>f[6]==="sms").sort((a,b)=>_rt(b)-_rt(a));
     let html='<div class="afnote">Scrutinise these to bring the rate down. SMS unsubscribes run at a far higher rate than email, so the SMS list is where the fastest wins are.</div>';
     if(email.length)html+='<div class="aflist-sub">Email</div>'+head+mk(email);
     if(sms.length)html+='<div class="aflist-sub" style="margin-top:16px">SMS</div>'+head+mk(sms);
