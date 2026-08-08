@@ -139,7 +139,7 @@
   .sev.crit{color:var(--crit);background:color-mix(in srgb,var(--crit) 13%,var(--surface));border:1px solid color-mix(in srgb,var(--crit) 30%,var(--border))}
   .sev.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,var(--surface));border:1px solid color-mix(in srgb,var(--warn) 32%,var(--border))}
   .sev.note{color:var(--ink2);background:var(--surface-2);border:1px solid var(--border)}
-  .sev.cta{color:var(--aqua);background:color-mix(in srgb,var(--aqua) 15%,var(--surface));border:1px solid color-mix(in srgb,var(--aqua) 34%,var(--border))}
+  .sev.cta{color:#fff;background:var(--good);border:1px solid var(--good)}
   .sev.good{color:var(--good);background:color-mix(in srgb,var(--good) 14%,var(--surface));border:1px solid color-mix(in srgb,var(--good) 32%,var(--border))}
   .cta{border:1px solid color-mix(in srgb,var(--flow) 28%,var(--border));border-radius:14px;padding:24px;text-align:center;background:color-mix(in srgb,var(--flow) 6%,var(--surface))}
   .cta-lead{font-size:19px;color:var(--ink);font-weight:600}
@@ -161,9 +161,13 @@
   .abar.flag .abv{color:var(--crit)}
   @media(max-width:620px){.abar{grid-template-columns:120px 1fr auto}}
   .aflist{margin-top:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
-  .aflist summary{cursor:pointer;padding:11px 14px;font-size:13px;font-weight:700;color:var(--ink2);background:var(--surface-2);list-style:none}
-  .aflist summary::-webkit-details-marker{display:none}
-  .aflist summary::before{content:'▸ ';color:var(--muted)}
+  .aflist-summary{display:flex;align-items:center;gap:8px;width:100%;cursor:pointer;padding:11px 14px;font:inherit;font-size:13px;font-weight:700;color:var(--ink2);background:var(--surface-2);border:0;text-align:left}
+  .aflist-chev{color:var(--muted);transition:transform .2s ease;display:inline-block}
+  .aflist.open .aflist-chev{transform:rotate(90deg)}
+  .aflist-anim{display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s cubic-bezier(.4,0,.2,1)}
+  .aflist.open .aflist-anim{grid-template-rows:1fr}
+  .aflist-inner{overflow:hidden;min-height:0}
+  @media(prefers-reduced-motion:reduce){.aflist-anim{transition:none}}
   .aflist[open] summary::before{content:'▾ '}
   .aflist-body{padding:6px 8px}
   .afnote{font-size:13px;line-height:1.5;color:var(--ink2);background:color-mix(in srgb,var(--warn) 9%,var(--surface));
@@ -1754,8 +1758,11 @@ function auditTrend(host,spec,S){host.innerHTML='';
   if(series.length>1)host.appendChild(alegend.apply(null,series.map(s=>[s.name,s.color])));
   auditLineChart(host,m,series,fmt,spec.ref,spec.reflabel,ipIdx);
   if(spec.metric==='unsub'&&(S.msg_unsub||[]).length){
-    const det=document.createElement('details');det.className='aflist';
-    det.innerHTML='<summary>Top offender messages — the individual emails and texts driving the most unsubscribes (last 12 months)</summary>';
+    const det=document.createElement('div');det.className='aflist';
+    const sm=document.createElement('button');sm.className='aflist-summary';sm.type='button';
+    sm.innerHTML='<span class="aflist-chev">▸</span>Top offender messages — the individual emails and texts driving the most unsubscribes (last 12 months)';
+    const anim=document.createElement('div');anim.className='aflist-anim';
+    const inner=document.createElement('div');inner.className='aflist-inner';
     const b=document.createElement('div');b.className='aflist-body';
     const mk=list=>list.map(f=>{const mid=f[0],mname=f[1],fid=f[2],fname=f[3],u=f[4],dl=f[5],rate=dl?u/dl*100:0;
       return '<div class="aflist-row'+(rate>=1?' flag':'')+'">'
@@ -1767,7 +1774,9 @@ function auditTrend(host,spec,S){host.innerHTML='';
     let html='<div class="afnote">Scrutinise these to bring the rate down. SMS unsubscribes run at a far higher rate than email, so the SMS list is where the fastest wins are.</div>';
     if(email.length)html+='<div class="aflist-sub">Email</div>'+head+mk(email);
     if(sms.length)html+='<div class="aflist-sub" style="margin-top:16px">SMS</div>'+head+mk(sms);
-    b.innerHTML=html;det.appendChild(b);host.appendChild(det);
+    b.innerHTML=html;inner.appendChild(b);anim.appendChild(inner);
+    sm.addEventListener('click',()=>det.classList.toggle('open'));
+    det.appendChild(sm);det.appendChild(anim);host.appendChild(det);
   }}
 function auditBars(host,spec,S){const map=auditFlowAgg(S,12);let items=[];
   const RET=/post purchase|winback|replenish|back in stock/i;
