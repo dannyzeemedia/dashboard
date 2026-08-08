@@ -171,6 +171,7 @@
   .aflist-row{display:grid;grid-template-columns:1.5fr 1fr 84px 84px;gap:12px;align-items:center;padding:8px 10px;font-size:13.5px;border-radius:7px}
   .aflist-row:not(.aflist-head):hover{background:var(--surface-2)}
   .aflist-row.aflist-head{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+  .aflist-sub{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--ink2);margin:4px 0 6px}
   .aflist-row a{color:var(--flow);font-weight:600;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .aflist-row a.fl{color:var(--ink2);font-weight:500}
   .aflist-row a:hover{text-decoration:underline}
@@ -1123,7 +1124,10 @@ function auditWins(host,wins){
     h.querySelector('.win-chev').textContent=open?'▴':'▾';}));
   wrap.querySelectorAll('.win-link').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();
     const t=document.getElementById(a.getAttribute('href').slice(1));
-    if(t){const sec=t.closest('.asection');if(sec)sec.classList.add('open');t.scrollIntoView({behavior:'smooth',block:'center'});t.classList.add('flash');setTimeout(()=>t.classList.remove('flash'),1400);}}));}
+    if(t){const sec=t.closest('.asection');
+      const go=()=>{t.scrollIntoView({behavior:'smooth',block:'center'});t.classList.add('flash');setTimeout(()=>t.classList.remove('flash'),1400);};
+      if(sec&&!sec.classList.contains('open')){sec.classList.add('open');const bod=sec.querySelector('.asec-body');let d=false;const fin=()=>{if(d)return;d=true;go();};if(bod)bod.addEventListener('transitionend',fin,{once:true});setTimeout(fin,440);}
+      else go();}}));}
 var storeView='monthly', storeSpan=0;
 function auditStoreShare(host,S,spec){spec=spec||{};const cur=(S.current&&S.current.mtd)?S.current:null;
   const spans=spec.spans;if(!storeSpan)storeSpan=spans?(spans.indexOf(12)>=0?12:spans[0]):12;
@@ -1751,16 +1755,19 @@ function auditTrend(host,spec,S){host.innerHTML='';
   auditLineChart(host,m,series,fmt,spec.ref,spec.reflabel,ipIdx);
   if(spec.metric==='unsub'&&(S.msg_unsub||[]).length){
     const det=document.createElement('details');det.className='aflist';
-    det.innerHTML='<summary>Top offender emails — the individual messages driving the most unsubscribes (last 90 days)</summary>';
+    det.innerHTML='<summary>Top offender messages — the individual emails and texts driving the most unsubscribes (last 12 months)</summary>';
     const b=document.createElement('div');b.className='aflist-body';
-    const rows=S.msg_unsub.map(f=>{const mid=f[0],mname=f[1],fid=f[2],fname=f[3],u=f[4],dl=f[5],rate=dl?u/dl*100:0;
+    const mk=list=>list.map(f=>{const mid=f[0],mname=f[1],fid=f[2],fname=f[3],u=f[4],dl=f[5],rate=dl?u/dl*100:0;
       return '<div class="aflist-row'+(rate>=1?' flag':'')+'">'
         +'<a href="https://www.klaviyo.com/flow/message/'+mid+'/reports/overview" target="_blank" rel="noopener" title="'+mname+'">'+mname+' ↗</a>'
         +'<a class="fl" href="https://www.klaviyo.com/flow/'+fid+'/edit" target="_blank" rel="noopener" title="'+fname+'">'+fname+'</a>'
         +'<span>'+u.toLocaleString()+'</span><span>'+rate.toFixed(2)+'%</span></div>';}).join('');
-    b.innerHTML='<div class="afnote">Here are your top offenders. If you want to dramatically reduce the unsubscribe rate, scrutinize these emails in particular, as they are dragging the rate up.</div>'
-      +'<div class="aflist-row aflist-head"><span style="text-align:left">Email</span><span style="text-align:left">Flow</span><span>Unsubs</span><span>Unsub rate</span></div>'+rows;
-    det.appendChild(b);host.appendChild(det);
+    const head='<div class="aflist-row aflist-head"><span style="text-align:left">Message</span><span style="text-align:left">Flow</span><span>Unsubs</span><span>Unsub rate</span></div>';
+    const email=S.msg_unsub.filter(f=>(f[6]||"email")==="email"),sms=S.msg_unsub.filter(f=>f[6]==="sms");
+    let html='<div class="afnote">Scrutinise these to bring the rate down. SMS unsubscribes run at a far higher rate than email, so the SMS list is where the fastest wins are.</div>';
+    if(email.length)html+='<div class="aflist-sub">Email</div>'+head+mk(email);
+    if(sms.length)html+='<div class="aflist-sub" style="margin-top:16px">SMS</div>'+head+mk(sms);
+    b.innerHTML=html;det.appendChild(b);host.appendChild(det);
   }}
 function auditBars(host,spec,S){const map=auditFlowAgg(S,12);let items=[];
   const RET=/post purchase|winback|replenish|back in stock/i;
