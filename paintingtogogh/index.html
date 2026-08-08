@@ -289,10 +289,11 @@
   .cmt-del2:hover{color:var(--crit);border-color:var(--crit)}
   .cmt-listpanel{position:fixed;right:20px;bottom:82px;z-index:1600;width:min(360px,92vw);max-height:70vh;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 16px 48px rgba(0,0,0,.3);padding:14px;display:flex;flex-direction:column;gap:8px}
   .wins{border:1px solid color-mix(in srgb,var(--flow) 28%,var(--border));border-radius:14px;background:color-mix(in srgb,var(--flow) 5%,var(--surface));padding:16px 18px;margin-bottom:24px}
-  .wins-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .wins-h{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+  .wins-left{display:flex;flex-direction:column}
   .wins-t{font-size:16px;font-weight:800;letter-spacing:.02em;color:var(--ink)}
   .wins-tot{font-size:14px;font-weight:800;color:var(--flow)}
-  .wins-sub{font-size:12px;color:var(--muted);margin:2px 0 12px}
+  .wins-sub{font-size:12px;color:var(--muted);margin-top:3px}
   .wins-totw{display:flex;flex-direction:column;align-items:flex-end;text-align:right}
   .wins-note{font-size:12px;color:var(--muted);font-weight:500;margin-top:3px;white-space:nowrap}
   @media(max-width:640px){.wins-totw{align-items:flex-start;text-align:left}.wins-note{white-space:normal}}
@@ -1088,10 +1089,12 @@ function auditWins(host,wins){
   const mx=Math.max(...arr.map(w=>w.dollars||0),1);
   const total=arr.reduce((a,w)=>a+(w.dollars||0),0);
   const wrap=document.createElement('div');wrap.className='wins';wrap.id='wins-board';
-  wrap.innerHTML='<div class="wins-h"><span class="wins-t">Top wins</span>'
+  wrap.innerHTML='<div class="wins-h">'
+    +'<span class="wins-left"><span class="wins-t">Top wins</span>'
+      +'<span class="wins-sub">Ranked by estimated annual impact. Tap a win to expand.</span></span>'
     +(total?'<span class="wins-totw"><span class="wins-tot">≈ '+kfmt(total)+'/yr identified upside</span>'
-      +'<span class="wins-note">Real and achievable, but earned over time, not overnight.</span></span>':'')+'</div>'
-    +'<div class="wins-sub">Ranked by estimated annual impact. Tap a win to expand.</div>'
+      +'<span class="wins-note">Real and achievable, but earned over time, not overnight.</span></span>':'')
+    +'</div>'
     +arr.map((w,i)=>{const pct=Math.max(5,(w.dollars||0)/mx*100);
       return '<div class="win">'
         +'<button class="win-head" type="button">'
