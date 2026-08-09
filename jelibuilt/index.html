@@ -151,6 +151,8 @@
   .cta-btn:hover{filter:brightness(1.08);transform:translateY(-2px);box-shadow:0 10px 24px color-mix(in srgb,var(--flow) 32%,transparent)}
   .cta-arw{display:inline-block;transition:transform .18s ease}
   .cta-btn:hover .cta-arw{transform:translateX(4px)}
+  .cta-meet{background:var(--good);color:#fff;border-color:var(--good)}
+  .cta-meet:hover{filter:brightness(1.08);box-shadow:0 10px 24px color-mix(in srgb,var(--good) 34%,transparent)}
   .cta-btn2{background:transparent;color:var(--flow)}
   .cta-btn2:hover{background:color-mix(in srgb,var(--flow) 10%,transparent);filter:none;transform:translateY(-2px);box-shadow:0 8px 20px color-mix(in srgb,var(--flow) 18%,transparent)}
   @keyframes ctaBreathe{0%,100%{box-shadow:0 4px 14px color-mix(in srgb,var(--flow) 20%,transparent)}50%{box-shadow:0 7px 24px color-mix(in srgb,var(--flow) 44%,transparent)}}
@@ -1523,11 +1525,13 @@ function auditCta(host,spec){
   const wrap=document.createElement('div');wrap.className='cta';
   const arw='<span class="cta-arw">→</span>';
   var btns='';
+  const meet=spec.url3?'<a class="cta-btn cta-meet" href="'+spec.url3+'" target="_blank" rel="noopener">'+(spec.label3||'Book a Meeting')+' '+arw+'</a>':'';
   if(spec.url2){
     btns+='<a class="cta-btn cta-go" href="'+spec.url2+'" target="_blank" rel="noopener">'+(spec.label2||'Get started')+' '+arw+'</a>';
+    btns+=meet;
     btns+='<a class="cta-btn cta-btn2" href="'+(spec.url||'https://zee.media/#pricing')+'" target="_blank" rel="noopener">'+(spec.label||'Check out our prices')+' '+arw+'</a>';
   } else {
-    btns+='<a class="cta-btn cta-go" href="'+(spec.url||'https://zee.media/#pricing')+'" target="_blank" rel="noopener">'+(spec.label||'Check out our prices')+' '+arw+'</a>';
+    btns+='<a class="cta-btn cta-go" href="'+(spec.url||'https://zee.media/#pricing')+'" target="_blank" rel="noopener">'+(spec.label||'Check out our prices')+' '+arw+'</a>'+meet;
   }
   wrap.innerHTML='<div class="cta-lead">Typical client <b>'+(spec.range||'$3M–$20M')+'</b> in revenue <span>(average '+(spec.avg||'$5M–$8M')+')</span></div>'
     +'<div class="cta-sub">Smaller budget? We build a package to fit: a baseline of what we typically do, scaled to where you are. Pricing is public, no call required to see it.</div>'
