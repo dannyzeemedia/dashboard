@@ -1538,7 +1538,7 @@ function auditTesting(host,spec){
   const wrap=document.createElement('div');wrap.className='tst';
   wrap.innerHTML=
     '<div class="tst-col them"><div class="tst-h">This account</div>'
-      +'<div class="tst-big">0</div><div class="tst-sub">A/B tests or experiments, ever</div></div>'
+      +'<div class="tst-big">'+(spec.themBig||'0')+'</div><div class="tst-sub">'+(spec.themSub||'A/B tests or experiments, ever')+'</div></div>'
     +'<div class="tst-col us"><div class="tst-h">Zee.Media testing engine</div><ul class="tst-list">'
       +'<li><b>'+(spec.newMsgs||3)+'</b> new messages per week</li>'
       +'<li><b>'+tpw+'</b> tests per week — '+(spec.subjectTests||3)+' subject-line &amp; preview, '+(spec.designTests||3)+' full design overhauls</li>'
