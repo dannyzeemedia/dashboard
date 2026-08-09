@@ -50,7 +50,7 @@
   .lform::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--flow),var(--camp))}
   .lbrand{display:flex;align-items:center;gap:11px;margin-top:2px}
   .lwordmark{font-weight:800;letter-spacing:-.01em;font-size:23px;color:var(--flow);line-height:1}
-  .lwordmark .dot{color:var(--camp);padding:0 .03em}
+  .lwordmark .dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--camp);margin:0 3px;vertical-align:baseline}
   .leyebrow{text-transform:uppercase;letter-spacing:.2em;font-size:10.5px;font-weight:800;color:var(--camp);margin-top:-6px}
   .lsub{color:var(--muted);font-size:13px;margin-top:-6px}
   .lfoot{margin-top:4px;padding-top:16px;border-top:1px solid var(--border);text-align:center;
@@ -495,7 +495,7 @@
 
 <div id="login">
   <form class="lform" id="lform">
-    <div class="lbrand"><span class="mark">Z</span><span class="lwordmark">Zee<span class="dot">.</span>Media</span></div>
+    <div class="lbrand"><span class="mark">Z</span><span class="lwordmark">Zee<span class="dot"></span>Media</span></div>
     <div class="leyebrow">Client Reporting</div>
     <div class="lsub">Sign in to view your performance dashboard.</div>
     <label>Email<input type="email" id="lemail" autocomplete="email" required></label>
