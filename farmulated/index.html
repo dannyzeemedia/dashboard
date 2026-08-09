@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Client Reporting</title>
+<title>Zee.Media — Client Reporting</title>
 <style>
   :root{
     color-scheme: light;
@@ -40,13 +40,21 @@
   .tnum{font-variant-numeric:tabular-nums}
 
   /* login */
-  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+    background:radial-gradient(1100px 560px at 50% -12%,color-mix(in srgb,var(--flow) 9%,transparent),transparent 62%),var(--plane)}
   #login[hidden]{display:none}
   [hidden]{display:none!important}
-  .lform{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:34px 32px;
-    width:370px;max-width:100%;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px}
-  .lbrand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.01em;font-size:18px}
-  .lsub{color:var(--muted);font-size:13px;margin-top:-8px}
+  .lform{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:38px 32px 26px;
+    width:376px;max-width:100%;box-shadow:0 24px 60px -24px color-mix(in srgb,var(--flow) 40%,transparent),var(--shadow);
+    display:flex;flex-direction:column;gap:14px;overflow:hidden}
+  .lform::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--flow),var(--camp))}
+  .lbrand{display:flex;align-items:center;gap:11px;margin-top:2px}
+  .lwordmark{font-weight:800;letter-spacing:-.025em;font-size:23px;color:var(--flow);line-height:1}
+  .lwordmark .dot{color:var(--camp)}
+  .leyebrow{text-transform:uppercase;letter-spacing:.2em;font-size:10.5px;font-weight:800;color:var(--camp);margin-top:-6px}
+  .lsub{color:var(--muted);font-size:13px;margin-top:-6px}
+  .lfoot{margin-top:4px;padding-top:16px;border-top:1px solid var(--border);text-align:center;
+    color:var(--muted);font-size:12px;letter-spacing:.01em}
   .lform label{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:700;
     text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
   .lform input{font:inherit;font-size:15px;padding:11px 12px;border:1px solid var(--border);
@@ -54,10 +62,12 @@
   .lform input:focus{outline:2px solid var(--flow);border-color:var(--flow)}
   .lform button{margin-top:4px;font:inherit;font-weight:700;font-size:15px;color:#fff;background:var(--flow);
     border:0;border-radius:9px;padding:12px;cursor:pointer}
+  .lform button:hover:not(:disabled){filter:brightness(1.09)}
   .lform button:disabled{opacity:.6}
   .lerr{color:var(--crit);font-size:13px}
   .mark{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--flow),var(--camp));
     display:grid;place-items:center;color:#fff;font-size:14px;font-weight:800}
+  .lbrand .mark{width:34px;height:34px;border-radius:9px;font-size:17px;box-shadow:0 4px 12px -3px color-mix(in srgb,var(--flow) 55%,transparent)}
   .clogo{width:auto;display:block;max-width:240px}
   .brandlogo{height:26px}
   .p-logo{height:38px}
@@ -485,12 +495,14 @@
 
 <div id="login">
   <form class="lform" id="lform">
-    <div class="lbrand"><span class="mark">Z</span>Client Reporting</div>
+    <div class="lbrand"><span class="mark">Z</span><span class="lwordmark">Zee<span class="dot">.</span>Media</span></div>
+    <div class="leyebrow">Client Reporting</div>
     <div class="lsub">Sign in to view your performance dashboard.</div>
     <label>Email<input type="email" id="lemail" autocomplete="email" required></label>
     <label>Password<input type="password" id="lpass" autocomplete="current-password" required></label>
     <div class="lerr" id="lerr" hidden></div>
     <button type="submit" id="lbtn">Sign in</button>
+    <div class="lfoot">Klaviyo email that makes the math work.</div>
   </form>
 </div>
 
