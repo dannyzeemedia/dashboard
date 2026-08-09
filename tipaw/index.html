@@ -259,7 +259,7 @@
   .view-h h2{font-size:23px;letter-spacing:-.02em}
   .view-sub{color:var(--ink2);font-size:14.5px;max-width:70ch;margin-top:4px}
   #audit-sub{max-width:none}
-  .vidbtn{background:var(--flow);color:var(--surface);border:none;font-weight:800;font-size:12.5px;letter-spacing:.05em;padding:10px 18px;border-radius:9px;cursor:pointer;white-space:nowrap}
+  .vidbtn{background:var(--flow);color:var(--surface);border:none;font-weight:700;font-size:12px;padding:8px 14px;border-radius:8px;cursor:pointer;white-space:nowrap}
   .vidbtn:hover{filter:brightness(1.08)}
   .vidmodal{position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px}
   .vidmodal[hidden]{display:none}
@@ -503,6 +503,7 @@
       <button role="tab" aria-selected="true" data-view="dash">Dashboard</button>
       <button role="tab" aria-selected="false" data-view="audit">Audit</button>
     </div>
+    <button class="vidbtn" id="vidBtn" type="button" style="display:none">▶ Video walk-thru</button>
     <button class="themeBtn" id="themeBtn">◑ Theme</button>
     <button class="outBtn" id="outBtn">Log out</button>
   </div></header>
@@ -570,8 +571,7 @@
 
   <section class="view wrap" id="view-audit" hidden>
     <div class="eyebrow" id="audit-eyebrow">Account audit</div>
-    <div class="view-h" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><h2 id="audit-title">Account audit</h2>
-      <button class="vidbtn" id="vidBtn" type="button">▶ VIDEO WALK-THRU</button></div>
+    <div class="view-h"><h2 id="audit-title">Account audit</h2></div>
     <p class="view-sub" id="audit-sub"></p>
     <div id="audit-body"></div>
   </section>
@@ -713,6 +713,7 @@ function switchTo(slug){ACTIVE=slug;REPORT=REPORTS[slug]||null;
   const seg=document.getElementById('viewSeg');
   const A=SERIES[slug]&&SERIES[slug].audit;
   seg.hidden=!A;
+  {const vb=document.getElementById('vidBtn');if(vb){const vu=(A&&A.video_url)||'';vb.dataset.embed=vu;vb.style.display=vu?'':'none';}}
   const startAudit=!!(A&&A.default);   // some clients (e.g. an audit prospect) open on the Audit view
   [...seg.children].forEach(x=>x.setAttribute('aria-selected',x.dataset.view===(startAudit?'audit':'dash')));
   document.getElementById('view-dash').hidden=startAudit;
