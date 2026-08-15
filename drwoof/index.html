@@ -2056,6 +2056,8 @@ async function loadAndRender(){ try{
   const multiAcct=[...new Set(ORDER.map(s=>SERIES[s].group||s))].length>1;
   if(multiAcct){const def=getDefaultClient();if(def&&ORDER.includes(def))start=def;}   // owner's chosen default wins
   switchTo(start);
+  try{const vp=new URLSearchParams(location.search).get('v');   // deep-link to a view: ?v=board|audit|dash
+    if(vp){const btn=[...document.querySelectorAll('#viewSeg button')].find(b=>b.dataset.view===vp&&!b.hidden);if(btn)btn.click();}}catch(e){}
   }catch(e){document.getElementById('app').innerHTML='<div class="wrap" style="padding:60px 24px;color:var(--crit)">Dashboard failed to render: '+((e&&e.message)||e)+'</div>';console.error(e);}
 }
 async function showWrongAccount(folder){
