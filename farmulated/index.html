@@ -525,6 +525,8 @@
   .sms-ext-d{font-size:13px;color:var(--muted);margin:8px 0 16px;line-height:1.55}
   .sms-ext-btn{display:inline-flex;align-items:center;gap:6px;background:var(--flow);color:var(--surface);font-weight:700;font-size:13px;padding:9px 16px;border-radius:9px;text-decoration:none}
   .sms-ext-btn:hover{filter:brightness(1.08)}
+  .dsection.open .asec-inner{overflow:visible}
+  .dsection .grid{margin-top:6px}
 
   @media print{ header.top,.toolbar,.banner,.note,#view-dash,#view-audit,.eyebrow,.view-h,.view-sub,.totop,.cmt-fab{display:none!important}
     body{background:#fff}.paper{box-shadow:none;border:0;border-radius:0;width:auto;padding:0}
@@ -586,42 +588,77 @@
       <span class="frange" id="rangeText"></span>
     </div>
     <div class="ipnote" id="ipnote" hidden></div>
-    <div class="tiles" id="tiles"></div>
-    <div class="grid">
-      <div class="card wide" id="c-rev"><h3 id="crev-title">Attributed revenue — flow vs campaign</h3>
-        <div class="mtwrap">
-          <button class="miniToggle" id="revChanTog" aria-pressed="false" title="Break out by channel (email vs SMS)"><span class="dot"></span>Email vs SMS</button>
-          <button class="miniToggle" id="revGroupTog" aria-pressed="false" title="Side-by-side bars"><span class="dot"></span>Side by side</button>
-        </div>
-        <div class="cap">Monthly. Stacked = total; split shows the mix.</div>
-        <div class="legend" id="crev-legend"><span><i style="background:var(--flow)"></i>Flow</span><span><i style="background:var(--camp)"></i>Campaign</span></div></div>
-      <div class="card" id="c-rpr"><h3>RPR by flow</h3>
-        <div class="cap" id="rpr-cap"></div>
-        <div class="rprhead"><span>Flow · RPR</span><span>vs compare</span></div><div id="rpr-list"></div></div>
-      <div class="card" id="c-por"><h3>Placed order rate by flow</h3>
-        <div class="cap" id="por-cap"></div>
-        <div class="rprhead"><span>Flow · POR</span><span>vs compare</span></div><div id="por-list"></div></div>
-      <div class="card wide" id="c-tests"><h3>Testing program — win rate &amp; volume</h3>
-        <div class="cap">A/B tests concluded each month and the share that beat control. Wins bank permanently, so the program compounds at any strike rate.</div></div>
-      <div class="card" id="c-total"><h3>Total attributed revenue</h3>
-        <div class="cap">With 3-month rolling average.</div>
-        <div class="legend"><span><i style="background:var(--flow)"></i>Monthly</span><span><i style="background:var(--camp)"></i>3-mo avg</span></div></div>
-      <div class="card" id="c-subs"><h3>New subscribers / month</h3>
-        <div class="chartseg" id="subsChanSeg" hidden><button class="csg on" data-ch="email">Email</button><button class="csg" data-ch="sms">SMS</button><button class="csg" data-ch="combined">Combined</button></div>
-        <div class="cap" id="subs-cap">Unique “Subscribed to List” profiles.</div>
-        <div class="legend"><span><i style="background:var(--flow)"></i>New subs</span><span><i style="background:var(--camp)"></i>3-mo avg</span></div></div>
-      <div class="card wide" id="c-camp"><h3>Campaign volume — sends &amp; recipients</h3>
-        <button class="miniToggle" id="campRevTog" aria-pressed="false" title="Overlay campaign revenue"><span class="dot"></span>Revenue overlay</button>
-        <div class="cap">Send count and total recipients side by side — volume context for the campaign-revenue line above.</div></div>
-      <div class="card wide" id="c-sms"><h3>SMS program — revenue &amp; volume</h3>
-        <div class="cap" id="sms-cap">Klaviyo-attributed SMS revenue and SMS messages delivered per month. SMS runs in flows today (no SMS campaigns yet).</div>
-        <div class="legend"><span><i style="background:var(--camp)"></i>SMS attributed revenue</span><span><i style="background:var(--flow)"></i>SMS delivered</span></div></div>
-      <div class="card" id="c-health"><h3>List health</h3>
-        <div class="cap">Unsub &amp; spam rate (% of delivered).</div>
-        <div class="legend"><span><i style="background:var(--flow)"></i>Unsub %</span><span><i style="background:var(--camp)"></i>Spam %</span></div></div>
-      <div class="card" id="c-mix"><h3>Revenue mix — flow vs campaign</h3>
-        <div class="cap">Share of attributed revenue, % per month.</div>
-        <div class="legend"><span><i style="background:var(--flow)"></i>Flow %</span><span><i style="background:var(--camp)"></i>Campaign %</span></div></div>
+    <div id="dash-sections">
+      <div class="asection dsection open">
+        <button class="asec-head" type="button"><span class="asec-chev">▸</span><span class="asec-name">Overall</span></button>
+        <div class="asec-body"><div class="asec-inner">
+          <div class="tiles" id="tiles"></div>
+          <div class="grid">
+            <div class="card wide" id="c-rev"><h3 id="crev-title">Attributed revenue — flow vs campaign</h3>
+              <div class="mtwrap">
+                <button class="miniToggle" id="revChanTog" aria-pressed="false" title="Break out by channel (email vs SMS)"><span class="dot"></span>Email vs SMS</button>
+                <button class="miniToggle" id="revGroupTog" aria-pressed="false" title="Side-by-side bars"><span class="dot"></span>Side by side</button>
+              </div>
+              <div class="cap">Monthly. Stacked = total; split shows the mix.</div>
+              <div class="legend" id="crev-legend"><span><i style="background:var(--flow)"></i>Flow</span><span><i style="background:var(--camp)"></i>Campaign</span></div></div>
+            <div class="card" id="c-total"><h3>Total attributed revenue</h3>
+              <div class="cap">With 3-month rolling average.</div>
+              <div class="legend"><span><i style="background:var(--flow)"></i>Monthly</span><span><i style="background:var(--camp)"></i>3-mo avg</span></div></div>
+            <div class="card" id="c-mix"><h3>Revenue mix — flow vs campaign</h3>
+              <div class="cap">Share of attributed revenue, % per month.</div>
+              <div class="legend"><span><i style="background:var(--flow)"></i>Flow %</span><span><i style="background:var(--camp)"></i>Campaign %</span></div></div>
+          </div>
+        </div></div>
+      </div>
+      <div class="asection dsection open">
+        <button class="asec-head" type="button"><span class="asec-chev">▸</span><span class="asec-name">Campaigns</span></button>
+        <div class="asec-body"><div class="asec-inner">
+          <div class="grid">
+            <div class="card wide" id="c-camp"><h3>Campaign volume — sends &amp; recipients</h3>
+              <button class="miniToggle" id="campRevTog" aria-pressed="false" title="Overlay campaign revenue"><span class="dot"></span>Revenue overlay</button>
+              <div class="cap">Send count and total recipients side by side — volume context for the campaign-revenue line above.</div></div>
+          </div>
+        </div></div>
+      </div>
+      <div class="asection dsection open">
+        <button class="asec-head" type="button"><span class="asec-chev">▸</span><span class="asec-name">Flows</span></button>
+        <div class="asec-body"><div class="asec-inner">
+          <div class="grid">
+            <div class="card" id="c-rpr"><h3>RPR by flow</h3>
+              <div class="cap" id="rpr-cap"></div>
+              <div class="rprhead"><span>Flow · RPR</span><span>vs compare</span></div><div id="rpr-list"></div></div>
+            <div class="card" id="c-por"><h3>Placed order rate by flow</h3>
+              <div class="cap" id="por-cap"></div>
+              <div class="rprhead"><span>Flow · POR</span><span>vs compare</span></div><div id="por-list"></div></div>
+            <div class="card wide" id="c-sms"><h3>SMS program — revenue &amp; volume</h3>
+              <div class="cap" id="sms-cap">Klaviyo-attributed SMS revenue and SMS messages delivered per month. SMS runs in flows today (no SMS campaigns yet).</div>
+              <div class="legend"><span><i style="background:var(--camp)"></i>SMS attributed revenue</span><span><i style="background:var(--flow)"></i>SMS delivered</span></div></div>
+          </div>
+        </div></div>
+      </div>
+      <div class="asection dsection open">
+        <button class="asec-head" type="button"><span class="asec-chev">▸</span><span class="asec-name">List Growth</span></button>
+        <div class="asec-body"><div class="asec-inner">
+          <div class="grid">
+            <div class="card" id="c-subs"><h3>New subscribers / month</h3>
+              <div class="chartseg" id="subsChanSeg" hidden><button class="csg on" data-ch="email">Email</button><button class="csg" data-ch="sms">SMS</button><button class="csg" data-ch="combined">Combined</button></div>
+              <div class="cap" id="subs-cap">Unique “Subscribed to List” profiles.</div>
+              <div class="legend"><span><i style="background:var(--flow)"></i>New subs</span><span><i style="background:var(--camp)"></i>3-mo avg</span></div></div>
+            <div class="card" id="c-health"><h3>List health</h3>
+              <div class="cap">Unsub &amp; spam rate (% of delivered).</div>
+              <div class="legend"><span><i style="background:var(--flow)"></i>Unsub %</span><span><i style="background:var(--camp)"></i>Spam %</span></div></div>
+          </div>
+        </div></div>
+      </div>
+      <div class="asection dsection open">
+        <button class="asec-head" type="button"><span class="asec-chev">▸</span><span class="asec-name">Testing</span></button>
+        <div class="asec-body"><div class="asec-inner">
+          <div class="grid">
+            <div class="card wide" id="c-tests"><h3>Testing program — win rate &amp; volume</h3>
+              <div class="cap">A/B tests concluded each month and the share that beat control. Wins bank permanently, so the program compounds at any strike rate.</div></div>
+          </div>
+        </div></div>
+      </div>
     </div>
   </section>
 
@@ -2004,6 +2041,7 @@ function toggleTheme(){const r=document.documentElement;
   r.setAttribute('data-theme',dark?'light':'dark');applyPalette();buildSwitcher();renderDash();}
 
 function wireControls(){
+  document.getElementById('view-dash').addEventListener('click',e=>{const h=e.target.closest('.asec-head');if(h)h.closest('.asection').classList.toggle('open');});   // collapsible dashboard sections
   document.getElementById('rangeChips').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
     [...e.currentTarget.children].forEach(x=>x.setAttribute('aria-selected',x===b));RANGE=+b.dataset.r;renderDash();});
   document.getElementById('cmpChips').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
