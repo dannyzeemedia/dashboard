@@ -721,13 +721,13 @@ function buildMenu(){const host=document.getElementById('cmenu');host.innerHTML=
   const btn=document.createElement('button');btn.className='hamb';btn.setAttribute('aria-label','Switch account');
   btn.innerHTML='<span></span><span></span><span></span>';
   const panel=document.createElement('div');panel.className='cmenu-panel';panel.hidden=true;
-  const byOwner={};ORDER.forEach(s=>{const o=SERIES[s].owner||SERIES[s].name;(byOwner[o]=byOwner[o]||[]).push(s);});
+  const byGrp={};ORDER.forEach(s=>{const g=SERIES[s].group||s;(byGrp[g]=byGrp[g]||[]).push(s);});   // group by account, not owner
   const def=getDefaultClient(),defName=(def&&SERIES[def])?SERIES[def].name:'this page';
   panel.innerHTML='<div class="cm-cap" id="cm-cap">Opens on refresh: <b>'+esc(defName)+'</b></div>'
-    +Object.entries(byOwner).map(([owner,slugs])=>
-    (slugs.length>1?'<div class="cm-owner">'+esc(owner)+'</div>':'')+slugs.map(s=>
+    +Object.entries(byGrp).map(([grp,slugs])=>{const lbl=SERIES[slugs[0]].group_name||SERIES[slugs[0]].owner||grp;
+    return (slugs.length>1?'<div class="cm-owner">'+esc(lbl)+'</div>':'')+slugs.map(s=>   // heading only for multi-store accounts
       '<div class="cm-row"><button class="cm-item'+(s===ACTIVE?' on':'')+'" data-slug="'+s+'">'+esc(SERIES[s].name)+'</button>'
-      +'<button class="cm-star'+(def===s?' on':'')+'" data-def="'+s+'" title="Open '+esc(SERIES[s].name)+' on refresh">'+(def===s?'★':'☆')+'</button></div>').join('')).join('');
+      +'<button class="cm-star'+(def===s?' on':'')+'" data-def="'+s+'" title="Open '+esc(SERIES[s].name)+' on refresh">'+(def===s?'★':'☆')+'</button></div>').join('');}).join('');
   btn.addEventListener('click',e=>{e.stopPropagation();panel.hidden=!panel.hidden;});
   panel.addEventListener('click',e=>{
     const star=e.target.closest('.cm-star');
