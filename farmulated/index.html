@@ -519,6 +519,12 @@
   .pill.win{background:color-mix(in srgb,var(--good) 16%,transparent);color:var(--good)}
   .pill.flat{background:var(--surface-2);color:var(--muted)}
   .p-caption{font-size:12px;color:var(--muted);margin-top:8px}
+  .sms-ext{display:flex;align-items:center;justify-content:center;min-height:170px;text-align:center}
+  .sms-ext-in{max-width:440px}
+  .sms-ext-t{font-size:16px;font-weight:800;letter-spacing:-.01em}
+  .sms-ext-d{font-size:13px;color:var(--muted);margin:8px 0 16px;line-height:1.55}
+  .sms-ext-btn{display:inline-flex;align-items:center;gap:6px;background:var(--flow);color:var(--surface);font-weight:700;font-size:13px;padding:9px 16px;border-radius:9px;text-decoration:none}
+  .sms-ext-btn:hover{filter:brightness(1.08)}
 
   @media print{ header.top,.toolbar,.banner,.note,#view-dash,#view-audit,.eyebrow,.view-h,.view-sub,.totop,.cmt-fab{display:none!important}
     body{background:#fff}.paper{box-shadow:none;border:0;border-radius:0;width:auto;padding:0}
@@ -719,7 +725,7 @@ function buildMenu(){const host=document.getElementById('cmenu');host.innerHTML=
   const def=getDefaultClient(),defName=(def&&SERIES[def])?SERIES[def].name:'this page';
   panel.innerHTML='<div class="cm-cap" id="cm-cap">Opens on refresh: <b>'+esc(defName)+'</b></div>'
     +Object.entries(byOwner).map(([owner,slugs])=>
-    '<div class="cm-owner">'+esc(owner)+'</div>'+slugs.map(s=>
+    (slugs.length>1?'<div class="cm-owner">'+esc(owner)+'</div>':'')+slugs.map(s=>
       '<div class="cm-row"><button class="cm-item'+(s===ACTIVE?' on':'')+'" data-slug="'+s+'">'+esc(SERIES[s].name)+'</button>'
       +'<button class="cm-star'+(def===s?' on':'')+'" data-def="'+s+'" title="Open '+esc(SERIES[s].name)+' on refresh">'+(def===s?'★':'☆')+'</button></div>').join('')).join('');
   btn.addEventListener('click',e=>{e.stopPropagation();panel.hidden=!panel.hidden;});
@@ -1961,6 +1967,16 @@ function renderCamp(){const{cur}=windows();const cc=document.getElementById('c-c
   miniCols(bc,cur,crecip,'var(--flow)',nfmt,'Recipients',area,ipRec);}
 
 function renderSms(){const{cur}=windows();const cc=document.getElementById('c-sms');let sm=cc.querySelector('.sm');if(sm)sm.remove();
+  const _plat=(SERIES[ACTIVE]||{}).sms_platform, _lg=cc.querySelector('.legend');
+  if(_lg)_lg.style.display=_plat?'none':'';
+  if(_plat){const M={attentive:{name:'Attentive',url:'https://ui.attentivemobile.com'},postscript:{name:'Postscript',url:'https://app.postscript.io'}}[_plat]||{name:_plat,url:'#'};
+    sm=document.createElement('div');sm.className='sm sms-ext';
+    sm.innerHTML='<div class="sms-ext-in"><div class="sms-ext-t">SMS runs through '+esc(M.name)+'</div>'
+      +'<div class="sms-ext-d">We don’t pull '+esc(M.name)+' data via API yet, so SMS performance lives in the '+esc(M.name)+' dashboard.</div>'
+      +'<a class="sms-ext-btn" href="'+M.url+'" target="_blank" rel="noopener">Find in '+esc(M.name)+' →</a></div>';
+    cc.appendChild(sm);
+    document.getElementById('sms-cap').textContent='SMS is managed in '+M.name+' for this client (no API feed yet).';
+    return;}
   sm=document.createElement('div');sm.className='sm';
   const a=document.createElement('div');a.innerHTML='<div class="lab">SMS attributed revenue / month</div>';const ac=document.createElement('div');a.appendChild(ac);
   const b=document.createElement('div');b.innerHTML='<div class="lab">SMS delivered / month</div>';const bc=document.createElement('div');b.appendChild(bc);
