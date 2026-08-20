@@ -526,6 +526,8 @@
   .sms-ext-btn{display:inline-flex;align-items:center;gap:6px;background:var(--flow);color:var(--surface);font-weight:700;font-size:13px;padding:9px 16px;border-radius:9px;text-decoration:none}
   .sms-ext-btn:hover{filter:brightness(1.08)}
   .dsection.open .asec-inner{overflow:visible}
+  .helpi{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:1px solid var(--border);color:var(--muted);font-size:10px;font-weight:700;font-style:normal;cursor:help;vertical-align:2px}
+  .helpi:hover,.helpi:focus{color:var(--ink);border-color:var(--muted);outline:none}
   .dsection .grid{margin-top:6px}
 
   @media print{ header.top,.toolbar,.banner,.note,#view-dash,#view-audit,.eyebrow,.view-h,.view-sub,.totop,.cmt-fab{display:none!important}
@@ -640,12 +642,13 @@
         <button class="asec-head" type="button"><span class="asec-chev">▸</span><span class="asec-name">List Growth</span></button>
         <div class="asec-body"><div class="asec-inner">
           <div class="grid">
-            <div class="card" id="c-subs"><h3>New subscribers / month</h3>
+            <div class="card" id="c-subs"><h3>New subscribers / month <span class="helpi" tabindex="0" title="New subscribers = unique “Subscribed to List” profiles per month (email), from Klaviyo.&#10;&#10;Net (after unsubs) subtracts marketing opt-outs attributed to flow + campaign sends.&#10;&#10;It does NOT include manual suppressions, list cleans, bounces/spam suppressions, or profile deletions — so true list attrition may be higher.">i</span></h3>
               <div class="chartseg" id="subsChanSeg" hidden><button class="csg on" data-ch="email">Email</button><button class="csg" data-ch="sms">SMS</button><button class="csg" data-ch="combined">Combined</button></div>
               <button class="miniToggle" id="subsNetTog" aria-pressed="false" style="display:none" title="Subtract email unsubscribes to show net list growth"><span class="dot"></span>Net (after unsubs)</button>
               <div class="cap" id="subs-cap">Unique “Subscribed to List” profiles.</div>
               <div class="legend"><span><i style="background:var(--flow)"></i>New subs</span><span><i style="background:var(--camp)"></i>3-mo avg</span></div></div>
             <div class="card" id="c-health"><h3>List health</h3>
+              <div class="chartseg" id="healthSeg"><button class="csg on" data-h="both">Both</button><button class="csg" data-h="unsub">Unsub</button><button class="csg" data-h="spam">Spam</button></div>
               <div class="cap">Unsub &amp; spam rate (% of delivered).</div>
               <div class="legend"><span><i style="background:var(--flow)"></i>Unsub %</span><span><i style="background:var(--camp)"></i>Spam %</span></div></div>
           </div>
@@ -717,6 +720,7 @@ let BM=[],Bflow=[],Bcamp=[],Bsubs=[],Bcsends=[],Bcrecip=[],Bunsub=[],Bspam=[],BF
 let Bremail=[],Brsms=[],Bsmsd=[],Bsubs_sms=[];
 let subsChannel='email';   // New-subscribers channel: 'email' (Subscribed to List), 'sms', or 'combined' (email+sms)
 let subsNet=false;         // New-subscribers "Net (after unsubscribes)" toggle
+let healthMode='both';     // List health: 'both' | 'unsub' | 'spam'
 let CUR=null, IP=null;
 
 function hydrate(series){
@@ -1978,7 +1982,9 @@ function renderDash(){clearDash();const{cur}=windows();renderTiles();renderRpr()
   stackedCols('c-rev',cur);
   lineChart('c-total',cur,[{name:'Monthly',color:'var(--flow)',data:total},{name:'3-mo avg',color:'var(--camp)',data:roll3,dash:true}],kfmt,{ip:ipT});
   lineChart('c-subs',cur,[{name:(subsNet?'Net subs':'New subs'),color:'var(--flow)',data:subs},{name:'3-mo avg',color:'var(--camp)',data:subsR3,dash:true}],nfmt,{ip:ipS});
-  lineChart('c-health',cur,[{name:'Unsub %',color:'var(--flow)',data:unsub},{name:'Spam %',color:'var(--camp)',data:spam}],v=>v.toFixed(2)+'%',{ip:ipR});
+  {const lg=document.querySelectorAll('#c-health .legend span');if(lg[0])lg[0].style.display=healthMode==='spam'?'none':'';if(lg[1])lg[1].style.display=healthMode==='unsub'?'none':'';}
+  const hser=[];if(healthMode!=='spam')hser.push({name:'Unsub %',color:'var(--flow)',data:unsub});if(healthMode!=='unsub')hser.push({name:'Spam %',color:'var(--camp)',data:spam});
+  lineChart('c-health',cur,hser,v=>v.toFixed(2)+'%',{ip:ipR});
   lineChart('c-mix',cur,[{name:'Flow %',color:'var(--flow)',data:flowPct},{name:'Campaign %',color:'var(--camp)',data:campPct}],v=>v+'%',{yfmt:v=>v+'%',ip:ipR});
   renderCamp();
   renderSms();
@@ -2076,6 +2082,8 @@ function wireControls(){
     const cap=document.getElementById('subs-cap');
     if(cap)cap.textContent=subsNet?'Net list growth: new “Subscribed to List” minus email unsubscribes, per month.':'Unique “Subscribed to List” profiles.';
     applyMode();renderDash();});
+  document.getElementById('healthSeg').addEventListener('click',e=>{const b=e.target.closest('.csg');if(!b)return;healthMode=b.dataset.h;
+    document.querySelectorAll('#healthSeg .csg').forEach(x=>x.classList.toggle('on',x===b));renderDash();});
   (function(){
     const vm=document.getElementById('vidModal'),vif=document.getElementById('vidIframe');
     const open=()=>{const u=document.getElementById('vidBtn').dataset.embed||'';if(!u)return;vif.src=u;vm.hidden=false;};
