@@ -528,6 +528,7 @@
   .dsection.open .asec-inner{overflow:visible}
   .helpi{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:1px solid var(--border);color:var(--muted);font-size:10px;font-weight:700;font-style:normal;cursor:help;vertical-align:2px}
   .helpi:hover,.helpi:focus{color:var(--ink);border-color:var(--muted);outline:none}
+  .tsub{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:3px}
   .dsection .grid{margin-top:6px}
 
   @media print{ header.top,.toolbar,.banner,.note,#view-dash,#view-audit,.eyebrow,.view-h,.view-sub,.totop,.cmt-fab{display:none!important}
@@ -703,7 +704,7 @@ const sb=(window.supabase&&window.supabase.createClient)?window.supabase.createC
 
 // ---- data globals (filled from Supabase) ----
 let MONTHS=[],flow=[],camp=[],subs=[],csends=[],crecip=[],unsub=[],spam=[],FLOWDATA=[],MI={};
-let total=[],flowPct=[],campPct=[],roll3=[],SYM='$';
+let total=[],flowPct=[],campPct=[],roll3=[],SYM='$',store=[];
 let remail=[],rsms=[],smsDeliv=[];
 let campRev=false;
 let revGroup=false;
@@ -716,7 +717,7 @@ let SERIES={}, REPORTS={}, ORDER=[], ACTIVE='';
 let auditUnsubBlended=false;   // audit #3 unsub chart: false = flow vs campaign split, true = blended
 // base (complete-month) series + the in-progress block; applyMode() derives the
 // working arrays above from these depending on the "include current" toggle.
-let BM=[],Bflow=[],Bcamp=[],Bsubs=[],Bcsends=[],Bcrecip=[],Bunsub=[],Bspam=[],BFLOW=[],Btl=[],Btc=[],Btw=[],Bucount=[];
+let BM=[],Bflow=[],Bcamp=[],Bsubs=[],Bcsends=[],Bcrecip=[],Bunsub=[],Bspam=[],BFLOW=[],Btl=[],Btc=[],Btw=[],Bucount=[],Bstore=[];
 let Bremail=[],Brsms=[],Bsmsd=[],Bsubs_sms=[];
 let subsChannel='email';   // New-subscribers channel: 'email' (Subscribed to List), 'sms', or 'combined' (email+sms)
 let subsNet=false;         // New-subscribers "Net (after unsubscribes)" toggle
@@ -724,7 +725,7 @@ let healthMode='both';     // List health: 'both' | 'unsub' | 'spam'
 let CUR=null, IP=null;
 
 function hydrate(series){
-  BM=series.months; Bflow=series.flow; Bcamp=series.camp; Bsubs=series.subs; Bucount=series.unsub_count||[];
+  BM=series.months; Bflow=series.flow; Bcamp=series.camp; Bsubs=series.subs; Bucount=series.unsub_count||[]; Bstore=series.store||[];
   Bcsends=series.csends; Bcrecip=series.crecip; Bunsub=series.unsub; Bspam=series.spam;
   BFLOW=series.flows; SYM=series.currency_symbol||'$';
   Btl=series.tlaunched||[]; Btc=series.tconcluded||[]; Btw=series.twon||[];
@@ -836,7 +837,7 @@ function applyMode(){
   if(subsNet&&subsChannel==='email')subs=subs.map((v,i)=>Math.max(0,v-((i<Bucount.length)?(Bucount[i]||0):0)));   // net = new subs − email unsubscribes (current in-progress month stays gross)
   csends=cat(Bcsends,on&&CUR.mtd.csends);
   crecip=cat(Bcrecip,on&&CUR.mtd.crecip); unsub=cat(Bunsub,on&&CUR.mtd.unsub);
-  spam=cat(Bspam,on&&CUR.mtd.spam);
+  spam=cat(Bspam,on&&CUR.mtd.spam); store=cat(Bstore,on&&(CUR.mtd.store||0));
   remail=cat(Bremail,on&&CUR.mtd.remail); rsms=cat(Brsms,on&&CUR.mtd.rsms); smsDeliv=cat(Bsmsd,on&&CUR.mtd.sms_deliv);
   FLOWDATA=on?BFLOW.concat(CUR.mtd.flows):BFLOW.slice();
   const ct=on&&CUR.tests?CUR.tests:null;
@@ -882,8 +883,10 @@ function renderTiles(){
   let cmp; if(CMP==='yoy')cmp=[cur[0]-12,cur[1]-12];else cmp=[cur[0]-len,cur[0]-1];
   const valid=RANGE!==0&&cmp[0]>=0,cD=valid?cmp:null;
   const rprCur=flowRevTotal(cur)/(flowDelivTotal(cur)||1),rprCmp=cD?flowRevTotal(cD)/(flowDelivTotal(cD)||1):null;
+  const stC=sum(store,cur), atC=sum(total,cur);
   const rows=[
-    {l:`Total attributed · ${len}mo`,v:kfmt(sum(total,cur)),d:cD?delta(sum(total,cur),sum(total,cD)):null},
+    {l:`Total attributed · ${len}mo`,v:kfmt(atC),d:cD?delta(atC,sum(total,cD)):null,sub:(stC?Math.round(atC/stC*100)+'% of store revenue':null)},
+    {l:`Total store revenue · ${len}mo`,v:kfmt(stC),d:cD?delta(stC,sum(store,cD)):null},
     {l:`Flow revenue · ${len}mo`,v:kfmt(sum(flow,cur)),d:cD?delta(sum(flow,cur),sum(flow,cD)):null},
     {l:`Campaign revenue · ${len}mo`,v:kfmt(sum(camp,cur)),d:cD?delta(sum(camp,cur),sum(camp,cD)):null},
     {l:'Blended flow RPR',v:SYM+rprCur.toFixed(2),d:rprCmp?delta(rprCur,rprCmp):null},
@@ -894,7 +897,7 @@ function renderTiles(){
     if(t.d){let c=t.d.c;if(t.inv&&c==='up')c='down';else if(t.inv&&c==='down')c='up';
       dd=`<div class="delta ${c}">${t.d.t} vs ${CMP==='yoy'?'LY':'prev'}</div>`;}
     else dd=`<div class="delta flat">no prior period</div>`;
-    return `<div class="tile"><div class="lab">${t.l}</div><div class="val">${t.v}</div>${dd}</div>`;}).join('');
+    return `<div class="tile"><div class="lab">${t.l}</div><div class="val">${t.v}</div>${t.sub?'<div class="tsub">'+t.sub+'</div>':''}${dd}</div>`;}).join('');
   document.getElementById('rangeText').textContent=`${mlabel(MONTHS[cur[0]])} – ${mlabel(MONTHS[cur[1]])}`+
     (valid?`  ·  vs ${mlabel(MONTHS[cmp[0]])} – ${mlabel(MONTHS[cmp[1]])}`:'  ·  no comparison period');}
 
