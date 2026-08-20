@@ -642,6 +642,7 @@
           <div class="grid">
             <div class="card" id="c-subs"><h3>New subscribers / month</h3>
               <div class="chartseg" id="subsChanSeg" hidden><button class="csg on" data-ch="email">Email</button><button class="csg" data-ch="sms">SMS</button><button class="csg" data-ch="combined">Combined</button></div>
+              <button class="miniToggle" id="subsNetTog" aria-pressed="false" style="display:none" title="Subtract email unsubscribes to show net list growth"><span class="dot"></span>Net (after unsubs)</button>
               <div class="cap" id="subs-cap">Unique “Subscribed to List” profiles.</div>
               <div class="legend"><span><i style="background:var(--flow)"></i>New subs</span><span><i style="background:var(--camp)"></i>3-mo avg</span></div></div>
             <div class="card" id="c-health"><h3>List health</h3>
@@ -712,13 +713,14 @@ let SERIES={}, REPORTS={}, ORDER=[], ACTIVE='';
 let auditUnsubBlended=false;   // audit #3 unsub chart: false = flow vs campaign split, true = blended
 // base (complete-month) series + the in-progress block; applyMode() derives the
 // working arrays above from these depending on the "include current" toggle.
-let BM=[],Bflow=[],Bcamp=[],Bsubs=[],Bcsends=[],Bcrecip=[],Bunsub=[],Bspam=[],BFLOW=[],Btl=[],Btc=[],Btw=[];
+let BM=[],Bflow=[],Bcamp=[],Bsubs=[],Bcsends=[],Bcrecip=[],Bunsub=[],Bspam=[],BFLOW=[],Btl=[],Btc=[],Btw=[],Bucount=[];
 let Bremail=[],Brsms=[],Bsmsd=[],Bsubs_sms=[];
 let subsChannel='email';   // New-subscribers channel: 'email' (Subscribed to List), 'sms', or 'combined' (email+sms)
+let subsNet=false;         // New-subscribers "Net (after unsubscribes)" toggle
 let CUR=null, IP=null;
 
 function hydrate(series){
-  BM=series.months; Bflow=series.flow; Bcamp=series.camp; Bsubs=series.subs;
+  BM=series.months; Bflow=series.flow; Bcamp=series.camp; Bsubs=series.subs; Bucount=series.unsub_count||[];
   Bcsends=series.csends; Bcrecip=series.crecip; Bunsub=series.unsub; Bspam=series.spam;
   BFLOW=series.flows; SYM=series.currency_symbol||'$';
   Btl=series.tlaunched||[]; Btc=series.tconcluded||[]; Btw=series.twon||[];
@@ -729,6 +731,8 @@ function hydrate(series){
   const seg=document.getElementById('subsChanSeg');
   if(seg){const hasSms=Bsubs_sms.some(v=>v>0);seg.hidden=!hasSms;if(!hasSms)subsChannel='email';
     seg.querySelectorAll('.csg').forEach(b=>b.classList.toggle('on',b.dataset.ch===subsChannel));}
+  const netTog=document.getElementById('subsNetTog');   // net toggle only when we have unsubscribe counts
+  if(netTog){const hasU=Bucount.some(v=>v);netTog.style.display=hasU?'':'none';if(!hasU)subsNet=false;netTog.setAttribute('aria-pressed',subsNet);}
   applyMode();
   const ct=document.getElementById('curTog');ct.hidden=!(CUR&&CUR.mtd);ct.setAttribute('aria-pressed',inProgress);
   document.getElementById('dash-title').textContent=series.name+' — Lifecycle & Retention';
@@ -824,7 +828,9 @@ function applyMode(){
   flow=cat(Bflow,on&&CUR.mtd.flow); camp=cat(Bcamp,on&&CUR.mtd.camp);
   const bSubCh=subsChannel==='sms'?Bsubs_sms:subsChannel==='combined'?Bsubs.map((v,i)=>v+(Bsubs_sms[i]||0)):Bsubs;
   const mSubCh=on?(subsChannel==='sms'?(CUR.mtd.subs_sms||0):subsChannel==='combined'?((CUR.mtd.subs||0)+(CUR.mtd.subs_sms||0)):CUR.mtd.subs):0;
-  subs=cat(bSubCh,mSubCh); csends=cat(Bcsends,on&&CUR.mtd.csends);
+  subs=cat(bSubCh,mSubCh);
+  if(subsNet&&subsChannel==='email')subs=subs.map((v,i)=>Math.max(0,v-((i<Bucount.length)?(Bucount[i]||0):0)));   // net = new subs − email unsubscribes (current in-progress month stays gross)
+  csends=cat(Bcsends,on&&CUR.mtd.csends);
   crecip=cat(Bcrecip,on&&CUR.mtd.crecip); unsub=cat(Bunsub,on&&CUR.mtd.unsub);
   spam=cat(Bspam,on&&CUR.mtd.spam);
   remail=cat(Bremail,on&&CUR.mtd.remail); rsms=cat(Brsms,on&&CUR.mtd.rsms); smsDeliv=cat(Bsmsd,on&&CUR.mtd.sms_deliv);
@@ -1971,7 +1977,7 @@ function renderDash(){clearDash();const{cur}=windows();renderTiles();renderRpr()
   const ipR=IP?{idx:IP.idx,project:false,proj:[null,null]}:null;   // rates: mark point, don't project
   stackedCols('c-rev',cur);
   lineChart('c-total',cur,[{name:'Monthly',color:'var(--flow)',data:total},{name:'3-mo avg',color:'var(--camp)',data:roll3,dash:true}],kfmt,{ip:ipT});
-  lineChart('c-subs',cur,[{name:'New subs',color:'var(--flow)',data:subs},{name:'3-mo avg',color:'var(--camp)',data:subsR3,dash:true}],nfmt,{ip:ipS});
+  lineChart('c-subs',cur,[{name:(subsNet?'Net subs':'New subs'),color:'var(--flow)',data:subs},{name:'3-mo avg',color:'var(--camp)',data:subsR3,dash:true}],nfmt,{ip:ipS});
   lineChart('c-health',cur,[{name:'Unsub %',color:'var(--flow)',data:unsub},{name:'Spam %',color:'var(--camp)',data:spam}],v=>v.toFixed(2)+'%',{ip:ipR});
   lineChart('c-mix',cur,[{name:'Flow %',color:'var(--flow)',data:flowPct},{name:'Campaign %',color:'var(--camp)',data:campPct}],v=>v+'%',{yfmt:v=>v+'%',ip:ipR});
   renderCamp();
@@ -2065,6 +2071,10 @@ function wireControls(){
     document.querySelectorAll('#subsChanSeg .csg').forEach(x=>x.classList.toggle('on',x===b));
     const cap=document.getElementById('subs-cap');
     if(cap)cap.textContent=subsChannel==='sms'?'Unique “Subscribed to Text Messaging Marketing” profiles.':subsChannel==='combined'?'“Subscribed to List” (email) plus SMS marketing subscriptions.':'Unique “Subscribed to List” profiles.';
+    applyMode();renderDash();});
+  document.getElementById('subsNetTog').addEventListener('click',e=>{subsNet=!subsNet;e.currentTarget.setAttribute('aria-pressed',subsNet);
+    const cap=document.getElementById('subs-cap');
+    if(cap)cap.textContent=subsNet?'Net list growth: new “Subscribed to List” minus email unsubscribes, per month.':'Unique “Subscribed to List” profiles.';
     applyMode();renderDash();});
   (function(){
     const vm=document.getElementById('vidModal'),vif=document.getElementById('vidIframe');
