@@ -1232,11 +1232,9 @@ function renderReports(){
   });
   const back=document.getElementById('repBack');if(back)back.addEventListener('click',()=>{REPORT_OPEN=null;renderReports();window.scrollTo({top:0});});
 }
-const NSVG='http://www.w3.org/2000/svg';
-function svg(w,h){const s=document.createElementNS(NSVG,'svg');s.setAttribute('viewBox','0 0 '+w+' '+h);s.setAttribute('width','100%');s.style.display='block';s.style.maxWidth=w+'px';s.style.margin='0 auto';return s;}
-function el(t,a){const e=document.createElementNS(NSVG,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
 function repChart(host,name,data){
   if(!host||!data)return;host.style.position='relative';
+  const svg=(w,h)=>{const s=el('svg',{viewBox:'0 0 '+w+' '+h,width:'100%'});s.style.display='block';s.style.maxWidth=w+'px';s.style.margin='0 auto';return s;};
   const ON='var(--flow)',OFF='var(--camp)',ACC='var(--aqua)';
   if(name==='revenue'){
     const W=680,H=300,L=64,R=20,PT=24,PB=44,iw=W-L-R,ih=H-PT-PB;
