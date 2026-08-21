@@ -618,7 +618,6 @@
     <div class="seg" id="viewSeg" role="tablist" aria-label="View" hidden>
       <button role="tab" aria-selected="true" data-view="dash">Dashboard</button>
       <button role="tab" aria-selected="false" data-view="reports">Reports</button>
-      <button role="tab" aria-selected="false" data-view="audit">Audit</button>
     </div>
     <button class="vidbtn" id="vidBtn" type="button" style="display:none">▶ Video walk-thru</button>
     <button class="themeBtn" id="themeBtn">◑ Theme</button>
@@ -734,7 +733,8 @@
 
   <section class="view wrap" id="view-audit" hidden>
     <div class="eyebrow" id="audit-eyebrow">Account audit</div>
-    <div class="view-h"><h2 id="audit-title">Account audit</h2></div>
+    <div class="view-h" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><h2 id="audit-title">Account audit</h2>
+      <button class="btn ghost" id="auditBack">← All reports</button></div>
     <p class="view-sub" id="audit-sub"></p>
     <div id="audit-body"></div>
   </section>
@@ -875,23 +875,23 @@ function switchTo(slug){ACTIVE=slug;
   hydrate(SERIES[slug]);applyPalette();buildSwitcher();buildMenu();
   const seg=document.getElementById('viewSeg');
   const A=SERIES[slug]&&SERIES[slug].audit;
-  // Reports tab now houses BOTH the recurring monthly report and any one-off reports.
-  const hasReports=reps.length>0 || !!(SERIES[slug]&&(SERIES[slug].reports||[]).length);
-  seg.hidden=!(A||hasReports);
-  [...seg.children].forEach(x=>{const v=x.dataset.view;x.hidden=(v==='audit'&&!A)||(v==='reports'&&!hasReports);});
+  // Reports tab houses the recurring monthly report, any one-off reports, AND the account audit.
+  const hasReports=reps.length>0 || !!(SERIES[slug]&&(SERIES[slug].reports||[]).length) || !!A;
+  seg.hidden=!hasReports;
+  [...seg.children].forEach(x=>{const v=x.dataset.view;x.hidden=(v==='reports'&&!hasReports);});
   {const vb=document.getElementById('vidBtn');if(vb){const vu=(A&&A.video_url)||'';vb.dataset.embed=vu;vb.style.display=vu?'':'none';}}
   const msel=document.getElementById('boardMonth');
   if(msel){msel.innerHTML=reps.map((rr,i)=>'<option value="'+i+'">'+esc(rr.month_label||rr.month||'')+'</option>').join('');msel.value='0';}
-  const startAudit=!!(A&&A.default);   // some clients (e.g. an audit prospect) open on the Audit view
-  const startView=startAudit?'audit':'dash';
-  [...seg.children].forEach(x=>x.setAttribute('aria-selected',x.dataset.view===startView));
-  document.getElementById('view-dash').hidden=startView!=='dash';
-  document.getElementById('view-board').hidden=startView!=='board';
-  document.getElementById('view-reports').hidden=startView!=='reports';
-  document.getElementById('view-audit').hidden=startView!=='audit';
+  // Audit prospects open straight on their audit, which now lives inside Reports.
+  const startAudit=!!(A&&A.default);
+  [...seg.children].forEach(x=>x.setAttribute('aria-selected',x.dataset.view===(startAudit?'reports':'dash')));
+  document.getElementById('view-dash').hidden=startAudit;
+  document.getElementById('view-board').hidden=true;
+  document.getElementById('view-reports').hidden=true;   // shown by openAudit / tab click
+  document.getElementById('view-audit').hidden=!startAudit;
   REPORT_OPEN=null;
   renderDash();renderBoard();renderReports();
-  if(startAudit)renderAudit();
+  if(startAudit)renderAudit(); else document.getElementById('view-reports').hidden=true;
   if(IS_OWNER)updateFab();}
 
 // Build the working arrays from base + (optionally) the in-progress month.
@@ -1220,14 +1220,17 @@ function renderReports(){
         +card('Monthly report', ml?('Latest: '+ml):'', 'Rolling monthly performance report. Past months stay in the archive.', ' data-kind="monthly"')
         +'</div>';
     }
-    if(list.length){
-      html+='<div class="rep-group">One-Off</div><div class="rep-list">'
-        +list.map(r=>card(r.title, r.date_range, r.summary, ' data-kind="custom" data-id="'+esc(r.id)+'"')).join('')
-        +'</div>';
+    const aud=SERIES[ACTIVE]&&SERIES[ACTIVE].audit;   // account audit (lead/prospect deliverable)
+    const oneoff=[];
+    if(aud)oneoff.push(card(aud.title||'Account audit', aud.date_range||'', aud.summary||'One-off account audit of the email & SMS program.', ' data-kind="audit"'));
+    list.forEach(r=>oneoff.push(card(r.title, r.date_range, r.summary, ' data-kind="custom" data-id="'+esc(r.id)+'"')));
+    if(oneoff.length){
+      html+='<div class="rep-group">One-Off</div><div class="rep-list">'+oneoff.join('')+'</div>';
     }
     body.innerHTML=html||'<div style="padding:44px 4px;color:var(--muted)">No reports published yet.</div>';
     body.querySelectorAll('.rep-card').forEach(c=>c.addEventListener('click',()=>{
       if(c.dataset.kind==='monthly'){openMonthlyReport();}
+      else if(c.dataset.kind==='audit'){openAudit();}
       else{REPORT_OPEN=c.dataset.id;renderReports();window.scrollTo({top:0});}
     }));
     return;
@@ -1257,8 +1260,14 @@ function openMonthlyReport(){
   document.getElementById('view-board').hidden=false;
   renderBoard();window.scrollTo({top:0});
 }
+function openAudit(){
+  document.getElementById('view-reports').hidden=true;
+  document.getElementById('view-audit').hidden=false;
+  renderAudit();window.scrollTo({top:0});
+}
 function backToReports(){
   document.getElementById('view-board').hidden=true;
+  document.getElementById('view-audit').hidden=true;
   document.getElementById('view-reports').hidden=false;
   REPORT_OPEN=null;renderReports();window.scrollTo({top:0});
 }
@@ -2250,13 +2259,13 @@ function wireControls(){
   document.getElementById('revChanTog').addEventListener('click',e=>{revChannel=!revChannel;e.currentTarget.setAttribute('aria-pressed',revChannel);
     document.querySelectorAll('#c-rev svg,#c-rev .tip').forEach(n=>n.remove());stackedCols('c-rev',windows().cur);});
   {const bb=document.getElementById('boardBack');if(bb)bb.addEventListener('click',backToReports);}
+  {const ab=document.getElementById('auditBack');if(ab)ab.addEventListener('click',backToReports);}
   document.getElementById('viewSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
     [...e.currentTarget.children].forEach(x=>x.setAttribute('aria-selected',x===b));const v=b.dataset.view;
     document.getElementById('view-dash').hidden=v!=='dash';
-    document.getElementById('view-board').hidden=true;   // board is reached only from within Reports
+    document.getElementById('view-board').hidden=true;    // board + audit are reached only from within Reports
+    document.getElementById('view-audit').hidden=true;
     document.getElementById('view-reports').hidden=v!=='reports';
-    document.getElementById('view-audit').hidden=v!=='audit';
-    if(v==='audit')renderAudit();
     if(v==='reports'){REPORT_OPEN=null;renderReports();}});
   document.getElementById('boardMonth').addEventListener('change',e=>{const reps=REPORTS[ACTIVE]||[];REPORT=reps[+e.target.value]||reps[0]||null;renderBoard();});
   document.getElementById('curTog').addEventListener('click',e=>{inProgress=!inProgress;e.currentTarget.setAttribute('aria-pressed',inProgress);applyMode();renderDash();});
@@ -2317,7 +2326,7 @@ async function loadAndRender(){ try{
   if(multiAcct){const def=getDefaultClient();if(def&&ORDER.includes(def))start=def;}   // owner's chosen default wins
   switchTo(start);
   try{const vp=new URLSearchParams(location.search).get('v');   // deep-link to a view: ?v=reports|audit|dash (board → Reports > Monthly report)
-    if(vp==='board'){const rt=[...document.querySelectorAll('#viewSeg button')].find(b=>b.dataset.view==='reports'&&!b.hidden);if(rt){rt.click();openMonthlyReport();}}
+    if(vp==='board'||vp==='audit'){const rt=[...document.querySelectorAll('#viewSeg button')].find(b=>b.dataset.view==='reports'&&!b.hidden);if(rt){rt.click();if(vp==='board')openMonthlyReport();else openAudit();}}
     else if(vp){const btn=[...document.querySelectorAll('#viewSeg button')].find(b=>b.dataset.view===vp&&!b.hidden);if(btn)btn.click();}}catch(e){}
   }catch(e){document.getElementById('app').innerHTML='<div class="wrap" style="padding:60px 24px;color:var(--crit)">Dashboard failed to render: '+((e&&e.message)||e)+'</div>';console.error(e);}
 }
