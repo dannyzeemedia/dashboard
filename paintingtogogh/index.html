@@ -414,10 +414,10 @@
   .ft-l{text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .ft-r{text-align:right;font-variant-numeric:tabular-nums}
   a.ft-l{color:var(--flow);text-decoration:none;font-weight:600} a.ft-l:hover{text-decoration:underline}
 
-  .filters{display:flex;align-items:center;justify-content:center;gap:9px 24px;flex-wrap:wrap;margin:20px 0 4px;
+  .filters-wrap{position:sticky;top:70px;z-index:15;margin:20px 0 4px;padding-top:12px;background:var(--plane)}
+  .filters{display:flex;align-items:center;justify-content:center;gap:9px 24px;flex-wrap:wrap;
     background:color-mix(in srgb,var(--flow) 8%,var(--surface));border:1px solid color-mix(in srgb,var(--flow) 18%,var(--border));
-    border-radius:12px;padding:13px 16px;box-shadow:var(--shadow);
-    position:sticky;top:70px;z-index:15}
+    border-radius:12px;padding:13px 16px;box-shadow:var(--shadow)}
   .fgroup{display:flex;align-items:center;gap:10px}
   .flabel{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
   .chips{display:flex;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:3px}
@@ -630,7 +630,7 @@
     <div class="eyebrow" id="dash-eyebrow">Email lifecycle &amp; retention performance</div>
     <div class="view-h"><h2 id="dash-title">Lifecycle &amp; Retention</h2></div>
     <p class="view-sub">Pick a range and a comparison period — every tile and chart, including RPR-by-flow deltas, updates together.</p>
-    <div class="filters">
+    <div class="filters-wrap"><div class="filters">
       <div class="fgroup"><span class="flabel">Range</span>
         <div class="chips" id="rangeChips">
           <button data-r="3">3 months</button><button data-r="6">6 months</button>
@@ -644,7 +644,7 @@
       <div class="fgroup"><span class="flabel">Month</span>
         <button class="togBtn" id="curTog" aria-pressed="false" title="Show the current, in-progress month (month-to-date + projected outcome)"><span class="dot"></span>Include current (in&#8209;progress)</button></div>
       <span class="frange" id="rangeText"></span>
-    </div>
+    </div></div>
     <div class="ipnote" id="ipnote" hidden></div>
     <div id="dash-sections">
       <div class="asection dsection open">
