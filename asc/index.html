@@ -304,6 +304,8 @@
   .cmt-save:hover{filter:brightness(1.08)}
   .cmt-hint{font-size:11px;color:var(--muted)}
   .cmt-empty{font-size:12.5px;color:var(--muted)}
+  .cmt-item.resolved{opacity:.6}.cmt-item.resolved span{text-decoration:line-through;text-decoration-color:var(--muted)}
+  .cmt-subhead{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:10px;border-top:1px solid var(--border);padding-top:8px}
   .cmt-fab{position:fixed;right:20px;bottom:20px;z-index:1500;width:52px;height:52px;border-radius:50%;border:none;background:var(--flow);color:var(--surface);font-size:22px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.28)}
   .cmt-fab:hover{filter:brightness(1.08)}
   .totop{position:fixed;right:max(12px,calc((100vw - 1300px)/2 - 80px));bottom:88px;z-index:1400;display:inline-flex;align-items:center;gap:6px;padding:9px 15px;border-radius:9px;border:1px solid var(--border);background:var(--surface-2);color:var(--ink);font-size:13px;font-weight:700;font-family:inherit;line-height:1;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.14);opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity .25s ease,transform .25s ease}
@@ -426,13 +428,17 @@
   .chips button[aria-selected="true"]{background:var(--flow);color:#fff}
   .frange{flex-basis:100%;text-align:center;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;margin:0}
 
-  .tiles{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin:18px 0}
-  @media(max-width:960px){.tiles{grid-template-columns:repeat(3,1fr)}}
-  @media(max-width:560px){.tiles{grid-template-columns:repeat(2,1fr)}}
+  .tiles{margin:18px 0}
+  .trow-hero{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+  .trow-rest{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:14px}
+  @media(max-width:620px){.trow-hero{grid-template-columns:1fr}}
   .tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
     padding:15px 16px;box-shadow:var(--shadow);min-width:0}
+  .tile.hero{padding:18px 20px;border-color:color-mix(in srgb,var(--flow) 22%,var(--border))}
   .tile .lab{font-size:11px;color:var(--muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .tile .val{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-top:7px}
+  .tile.hero .val{font-size:30px}
+  .tile.hero .lab{font-size:12px}
   .delta{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:700;margin-top:6px}
   .delta.up{color:var(--good)} .delta.down{color:var(--crit)} .delta.flat{color:var(--muted)}
 
@@ -953,20 +959,26 @@ function renderTiles(){
   const valid=RANGE!==0&&cmp[0]>=0,cD=valid?cmp:null;
   const rprCur=flowRevTotal(cur)/(flowDelivTotal(cur)||1),rprCmp=cD?flowRevTotal(cD)/(flowDelivTotal(cD)||1):null;
   const stC=sum(store,cur), atC=sum(total,cur);
+  // Order (Danny): store revenue first, then attributed, then flow & campaign, then the rest.
+  // First two are emphasised "hero" tiles; the remainder flow into a responsive row.
   const rows=[
-    {l:`Total attributed · ${len}mo`,v:kfmt(atC),d:cD?delta(atC,sum(total,cD)):null,sub:(stC?Math.round(atC/stC*100)+'% of store revenue':null)},
-    {l:`Total store revenue · ${len}mo`,v:kfmt(stC),d:cD?delta(stC,sum(store,cD)):null},
+    {l:`Total store revenue · ${len}mo`,v:kfmt(stC),d:cD?delta(stC,sum(store,cD)):null,hero:true},
+    {l:`Total attributed · ${len}mo`,v:kfmt(atC),d:cD?delta(atC,sum(total,cD)):null,sub:(stC?Math.round(atC/stC*100)+'% of store revenue':null),hero:true},
     {l:`Flow revenue · ${len}mo`,v:kfmt(sum(flow,cur)),d:cD?delta(sum(flow,cur),sum(flow,cD)):null},
     {l:`Campaign revenue · ${len}mo`,v:kfmt(sum(camp,cur)),d:cD?delta(sum(camp,cur),sum(camp,cD)):null},
     {l:'Blended flow RPR',v:SYM+rprCur.toFixed(2),d:rprCmp?delta(rprCur,rprCmp):null},
     {l:'Avg unsub rate',v:avg(unsub,cur).toFixed(2)+'%',d:cD?delta(avg(unsub,cur),avg(unsub,cD)):null,inv:true},
     {l:`New subscribers · ${len}mo`,v:nfmt(sum(subs,cur)),d:cD?delta(sum(subs,cur),sum(subs,cD)):null},
   ];
-  document.getElementById('tiles').innerHTML=rows.map(t=>{let dd;
+  const tileHTML=t=>{let dd;
     if(t.d){let c=t.d.c;if(t.inv&&c==='up')c='down';else if(t.inv&&c==='down')c='up';
       dd=`<div class="delta ${c}">${t.d.t} vs ${CMP==='yoy'?'LY':'prev'}</div>`;}
     else dd=`<div class="delta flat">no prior period</div>`;
-    return `<div class="tile"><div class="lab">${t.l}</div><div class="val">${t.v}</div>${t.sub?'<div class="tsub">'+t.sub+'</div>':''}${dd}</div>`;}).join('');
+    return `<div class="tile${t.hero?' hero':''}"><div class="lab">${t.l}</div><div class="val">${t.v}</div>${t.sub?'<div class="tsub">'+t.sub+'</div>':''}${dd}</div>`;};
+  const hero=rows.filter(t=>t.hero), rest=rows.filter(t=>!t.hero);
+  document.getElementById('tiles').innerHTML=
+    '<div class="trow-hero">'+hero.map(tileHTML).join('')+'</div>'+
+    '<div class="trow-rest">'+rest.map(tileHTML).join('')+'</div>';
   document.getElementById('rangeText').textContent=`${mlabel(MONTHS[cur[0]])} – ${mlabel(MONTHS[cur[1]])}`+
     (valid?`  ·  vs ${mlabel(MONTHS[cmp[0]])} – ${mlabel(MONTHS[cmp[1]])}`:'  ·  no comparison period');}
 
@@ -1362,7 +1374,7 @@ function anchorTitle(c){if(!c)return'';const id=c.id||'';
   const h=c.querySelector('h3,h2');return h?h.textContent:id;}
 function renderPins(){document.querySelectorAll('.cmt-pin').forEach(p=>p.remove());if(!IS_OWNER)return;ensureFab();
   const view=curView();
-  COMMENTS.filter(c=>c.slug===ACTIVE&&c.view===view&&c.containerId&&c.relX!=null).forEach(c=>{
+  COMMENTS.filter(c=>c.slug===ACTIVE&&c.view===view&&c.containerId&&c.relX!=null&&c.status!=='resolved').forEach(c=>{
     const cont=document.getElementById(c.containerId);if(!cont)return;
     const sec=cont.closest?cont.closest('.asection'):null;if(sec)sec.classList.add('open');
     const win=cont.closest?cont.closest('.win'):null;if(win)win.classList.add('open');
@@ -1399,10 +1411,13 @@ function enterPinMode(){if(!IS_OWNER)return;PIN_MODE=true;document.body.classLis
   updateFab();}
 function exitPinMode(){PIN_MODE=false;document.body.classList.remove('pinmode');const b=document.getElementById('pinBanner');if(b)b.remove();updateFab();}
 function openList(){const old=document.getElementById('cmtList');if(old){old.remove();return;}
-  const mine=COMMENTS.filter(c=>c.slug===ACTIVE);
+  const all=COMMENTS.filter(c=>c.slug===ACTIVE);
+  const mine=all.filter(c=>c.status!=='resolved'), done=all.filter(c=>c.status==='resolved');
+  const row=c=>'<div class="cmt-item'+(c.status==='resolved'?' resolved':'')+'"><span>'+(c.status==='resolved'?'✓ ':'')+'<b>'+esc(c.containerLabel||c.view||'')+'</b> — '+esc(c.body)+'</span><button class="cmt-del" data-id="'+c.id+'" title="Delete">✕</button></div>';
   const p=document.createElement('div');p.id='cmtList';p.className='cmt-listpanel';
   p.innerHTML='<div class="cmt-fabhead">Notes · '+esc(SERIES[ACTIVE]?SERIES[ACTIVE].name:ACTIVE)+'</div>'
-    +(mine.length?mine.map(c=>'<div class="cmt-item"><span><b>'+esc(c.containerLabel||c.view||'')+'</b> — '+esc(c.body)+'</span><button class="cmt-del" data-id="'+c.id+'" title="Delete">✕</button></div>').join(''):'<div class="cmt-empty">No notes yet. Tap 💬 → Pin a note, then click the report.</div>');
+    +(mine.length?mine.map(row).join(''):'<div class="cmt-empty">No open notes. Tap 💬 → Pin a note, then click the report.</div>')
+    +(done.length?'<div class="cmt-subhead">Resolved ('+done.length+')</div>'+done.map(row).join(''):'');
   document.body.appendChild(p);p.addEventListener('click',e=>e.stopPropagation());
   p.querySelectorAll('.cmt-del').forEach(d=>d.addEventListener('click',e=>{e.stopPropagation();delComment(d.dataset.id);p.remove();renderPins();openList();}));}
 function ensureFab(){if(!IS_OWNER||document.getElementById('cmtFab'))return;
@@ -1410,14 +1425,14 @@ function ensureFab(){if(!IS_OWNER||document.getElementById('cmtFab'))return;
   document.body.appendChild(fab);
   fab.addEventListener('click',e=>{e.stopPropagation();const old=document.getElementById('cmtMenu');if(old){old.remove();return;}
     const m=document.createElement('div');m.id='cmtMenu';m.className='cmt-fabmenu';
-    const n=COMMENTS.filter(c=>c.slug===ACTIVE).length;
+    const n=COMMENTS.filter(c=>c.slug===ACTIVE&&c.status!=='resolved').length;
     m.innerHTML='<button class="cm-pin">📍 Pin a note on the report</button><button class="cm-list">📋 All notes ('+n+')</button>';
     document.body.appendChild(m);m.addEventListener('click',ev=>ev.stopPropagation());
     m.querySelector('.cm-pin').addEventListener('click',ev=>{ev.stopPropagation();m.remove();enterPinMode();});
     m.querySelector('.cm-list').addEventListener('click',ev=>{ev.stopPropagation();m.remove();openList();});});}
 function updateFab(){if(!IS_OWNER)return;ensureFab();const fab=document.getElementById('cmtFab');if(!fab)return;
   fab.classList.toggle('active',PIN_MODE);
-  const n=COMMENTS.filter(c=>c.slug===ACTIVE).length;let badge=fab.querySelector('.cmt-badge');
+  const n=COMMENTS.filter(c=>c.slug===ACTIVE&&c.status!=='resolved').length;let badge=fab.querySelector('.cmt-badge');
   if(n){if(!badge){badge=document.createElement('span');badge.className='cmt-badge';fab.appendChild(badge);}badge.textContent=n;}
   else if(badge)badge.remove();}
 document.addEventListener('click',function(e){   // pin-mode capture: intercept the click and attach a note
