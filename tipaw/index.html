@@ -2326,11 +2326,19 @@ function wireControls(){
 const CORDER=['drwoof','asc','jelibuilt','farmulated'];   // preferred switcher order; unknown slugs appended
 const HOME_SLUG='zee';   // Zee.Media master/home route: not a client, lands on the owner's default client with the full switcher
 async function loadAndRender(){ try{
-  const [ser,rep]=await Promise.all([
-    sb.from('client_series').select('data'),                                   // ALL readable clients
-    sb.from('client_reports').select('data,client_slug,month').order('month',{ascending:false}),
-  ]);
-  if(ser.error||!ser.data||!ser.data.length){
+  let ser,rep;
+  for(let attempt=0;attempt<2;attempt++){
+    [ser,rep]=await Promise.all([
+      sb.from('client_series').select('data'),                                 // ALL readable clients
+      sb.from('client_reports').select('data,client_slug,month').order('month',{ascending:false}),
+    ]);
+    if(!ser.error)break;
+    // An error here is almost always an expired/stale access token (PostgREST 401),
+    // not a real "no data" state. Refresh the session and retry once before giving up.
+    try{await sb.auth.refreshSession();}catch(e){}
+  }
+  if(ser.error){ showLogin(); return; }   // couldn't authenticate → back to sign-in, never a dead "no data" screen
+  if(!ser.data||!ser.data.length){
     document.getElementById('app').innerHTML='<div class="wrap" style="padding:60px 24px;color:var(--muted)">No dashboard data is available for your account yet.</div>';
     return;
   }
