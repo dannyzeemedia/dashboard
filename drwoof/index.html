@@ -568,7 +568,7 @@
   .rep-sm{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
   .rep-sm-t{font-size:12.5px;font-weight:800;color:var(--ink);margin-bottom:8px}
   .rep-sm-bar{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:12px}
-  .rep-sm-lab{width:22px;color:var(--muted);font-weight:700}
+  .rep-sm-lab{width:34px;color:var(--muted);font-weight:700}
   .rep-sm-bar i{height:14px;border-radius:3px;display:inline-block;min-width:2px}
   .rep-sm-bar b{color:var(--ink);font-variant-numeric:tabular-nums}
   .rep-method{margin-top:26px;border-top:1px solid var(--border)}
@@ -1240,7 +1240,7 @@ function repChart(host,name,data){
   const ON='var(--flow)',OFF='var(--camp)',ACC='var(--aqua)';
   if(name==='revenue'){
     const W=680,H=300,L=64,R=20,PT=24,PB=44,iw=W-L-R,ih=H-PT-PB;
-    const vals=[['SMS on',data.on,ON],['SMS off',data.off,OFF]];const mx=Math.max(data.on,data.off)*1.15;
+    const vals=[['SMS on ✓',data.on,ON],['SMS off ✗',data.off,OFF]];const mx=Math.max(data.on,data.off)*1.15;
     const s=svg(W,H);const bw=120,gap=iw/2;
     for(let g=0;g<=mx;g+=Math.ceil(mx/4/50000)*50000){const y=PT+ih-ih*g/mx;s.appendChild(el('line',{x1:L,x2:W-R,y1:y,y2:y,stroke:'var(--border)','stroke-width':1}));const t=el('text',{x:L-8,y:y+3,'text-anchor':'end',fill:'var(--muted)','font-size':11,'font-family':'system-ui'});t.textContent='A$'+Math.round(g/1000)+'k';s.appendChild(t);}
     vals.forEach((v,i)=>{const x=L+gap*i+(gap-bw)/2;const bh=ih*v[1]/mx;const y=PT+ih-bh;
@@ -1279,8 +1279,8 @@ function repChart(host,name,data){
       const fmt=v=>isMoney?'A$'+v.toFixed(2):v.toLocaleString();
       const p=document.createElement('div');p.className='rep-sm-p';
       p.innerHTML='<div class="rep-sm-t">'+esc(r[0])+'</div>'
-        +'<div class="rep-sm-bar"><span class="rep-sm-lab">on</span><i style="width:'+(r[1]/mxv*100)+'%;background:var(--flow)"></i><b>'+fmt(r[1])+'</b></div>'
-        +'<div class="rep-sm-bar"><span class="rep-sm-lab">off</span><i style="width:'+(r[2]/mxv*100)+'%;background:var(--camp)"></i><b>'+fmt(r[2])+'</b></div>';
+        +'<div class="rep-sm-bar"><span class="rep-sm-lab">on ✓</span><i style="width:'+(r[1]/mxv*100)+'%;background:var(--flow)"></i><b>'+fmt(r[1])+'</b></div>'
+        +'<div class="rep-sm-bar"><span class="rep-sm-lab">off ✗</span><i style="width:'+(r[2]/mxv*100)+'%;background:var(--camp)"></i><b>'+fmt(r[2])+'</b></div>';
       cont.appendChild(p);});
     host.appendChild(cont);
   }
