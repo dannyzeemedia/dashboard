@@ -531,6 +531,8 @@
   .tsub{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:3px}
   /* Reports view */
   #reports-body{margin-top:8px}
+  .rep-group{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:26px 0 12px}
+  .rep-group:first-child{margin-top:6px}
   .rep-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
   .rep-card{text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 22px;cursor:pointer;font:inherit;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:5px;transition:transform .14s,box-shadow .14s}
   .rep-card:hover{transform:translateY(-2px);box-shadow:0 14px 30px -18px color-mix(in srgb,var(--flow) 40%,transparent)}
@@ -615,7 +617,6 @@
     <div style="flex:1"></div>
     <div class="seg" id="viewSeg" role="tablist" aria-label="View" hidden>
       <button role="tab" aria-selected="true" data-view="dash">Dashboard</button>
-      <button role="tab" aria-selected="false" data-view="board">Monthly report</button>
       <button role="tab" aria-selected="false" data-view="reports">Reports</button>
       <button role="tab" aria-selected="false" data-view="audit">Audit</button>
     </div>
@@ -751,6 +752,7 @@
     <div class="view-h" style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
       <h2 id="board-title">Monthly report</h2>
       <div class="board-ctl">
+        <button class="btn ghost" id="boardBack">← All reports</button>
         <label class="board-msel-l">Month <select id="boardMonth" class="board-msel"></select></label>
         <button class="btn" onclick="window.print()">⤓ Save as PDF</button>
       </div>
@@ -873,10 +875,10 @@ function switchTo(slug){ACTIVE=slug;
   hydrate(SERIES[slug]);applyPalette();buildSwitcher();buildMenu();
   const seg=document.getElementById('viewSeg');
   const A=SERIES[slug]&&SERIES[slug].audit;
-  const hasReport=reps.length>0;
-  const hasReports=!!(SERIES[slug]&&(SERIES[slug].reports||[]).length);
-  seg.hidden=!(A||hasReport||hasReports);
-  [...seg.children].forEach(x=>{const v=x.dataset.view;x.hidden=(v==='audit'&&!A)||(v==='board'&&!hasReport)||(v==='reports'&&!hasReports);});
+  // Reports tab now houses BOTH the recurring monthly report and any one-off reports.
+  const hasReports=reps.length>0 || !!(SERIES[slug]&&(SERIES[slug].reports||[]).length);
+  seg.hidden=!(A||hasReports);
+  [...seg.children].forEach(x=>{const v=x.dataset.view;x.hidden=(v==='audit'&&!A)||(v==='reports'&&!hasReports);});
   {const vb=document.getElementById('vidBtn');if(vb){const vu=(A&&A.video_url)||'';vb.dataset.embed=vu;vb.style.display=vu?'':'none';}}
   const msel=document.getElementById('boardMonth');
   if(msel){msel.innerHTML=reps.map((rr,i)=>'<option value="'+i+'">'+esc(rr.month_label||rr.month||'')+'</option>').join('');msel.value='0';}
@@ -1207,12 +1209,27 @@ function renderReports(){
   const tt=document.getElementById('reports-title');
   if(!REPORT_OPEN){
     if(tt)tt.textContent='Reports';
-    body.innerHTML=list.length?('<div class="rep-list">'+list.map(r=>
-      '<button class="rep-card" data-id="'+esc(r.id)+'"><div class="rep-card-t">'+esc(r.title)+'</div>'
-      +'<div class="rep-card-d">'+esc(r.date_range||'')+'</div><div class="rep-card-s">'+esc(r.summary||'')+'</div>'
-      +'<span class="rep-card-go">Open the report →</span></button>').join('')+'</div>')
-      :'<div style="padding:44px 4px;color:var(--muted)">No reports published yet.</div>';
-    body.querySelectorAll('.rep-card').forEach(c=>c.addEventListener('click',()=>{REPORT_OPEN=c.dataset.id;renderReports();window.scrollTo({top:0});}));
+    const monthly=REPORTS[ACTIVE]||[];   // recurring monthly report (archive of months)
+    const card=(t,d,s,attrs)=>'<button class="rep-card"'+attrs+'><div class="rep-card-t">'+esc(t)+'</div>'
+      +'<div class="rep-card-d">'+esc(d||'')+'</div><div class="rep-card-s">'+esc(s||'')+'</div>'
+      +'<span class="rep-card-go">Open the report →</span></button>';
+    let html='';
+    if(monthly.length){
+      const latest=monthly[0], ml=latest.month_label||latest.month||'';
+      html+='<div class="rep-group">Recurring</div><div class="rep-list">'
+        +card('Monthly report', ml?('Latest: '+ml):'', 'Rolling monthly performance report. Past months stay in the archive.', ' data-kind="monthly"')
+        +'</div>';
+    }
+    if(list.length){
+      html+='<div class="rep-group">One-Off</div><div class="rep-list">'
+        +list.map(r=>card(r.title, r.date_range, r.summary, ' data-kind="custom" data-id="'+esc(r.id)+'"')).join('')
+        +'</div>';
+    }
+    body.innerHTML=html||'<div style="padding:44px 4px;color:var(--muted)">No reports published yet.</div>';
+    body.querySelectorAll('.rep-card').forEach(c=>c.addEventListener('click',()=>{
+      if(c.dataset.kind==='monthly'){openMonthlyReport();}
+      else{REPORT_OPEN=c.dataset.id;renderReports();window.scrollTo({top:0});}
+    }));
     return;
   }
   const r=list.find(x=>x.id===REPORT_OPEN);if(!r){REPORT_OPEN=null;return renderReports();}
@@ -1233,6 +1250,17 @@ function renderReports(){
       wrap.appendChild(fig);try{repChart(fig.querySelector('.rep-fig-c'),bl.c,(r.charts||{})[bl.c]);}catch(e){}}
   });
   const back=document.getElementById('repBack');if(back)back.addEventListener('click',()=>{REPORT_OPEN=null;renderReports();window.scrollTo({top:0});});
+}
+// Monthly report (Recurring) opens the board view; back returns to the Reports list.
+function openMonthlyReport(){
+  document.getElementById('view-reports').hidden=true;
+  document.getElementById('view-board').hidden=false;
+  renderBoard();window.scrollTo({top:0});
+}
+function backToReports(){
+  document.getElementById('view-board').hidden=true;
+  document.getElementById('view-reports').hidden=false;
+  REPORT_OPEN=null;renderReports();window.scrollTo({top:0});
 }
 function repChart(host,name,data){
   if(!host||!data)return;host.style.position='relative';
@@ -2221,13 +2249,15 @@ function wireControls(){
     document.querySelectorAll('#c-rev svg,#c-rev .tip').forEach(n=>n.remove());stackedCols('c-rev',windows().cur);});
   document.getElementById('revChanTog').addEventListener('click',e=>{revChannel=!revChannel;e.currentTarget.setAttribute('aria-pressed',revChannel);
     document.querySelectorAll('#c-rev svg,#c-rev .tip').forEach(n=>n.remove());stackedCols('c-rev',windows().cur);});
+  {const bb=document.getElementById('boardBack');if(bb)bb.addEventListener('click',backToReports);}
   document.getElementById('viewSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
     [...e.currentTarget.children].forEach(x=>x.setAttribute('aria-selected',x===b));const v=b.dataset.view;
     document.getElementById('view-dash').hidden=v!=='dash';
-    document.getElementById('view-board').hidden=v!=='board';
+    document.getElementById('view-board').hidden=true;   // board is reached only from within Reports
     document.getElementById('view-reports').hidden=v!=='reports';
     document.getElementById('view-audit').hidden=v!=='audit';
-    if(v==='audit')renderAudit();if(v==='board')renderBoard();if(v==='reports')renderReports();});
+    if(v==='audit')renderAudit();
+    if(v==='reports'){REPORT_OPEN=null;renderReports();}});
   document.getElementById('boardMonth').addEventListener('change',e=>{const reps=REPORTS[ACTIVE]||[];REPORT=reps[+e.target.value]||reps[0]||null;renderBoard();});
   document.getElementById('curTog').addEventListener('click',e=>{inProgress=!inProgress;e.currentTarget.setAttribute('aria-pressed',inProgress);applyMode();renderDash();});
   document.getElementById('subsChanSeg').addEventListener('click',e=>{const b=e.target.closest('.csg');if(!b)return;
@@ -2286,8 +2316,9 @@ async function loadAndRender(){ try{
   const multiAcct=[...new Set(ORDER.map(s=>SERIES[s].group||s))].length>1;
   if(multiAcct){const def=getDefaultClient();if(def&&ORDER.includes(def))start=def;}   // owner's chosen default wins
   switchTo(start);
-  try{const vp=new URLSearchParams(location.search).get('v');   // deep-link to a view: ?v=board|audit|dash
-    if(vp){const btn=[...document.querySelectorAll('#viewSeg button')].find(b=>b.dataset.view===vp&&!b.hidden);if(btn)btn.click();}}catch(e){}
+  try{const vp=new URLSearchParams(location.search).get('v');   // deep-link to a view: ?v=reports|audit|dash (board → Reports > Monthly report)
+    if(vp==='board'){const rt=[...document.querySelectorAll('#viewSeg button')].find(b=>b.dataset.view==='reports'&&!b.hidden);if(rt){rt.click();openMonthlyReport();}}
+    else if(vp){const btn=[...document.querySelectorAll('#viewSeg button')].find(b=>b.dataset.view===vp&&!b.hidden);if(btn)btn.click();}}catch(e){}
   }catch(e){document.getElementById('app').innerHTML='<div class="wrap" style="padding:60px 24px;color:var(--crit)">Dashboard failed to render: '+((e&&e.message)||e)+'</div>';console.error(e);}
 }
 async function showWrongAccount(folder){
