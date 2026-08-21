@@ -1275,13 +1275,16 @@ function repChart(host,name,data){
   if(!host||!data)return;host.style.position='relative';
   const svg=(w,h)=>{const s=el('svg',{viewBox:'0 0 '+w+' '+h,width:'100%'});s.style.display='block';s.style.maxWidth=w+'px';s.style.margin='0 auto';return s;};
   const ON='var(--flow)',OFF='var(--camp)',ACC='var(--aqua)';
+  const money=v=>'A$'+Math.round(v).toLocaleString();
   if(name==='revenue'){
     const W=680,H=300,L=64,R=20,PT=24,PB=44,iw=W-L-R,ih=H-PT-PB;
     const vals=[['SMS on ✓',data.on,ON],['SMS off ✗',data.off,OFF]];const mx=Math.max(data.on,data.off)*1.15;
     const s=svg(W,H);const bw=120,gap=iw/2;
     for(let g=0;g<=mx;g+=Math.ceil(mx/4/50000)*50000){const y=PT+ih-ih*g/mx;s.appendChild(el('line',{x1:L,x2:W-R,y1:y,y2:y,stroke:'var(--border)','stroke-width':1}));const t=el('text',{x:L-8,y:y+3,'text-anchor':'end',fill:'var(--muted)','font-size':11,'font-family':'system-ui'});t.textContent='A$'+Math.round(g/1000)+'k';s.appendChild(t);}
     vals.forEach((v,i)=>{const x=L+gap*i+(gap-bw)/2;const bh=ih*v[1]/mx;const y=PT+ih-bh;
-      s.appendChild(el('rect',{x,y,width:bw,height:bh,rx:5,fill:v[2]}));
+      const rect=el('rect',{x,y,width:bw,height:bh,rx:5,fill:v[2]});rect.style.cursor='pointer';s.appendChild(rect);
+      rect.addEventListener('mousemove',e=>showTip(host,e,v[0],[['Attributed revenue',v[1],v[2]]],money));
+      rect.addEventListener('mouseleave',()=>hideTip(host));
       const lab=el('text',{x:x+bw/2,y:H-24,'text-anchor':'middle',fill:'var(--ink2)','font-size':12.5,'font-weight':700,'font-family':'system-ui'});lab.textContent=v[0];s.appendChild(lab);
       const val=el('text',{x:x+bw/2,y:y-9,'text-anchor':'middle',fill:'var(--ink)','font-size':14,'font-weight':800,'font-family':'system-ui'});val.textContent='A$'+v[1].toLocaleString();s.appendChild(val);});
     host.appendChild(s);
@@ -1292,7 +1295,9 @@ function repChart(host,name,data){
     const s=svg(W,H);
     rows.forEach((r,i)=>{const y=15+i*rh;const before=i<3;const bw=iw*r[1]/mx;
       const lb=el('text',{x:L-12,y:y+rh/2,'text-anchor':'end',fill:'var(--ink2)','font-size':12.5,'font-family':'system-ui'});lb.setAttribute('dominant-baseline','middle');lb.textContent=r[0];s.appendChild(lb);
-      s.appendChild(el('rect',{x:L,y:y+8,width:Math.max(2,bw),height:rh-18,rx:4,fill:before?ACC:'var(--flow)','fill-opacity':before?0.95:0.35}));
+      const rect=el('rect',{x:L,y:y+8,width:Math.max(2,bw),height:rh-18,rx:4,fill:before?ACC:'var(--flow)','fill-opacity':before?0.95:0.35});rect.style.cursor='pointer';s.appendChild(rect);
+      rect.addEventListener('mousemove',e=>showTip(host,e,r[0],[[before?'Before any message':'After a message',r[1],before?ACC:'var(--flow)']],v=>v+'% of orders'));
+      rect.addEventListener('mouseleave',()=>hideTip(host));
       const vt=el('text',{x:L+Math.max(2,bw)+8,y:y+rh/2,fill:'var(--ink)','font-size':12.5,'font-weight':800,'font-family':'system-ui'});vt.setAttribute('dominant-baseline','middle');vt.textContent=r[1]+'%';s.appendChild(vt);});
     const dy=15+3*rh;s.appendChild(el('line',{x1:L-4,x2:W-R,y1:dy,y2:dy,stroke:'var(--ink)','stroke-width':1.5,'stroke-dasharray':'5 4'}));
     host.appendChild(s);
@@ -1307,6 +1312,13 @@ function repChart(host,name,data){
     const line=(idx,col)=>{let p='';d.forEach((r,i)=>p+=(i?'L':'M')+x(i)+' '+y(r[idx]));s.appendChild(el('path',{d:p,fill:'none',stroke:col,'stroke-width':2,'stroke-linejoin':'round','stroke-opacity':0.9}));};
     line(1,ON);line(2,OFF);
     [0,Math.floor(n/2),n-1].forEach(i=>{const t=el('text',{x:x(i),y:H-12,'text-anchor':i===0?'start':i===n-1?'end':'middle',fill:'var(--muted)','font-size':10.5,'font-family':'system-ui'});t.textContent=(d[i][0]||'').replace(' 2026','');s.appendChild(t);});
+    // hover: vertical guide + tooltip with both series for the nearest day
+    const guide=el('line',{x1:L,x2:L,y1:PT,y2:PT+ih,stroke:'var(--ink)','stroke-width':1,'stroke-dasharray':'3 3','stroke-opacity':0});s.appendChild(guide);
+    const hit=el('rect',{x:L,y:PT,width:iw,height:ih,fill:'transparent'});hit.style.cursor='crosshair';s.appendChild(hit);
+    hit.addEventListener('mousemove',e=>{const rct=s.getBoundingClientRect();const px=(e.clientX-rct.left)/rct.width*W;let i=Math.round((px-L)/iw*(n-1));i=Math.max(0,Math.min(n-1,i));
+      guide.setAttribute('x1',x(i));guide.setAttribute('x2',x(i));guide.setAttribute('stroke-opacity',0.35);
+      showTip(host,e,(d[i][0]||'').replace(' 2026',''),[['SMS on',d[i][1],ON],['SMS off',d[i][2],OFF]],money);});
+    hit.addEventListener('mouseleave',()=>{hideTip(host);guide.setAttribute('stroke-opacity',0);});
     host.appendChild(s);
     const lg=document.createElement('div');lg.className='rep-lg';lg.innerHTML='<span><i style="background:var(--flow)"></i>SMS on</span><span><i style="background:var(--camp)"></i>SMS off</span>';host.appendChild(lg);
   }
@@ -1316,8 +1328,8 @@ function repChart(host,name,data){
       const fmt=v=>isMoney?'A$'+v.toFixed(2):v.toLocaleString();
       const p=document.createElement('div');p.className='rep-sm-p';
       p.innerHTML='<div class="rep-sm-t">'+esc(r[0])+'</div>'
-        +'<div class="rep-sm-bar"><span class="rep-sm-lab">on ✓</span><i style="width:'+(r[1]/mxv*100)+'%;background:var(--flow)"></i><b>'+fmt(r[1])+'</b></div>'
-        +'<div class="rep-sm-bar"><span class="rep-sm-lab">off ✗</span><i style="width:'+(r[2]/mxv*100)+'%;background:var(--camp)"></i><b>'+fmt(r[2])+'</b></div>';
+        +'<div class="rep-sm-bar" title="SMS on — '+fmt(r[1])+'"><span class="rep-sm-lab">on ✓</span><i style="width:'+(r[1]/mxv*100)+'%;background:var(--flow)"></i><b>'+fmt(r[1])+'</b></div>'
+        +'<div class="rep-sm-bar" title="SMS off — '+fmt(r[2])+'"><span class="rep-sm-lab">off ✗</span><i style="width:'+(r[2]/mxv*100)+'%;background:var(--camp)"></i><b>'+fmt(r[2])+'</b></div>';
       cont.appendChild(p);});
     host.appendChild(cont);
   }
