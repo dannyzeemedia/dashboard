@@ -2182,8 +2182,8 @@ function auditDual(host,months,bars,line,bfmt,lfmt,blab,llab,line2,l2lab,ipIdx,b
   if(ipIdx>=0&&line[ipIdx]!=null)svg.appendChild(el('circle',{cx:cx(ipIdx),cy:yl(line[ipIdx]),r:4.5,fill:'var(--surface)',stroke:'var(--camp)','stroke-width':2}));
   if(ma&&ma.bars){let d='';ma.bars.forEach((v,i)=>{if(v==null)return;d+=(d?'L':'M')+cx(i)+' '+yb(v);});   // 4-mo moving avg of sends (left axis)
     svg.appendChild(el('path',{d,fill:'none',stroke:'var(--aqua)','stroke-width':2.4,'stroke-dasharray':'6 4','stroke-linejoin':'round','stroke-opacity':0.95}));}
-  if(ma&&ma.line){let d='';ma.line.forEach((v,i)=>{if(v==null)return;d+=(d?'L':'M')+cx(i)+' '+yl(v);});   // 4-mo moving avg of revenue (right axis)
-    svg.appendChild(el('path',{d,fill:'none',stroke:'var(--ink2)','stroke-width':2.4,'stroke-dasharray':'6 4','stroke-linejoin':'round','stroke-opacity':0.9}));}
+  if(ma&&ma.line){let d='';ma.line.forEach((v,i)=>{if(v==null)return;d+=(d?'L':'M')+cx(i)+' '+yl(v);});   // 4-mo moving avg of revenue (right axis), same hue as revenue
+    svg.appendChild(el('path',{d,fill:'none',stroke:'var(--camp)','stroke-width':2.4,'stroke-dasharray':'6 4','stroke-linejoin':'round','stroke-opacity':0.6}));}
   svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
   const cross=el('line',{class:'cross',y1:PT,y2:PT+ih,opacity:0});svg.appendChild(cross);
   const hit=el('rect',{x:PL,y:PT,width:iw,height:ih,fill:'transparent'});
@@ -2191,14 +2191,14 @@ function auditDual(host,months,bars,line,bfmt,lfmt,blab,llab,line2,l2lab,ipIdx,b
     const i=Math.max(0,Math.min(n-1,Math.floor((px-PL)/step)));cross.setAttribute('x1',cx(i));cross.setAttribute('x2',cx(i));cross.setAttribute('opacity',1);
     const rows=[[blab,bars[i],'var(--aqua)',bfmt],[llab,line[i],'var(--camp)',lfmt]];
     if(ma&&ma.bars&&ma.bars[i]!=null)rows.push([blab+' · 4-mo avg',ma.bars[i],'var(--aqua)',bfmt]);
-    if(ma&&ma.line&&ma.line[i]!=null)rows.push([llab+' · 4-mo avg',ma.line[i],'var(--ink2)',lfmt]);
+    if(ma&&ma.line&&ma.line[i]!=null)rows.push([llab+' · 4-mo avg',ma.line[i],'var(--camp)',lfmt]);
     if(line2)rows.push([l2lab,line2[i],'var(--ink2)',lfmt]);
     if(bg)rows.push([bg.label,bg.data[i],bg.color,nfmt]);
     showTip(host,e,mlabel(months[i]),rows,lfmt);});
   hit.addEventListener('mouseleave',()=>{cross.setAttribute('opacity',0);hideTip(host);});svg.appendChild(hit);
   const legItems=[[blab,'var(--aqua)'],[llab,'var(--camp)']];
   if(ma&&ma.bars)legItems.push([blab+' 4-mo avg (dashed)','var(--aqua)']);
-  if(ma&&ma.line)legItems.push([llab+' 4-mo avg (dashed)','var(--ink2)']);
+  if(ma&&ma.line)legItems.push([llab+' 4-mo avg (dashed)','var(--camp)']);
   if(line2)legItems.push([l2lab+' (dashed)','var(--ink2)']);
   if(bg)legItems.push([bg.label,bg.color]);
   host.appendChild(alegend.apply(null,legItems));host.appendChild(svg);}
