@@ -1632,6 +1632,12 @@ function auditStoreShare(host,S,spec){spec=spec||{};const cur=(S.current&&S.curr
     const camp=S.camp.slice(-N).concat(cur?[cur.mtd.camp]:[]);
     const share=store.map((s,i)=>s?+(((flow[i]+camp[i])/s)*100).toFixed(1):0);
     const ma3=share.map((_,i)=>{const w=share.slice(Math.max(0,i-2),i+1);return +(w.reduce((a,b)=>a+b,0)/w.length).toFixed(1);});
+    // Deployment bars: how much we sent each month by channel (email campaign recipients + SMS delivered).
+    const crec=(S.crecip||[]).slice(-N).concat(cur?[(cur.mtd&&cur.mtd.crecip)||0]:[]);
+    const sdel=(S.sms_deliv||[]).slice(-N).concat(cur?[(cur.mtd&&cur.mtd.sms_deliv)||0]:[]);
+    const csend=(S.csends||[]).slice(-N).concat(cur?[(cur.mtd&&cur.mtd.csends)||0]:[]);
+    const dtot=crec.map((v,i)=>(v||0)+(sdel[i]||0)),dmax=niceMax(Math.max(...dtot,1)),showBars=dtot.some(v=>v>0);
+    const nf=v=>Math.round(v||0).toLocaleString();
     const ctrl=document.createElement('div');ctrl.style.cssText='display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px';
     if(spans){const seg=document.createElement('div');seg.className='chartseg';seg.style.margin='0';
       spans.forEach(sp=>{const b=document.createElement('button');b.className='csg'+(storeSpan===sp?' on':'');b.textContent=sp+' mo';
@@ -1654,6 +1660,10 @@ function auditStoreShare(host,S,spec){spec=spec||{};const cur=(S.current&&S.curr
         const t=el('text',{x:xx,y:(mi%2?PT-4:PT-15),'text-anchor':'middle',style:'fill:var(--muted);font-size:8.5px;font-weight:700'});t.textContent=mk.label;svg.appendChild(t);mi++;}});}
     let a='M'+x(0)+' '+(PT+ih);sv.forEach((v,i)=>a+='L'+x(i)+' '+ys(v));a+='L'+x(n-1)+' '+(PT+ih)+'Z';
     svg.appendChild(el('path',{d:a,fill:'var(--camp)','fill-opacity':0.20,stroke:'none'}));
+    if(showBars){const dband=ih*0.34,ydb=v=>(v/dmax)*dband,bw=Math.min(24,Math.max(3,(iw/Math.max(n,1))*0.52)),base=PT+ih;
+      crec.forEach((ev,i)=>{const eh=ydb(ev||0),bx=x(i)-bw/2;let sh=ydb(sdel[i]||0);if(sdel[i]>0)sh=Math.max(sh,2.5);
+        if(eh>0)svg.appendChild(el('rect',{x:bx,y:base-eh,width:bw,height:eh,fill:'rgba(132,142,163,.32)',rx:1}));
+        if(sh>0)svg.appendChild(el('rect',{x:bx,y:base-eh-sh,width:bw,height:sh,fill:'rgba(232,152,90,.62)',rx:1}));});}
     let ls='';sv.forEach((v,i)=>ls+=(i?'L':'M')+x(i)+' '+ys(v));svg.appendChild(el('path',{d:ls,fill:'none',stroke:'var(--camp)','stroke-width':2,'stroke-linejoin':'round'}));
     let lp='';share.forEach((v,i)=>lp+=(i?'L':'M')+x(i)+' '+yp(v));svg.appendChild(el('path',{d:lp,fill:'none',stroke:'var(--flow)','stroke-width':3,'stroke-linejoin':'round'}));
     share.forEach((v,i)=>svg.appendChild(el('circle',{cx:x(i),cy:yp(v),r:3.2,fill:'var(--flow)'})));
@@ -1664,11 +1674,13 @@ function auditStoreShare(host,S,spec){spec=spec||{};const cur=(S.current&&S.curr
     const hit=el('rect',{x:PL,y:PT,width:iw,height:ih,fill:'transparent'});
     hit.addEventListener('mousemove',e=>{const r=svg.getBoundingClientRect();const px=(e.clientX-r.left)/r.width*W;
       const i=Math.max(0,Math.min(n-1,Math.round((px-PL)/iw*(n-1))));cross.setAttribute('x1',x(i));cross.setAttribute('x2',x(i));cross.setAttribute('opacity',1);
-      showTip(box,e,mlabel(m[i]),[[svLab,sv[i],'var(--camp)',kfmt],['Email share of store',share[i],'var(--flow)',v=>v.toFixed(1)+'%'],['3-mo average',ma3[i],'var(--aqua)',v=>v.toFixed(1)+'%']],kfmt);});
+      const rows=[[svLab,sv[i],'var(--camp)',kfmt],['Email share of store',share[i],'var(--flow)',v=>v.toFixed(1)+'%'],['3-mo average',ma3[i],'var(--aqua)',v=>v.toFixed(1)+'%']];
+      if(showBars){rows.push(['Campaigns sent',csend[i]||0,'rgba(132,142,163,1)',v=>nf(v)+' send'+(v==1?'':'s')],['Email delivered',crec[i]||0,'rgba(132,142,163,1)',nf],['SMS delivered',sdel[i]||0,'rgba(232,152,90,1)',nf]);}
+      showTip(box,e,mlabel(m[i]),rows,kfmt);});
     hit.addEventListener('mouseleave',()=>{cross.setAttribute('opacity',0);hideTip(box);});svg.appendChild(hit);
-    box.appendChild(alegend([svLab,'var(--camp)'],['Email % of store','var(--flow)'],['3-mo average','var(--aqua)']));box.appendChild(svg);
+    box.appendChild(showBars?alegend([svLab,'var(--camp)'],['Email % of store','var(--flow)'],['3-mo average','var(--aqua)'],['Email sent','rgba(132,142,163,.75)'],['SMS sent','rgba(232,152,90,.95)']):alegend([svLab,'var(--camp)'],['Email % of store','var(--flow)'],['3-mo average','var(--aqua)']));box.appendChild(svg);
     const note=document.createElement('div');note.className='conc-note';
-    note.textContent=(storeView==='cum'?'Total store revenue building up (area); email and SMS as a share of it (line). ':'Monthly store revenue (area) against email and SMS as a share of it (line). ')+(spec.markers?'Dashed lines mark major gift-giving moments; the store spikes hard through the winter gifting season and stays quiet the rest of the year.':'');
+    note.textContent=(storeView==='cum'?'Total store revenue building up (area); email and SMS as a share of it (line). ':'Monthly store revenue (area) against email and SMS as a share of it (line). ')+(showBars?'Bars at the base show what we actually sent each month by channel (email delivered, SMS delivered); hover for the campaign count. ':'')+(spec.markers?'Dashed lines mark major gift-giving moments; the store spikes hard through the winter gifting season and stays quiet the rest of the year.':'');
     box.appendChild(note);}
   draw();}
 function auditFunnel(host,spec){const st=spec.stages||[];
