@@ -2028,7 +2028,8 @@ function auditCampaigns(host,S,spec){spec=spec||{};const cur=(S.current&&S.curre
       main.appendChild(note);
     }else{
       const bg=(showOverlay&&campRecipBg)?{data:recip,label:'Recipients / mo (overlay)',color:'var(--flow)'}:null;
-      auditDual(main,m,sends,rev,v=>Math.round(v),kfmt,'Campaigns sent / mo','Campaign revenue',null,null,ip,bg);}}
+      const ma4=arr=>arr.map((_,i)=>{const w=arr.slice(Math.max(0,i-3),i+1);return +(w.reduce((a,b)=>a+(b||0),0)/w.length).toFixed(2);});  // 4-point trailing moving average
+      auditDual(main,m,sends,rev,v=>Math.round(v),kfmt,'Campaigns sent / mo','Campaign revenue',null,null,ip,bg,null,{bars:ma4(sends),line:ma4(rev)});}}
   if(spec.mixed)auditMixed(host,S); else if(!spec.ideasOnly)drawMain();
   if(!spec.mixed&&!spec.ideasOnly&&spec.recipVsRev){const h2=document.createElement('div');h2.style.marginTop='22px';host.appendChild(h2);
     const cap=document.createElement('div');cap.style.cssText='font-size:12.5px;color:var(--ink2);font-weight:600;margin-bottom:6px';
@@ -2151,7 +2152,7 @@ function auditConcentration(host,S,spec){
   const note=document.createElement('div');note.className='conc-note';
   note.textContent='The tick on each bar marks the same-rank flow at the benchmark (longest-managed client). Your top flow towers over a healthy distribution.';
   host.appendChild(note);}
-function auditDual(host,months,bars,line,bfmt,lfmt,blab,llab,line2,l2lab,ipIdx,bg,fillLine){ipIdx=ipIdx==null?-1:ipIdx;
+function auditDual(host,months,bars,line,bfmt,lfmt,blab,llab,line2,l2lab,ipIdx,bg,fillLine,ma){ipIdx=ipIdx==null?-1:ipIdx;
   const W=1080,H=300,PL=56,PR=66,PT=16,PB=38,iw=W-PL-PR,ih=H-PT-PB,n=months.length,step=iw/n,bw=step*0.55;
   const bmax=niceMax(Math.max(...bars,0));
   const lall=line.filter(v=>v!=null).concat((line2||[]).filter(v=>v!=null));
@@ -2179,17 +2180,25 @@ function auditDual(host,months,bars,line,bfmt,lfmt,blab,llab,line2,l2lab,ipIdx,b
   svg.appendChild(el('path',{d,fill:'none',stroke:'var(--camp)','stroke-width':2.5,'stroke-linejoin':'round'}));
   line.forEach((v,i)=>{if(v!=null)svg.appendChild(el('circle',{cx:cx(i),cy:yl(v),r:3,fill:'var(--camp)'}));});
   if(ipIdx>=0&&line[ipIdx]!=null)svg.appendChild(el('circle',{cx:cx(ipIdx),cy:yl(line[ipIdx]),r:4.5,fill:'var(--surface)',stroke:'var(--camp)','stroke-width':2}));
+  if(ma&&ma.bars){let d='';ma.bars.forEach((v,i)=>{if(v==null)return;d+=(d?'L':'M')+cx(i)+' '+yb(v);});   // 4-mo moving avg of sends (left axis)
+    svg.appendChild(el('path',{d,fill:'none',stroke:'var(--aqua)','stroke-width':2.4,'stroke-dasharray':'6 4','stroke-linejoin':'round','stroke-opacity':0.95}));}
+  if(ma&&ma.line){let d='';ma.line.forEach((v,i)=>{if(v==null)return;d+=(d?'L':'M')+cx(i)+' '+yl(v);});   // 4-mo moving avg of revenue (right axis)
+    svg.appendChild(el('path',{d,fill:'none',stroke:'var(--ink2)','stroke-width':2.4,'stroke-dasharray':'6 4','stroke-linejoin':'round','stroke-opacity':0.9}));}
   svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
   const cross=el('line',{class:'cross',y1:PT,y2:PT+ih,opacity:0});svg.appendChild(cross);
   const hit=el('rect',{x:PL,y:PT,width:iw,height:ih,fill:'transparent'});
   hit.addEventListener('mousemove',e=>{const r=svg.getBoundingClientRect();const px=(e.clientX-r.left)/r.width*W;
     const i=Math.max(0,Math.min(n-1,Math.floor((px-PL)/step)));cross.setAttribute('x1',cx(i));cross.setAttribute('x2',cx(i));cross.setAttribute('opacity',1);
     const rows=[[blab,bars[i],'var(--aqua)',bfmt],[llab,line[i],'var(--camp)',lfmt]];
+    if(ma&&ma.bars&&ma.bars[i]!=null)rows.push([blab+' · 4-mo avg',ma.bars[i],'var(--aqua)',bfmt]);
+    if(ma&&ma.line&&ma.line[i]!=null)rows.push([llab+' · 4-mo avg',ma.line[i],'var(--ink2)',lfmt]);
     if(line2)rows.push([l2lab,line2[i],'var(--ink2)',lfmt]);
     if(bg)rows.push([bg.label,bg.data[i],bg.color,nfmt]);
     showTip(host,e,mlabel(months[i]),rows,lfmt);});
   hit.addEventListener('mouseleave',()=>{cross.setAttribute('opacity',0);hideTip(host);});svg.appendChild(hit);
   const legItems=[[blab,'var(--aqua)'],[llab,'var(--camp)']];
+  if(ma&&ma.bars)legItems.push([blab+' 4-mo avg (dashed)','var(--aqua)']);
+  if(ma&&ma.line)legItems.push([llab+' 4-mo avg (dashed)','var(--ink2)']);
   if(line2)legItems.push([l2lab+' (dashed)','var(--ink2)']);
   if(bg)legItems.push([bg.label,bg.color]);
   host.appendChild(alegend.apply(null,legItems));host.appendChild(svg);}
