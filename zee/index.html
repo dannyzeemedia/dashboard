@@ -184,11 +184,11 @@
   .anum{font-size:12px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
   .achart{margin-top:2px}
   .abars{display:flex;flex-direction:column;gap:8px;margin-top:2px}
-  .abar{display:grid;grid-template-columns:190px 1fr auto;align-items:center;gap:12px;font-size:13px}
-  .abar .abl{color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .abar{display:grid;grid-template-columns:220px 1fr auto;align-items:center;gap:12px;font-size:13px}
+  .abar .abl{color:var(--ink2);line-height:1.25}   /* wrap long labels instead of truncating */
   .abar .abt{height:16px;border-radius:5px;min-width:2px}
   .abar .abv{font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600;white-space:nowrap}
-  .abar.flag .abv{color:var(--crit)}
+  .abar.flagged .abv{color:var(--crit)}
   @media(max-width:620px){.abar{grid-template-columns:120px 1fr auto}}
   .aflist{margin-top:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
   .aflist-summary{display:flex;align-items:center;gap:8px;width:100%;cursor:pointer;padding:11px 14px;font:inherit;font-size:13px;font-weight:700;color:var(--ink2);background:var(--surface-2);border:0;text-align:left}
@@ -210,7 +210,7 @@
   .aflist-row a.fl{color:var(--ink2);font-weight:500}
   .aflist-row a:hover{text-decoration:underline}
   .aflist-row span{font-variant-numeric:tabular-nums;color:var(--ink2);text-align:right}
-  .aflist-row.flag span:last-child{color:var(--crit);font-weight:700}
+  .aflist-row.flagged span:last-child{color:var(--crit);font-weight:700}
   @media(max-width:640px){.aflist-row{grid-template-columns:1fr auto auto}.aflist-row a.fl{display:none}}
   .conc{display:flex;flex-direction:column;gap:7px;margin-top:4px}
   .conc-row{display:grid;grid-template-columns:1.5fr 2fr 96px 78px;gap:14px;align-items:center;font-size:13.5px}
@@ -260,7 +260,7 @@
   .conc-row a:hover{text-decoration:underline}
   .conc-bar{position:relative;height:20px;background:var(--surface-2);border-radius:5px}
   .conc-bar>span{position:absolute;left:0;top:0;bottom:0;background:var(--flow);border-radius:5px;min-width:2px}
-  .conc-row.flag .conc-bar>span{background:var(--crit)}
+  .conc-row.flagged .conc-bar>span{background:var(--crit)}
   .conc-bar>b{position:absolute;right:5px;top:2px;line-height:16px;padding:0 6px;border-radius:4px;background:var(--surface);font-size:10.5px;font-weight:700;color:var(--ink2)}
   .conc-bar .btick{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--camp);border-radius:2px}
   .cn{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink2)}
@@ -1732,7 +1732,7 @@ function auditCompare(host,spec){const items=spec.items||[],mx=Math.max(...items
   host.style.position='relative';
   const wrap=document.createElement('div');wrap.className='abars';host.appendChild(wrap);
   items.forEach(it=>{const pct=Math.max(it.value>0?4:0,Math.abs(it.value)/mx*100),c=it.flag?'var(--crit)':'var(--flow)';
-    const row=document.createElement('div');row.className='abar'+(it.flag?' flag':'');
+    const row=document.createElement('div');row.className='abar'+(it.flag?' flagged':'');
     row.innerHTML='<span class="abl" title="'+esc(it.label)+'">'+esc(it.label)+'</span>'
       +'<span class="abt" style="width:'+pct+'%;background:'+c+'"></span>'
       +'<span class="abv">'+fmt(it.value)+'</span>';
@@ -1771,13 +1771,14 @@ function auditThumbs(host,spec){
       return '<div class="callout '+(c.type||'bad')+'"><span class="co-ic">'+ic+'</span><span>'+esc(c.text)+'</span></div>';}).join('');
     host.appendChild(cl);}}
 function auditFlowTable(host,S,spec){
-  const rec=name=>{const n=(name||'').toLowerCase();
-    if(/welcome|onboard|acquisition/.test(n))return 7;
-    if(/site aband/.test(n))return 6;
-    if(/browse aband/.test(n))return 8;
-    if(/checkout aband/.test(n))return 9;
-    if(/cart aband/.test(n))return 9;
-    if(/post.?purchase|thank you|thankyou/.test(n))return 11;
+  const rec=name=>{const n=(name||'').toLowerCase(),h=re=>re.test(n);   // order-independent: matches "Abandoned Checkout" as well as "Checkout Abandonment"
+    if(h(/welcome|onboard|acquisition/))return 7;
+    if(h(/post.?purchase|thank.?you|win.?back|winback/))return 11;
+    if(h(/aband|abandon/)){
+      if(h(/checkout/))return 9;
+      if(h(/cart/))return 9;
+      if(h(/browse/))return 8;
+      if(h(/site|product.?view|viewed/))return 6;}
     return null;};
   let fs=(S.flow_summary||[]).map(r=>({name:r[1],rev:r[2],deliv:r[3],msgs:r[5],rpr:r[3]?r[2]/r[3]:0,fid:r[0],rec:rec(r[1])}));
   fs.forEach(r=>r.gap=(r.rec!=null?r.msgs-r.rec:99));
@@ -1987,17 +1988,25 @@ function auditMixed(host,S){
     note.textContent='Bars are campaigns sent each month; the line is new subscribers (the list) falling away. Toggle revenue on to overlay it. Sends hold steady while the list, and the revenue it earns, declines.';
     box.appendChild(note);}
   draw();}
-var campView='monthly', campRecipBg=false;
+var campView='monthly', campRecipBg=false, campSpan=12;
 function auditCampaigns(host,S,spec){spec=spec||{};const cur=(S.current&&S.current.mtd)?S.current:null;
-  const m=S.months.slice(-12).concat(cur?[cur.month]:[]);
-  const sends=S.csends.slice(-12).concat(cur?[cur.mtd.csends]:[]);
-  const rev=S.camp.slice(-12).concat(cur?[cur.mtd.camp]:[]);
-  const recip=S.crecip.slice(-12).concat(cur?[cur.mtd.crecip]:[]);
-  const ip=cur?m.length-1:-1;
+  const spans=spec.spans;if(spans&&spans.indexOf(campSpan)<0)campSpan=spans.indexOf(12)>=0?12:spans[0];
+  const nSpan=()=>spans?campSpan:12;
+  let m,sends,rev,recip,ip;
+  function rebuild(){const N=nSpan();
+    m=S.months.slice(-N).concat(cur?[cur.month]:[]);
+    sends=S.csends.slice(-N).concat(cur?[cur.mtd.csends]:[]);
+    rev=S.camp.slice(-N).concat(cur?[cur.mtd.camp]:[]);
+    recip=S.crecip.slice(-N).concat(cur?[cur.mtd.crecip]:[]);
+    ip=cur?m.length-1:-1;}
+  rebuild();
   const main=document.createElement('div');if(!spec.mixed)host.appendChild(main);
   const showOverlay=!spec.recipVsRev||spec.recipOverlay;   // stock charts get the overlay; recipVsRev suppresses it unless recipOverlay forces it on
-  function drawMain(){main.innerHTML='';
+  function drawMain(){main.innerHTML='';rebuild();
     const ctrl=document.createElement('div');ctrl.style.cssText='display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px';
+    if(spans){const sseg=document.createElement('div');sseg.className='chartseg';sseg.style.margin='0';
+      spans.forEach(sp=>{const b=document.createElement('button');b.className='csg'+(campSpan===sp?' on':'');b.textContent=sp+' mo';
+        b.addEventListener('click',e=>{e.stopPropagation();campSpan=sp;drawMain();});sseg.appendChild(b);});ctrl.appendChild(sseg);}
     const seg=document.createElement('div');seg.className='chartseg';seg.style.margin='0';
     [['monthly','Monthly'],['cum','Cumulative']].forEach(([v,lab])=>{const b=document.createElement('button');
       b.className='csg'+(campView===v?' on':'');b.textContent=lab;
@@ -2084,7 +2093,7 @@ function auditReentry(host,S){
   rows.sort((a,b)=>(b.flag-a.flag)||((b.days||0)-(a.days||0)));
   const wrap=document.createElement('div');wrap.className='conc rntbl';
   wrap.innerHTML='<div class="conc-row conc-head"><span>Flow</span><span>Type</span><span class="cn">Current re-entry</span><span class="cn">Recommended</span></div>'
-    +rows.map(r=>'<div class="conc-row'+(r.flag?' flag':'')+'">'
+    +rows.map(r=>'<div class="conc-row'+(r.flag?' flagged':'')+'">'
       +'<a href="https://www.klaviyo.com/flow/'+r.fid+'/edit" target="_blank" rel="noopener" title="'+r.name+'">'+r.name+' ↗</a>'
       +'<span class="rn-cat">'+r.cat+'</span>'
       +'<span class="cn"'+(r.flag?' style="color:var(--crit);font-weight:700"':'')+'>'+(r.days==null?'Once':r.days+' days')+'</span>'
@@ -2118,7 +2127,7 @@ function auditConcentration(host,S,spec){
   const wrap=document.createElement('div');wrap.className='conc';
   wrap.innerHTML='<div class="conc-row conc-head"><span>Flow</span><span>Share of flow revenue</span><span class="cn">'
     +(spec.benchmarkLabel||'Benchmark')+'</span><span class="cn">Live emails</span></div>'
-    +rows.map(r=>'<div class="conc-row'+(r.pct>=40?' flag':'')+'">'
+    +rows.map(r=>'<div class="conc-row'+(r.pct>=40?' flagged':'')+'">'
       +'<a href="https://www.klaviyo.com/flow/'+r.fid+'/edit" target="_blank" rel="noopener" title="'+r.name+'">'+r.name+' ↗</a>'
       +'<div class="conc-bar"><span style="width:'+(r.pct/mx*100)+'%"></span>'
         +(r.bp!=null?'<i class="btick" style="left:'+(r.bp/mx*100)+'%" title="Benchmark '+r.bp.toFixed(0)+'%"></i>':'')
@@ -2309,7 +2318,7 @@ function auditTrend(host,spec,S){host.innerHTML='';
     const inner=document.createElement('div');inner.className='aflist-inner';
     const b=document.createElement('div');b.className='aflist-body';
     const mk=list=>list.map(f=>{const mid=f[0],mname=f[1],fid=f[2],fname=f[3],u=f[4],dl=f[5],rate=dl?u/dl*100:0;
-      return '<div class="aflist-row'+(rate>=1?' flag':'')+'">'
+      return '<div class="aflist-row'+(rate>=1?' flagged':'')+'">'
         +'<a href="https://www.klaviyo.com/flow/message/'+mid+'/reports/overview" target="_blank" rel="noopener" title="'+mname+'">'+mname+' ↗</a>'
         +'<a class="fl" href="https://www.klaviyo.com/flow/'+fid+'/edit" target="_blank" rel="noopener" title="'+fname+'">'+fname+'</a>'
         +'<span>'+u.toLocaleString()+'</span><span>'+rate.toFixed(2)+'%</span></div>';}).join('');
@@ -2340,7 +2349,7 @@ function auditBars(host,spec,S){const map=auditFlowAgg(S,12);let items=[];
     items=rows.map(([n,v])=>({label:n,val:v.deliv?v.rev/v.deliv:0,pct:(v.deliv?v.rev/v.deliv:0)/mx*100,extra:'RPR '+(v.deliv?(v.rev/v.deliv).toFixed(2):'0'),flag:(v.deliv?v.rev/v.deliv:0)<0.3}))
       .sort((a,b)=>b.val-a.val).slice(0,8);}
   const wrap=document.createElement('div');wrap.className='abars';
-  items.forEach(it=>{const row=document.createElement('div');row.className='abar'+(it.flag?' flag':'');
+  items.forEach(it=>{const row=document.createElement('div');row.className='abar'+(it.flag?' flagged':'');
     row.title=it.label+(it.extra?': '+it.extra:'');
     const c=it.flag?'var(--crit)':(spec.source==='concentration'?'var(--flow)':'var(--aqua)');
     row.innerHTML='<span class="abl" title="'+it.label+'">'+it.label+'</span>'
