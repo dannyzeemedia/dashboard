@@ -214,7 +214,7 @@
   @media(max-width:640px){.aflist-row{grid-template-columns:1fr auto auto}.aflist-row a.fl{display:none}}
   .conc{display:flex;flex-direction:column;gap:7px;margin-top:4px}
   .conc-row{display:grid;grid-template-columns:1.5fr 2fr 96px 78px;gap:14px;align-items:center;font-size:13.5px}
-  .conc.rntbl .conc-row{grid-template-columns:1.7fr 130px 120px 120px}
+  .conc.rntbl .conc-row{grid-template-columns:1.5fr 116px 92px 92px 150px}
   .conc.voltbl .conc-row{grid-template-columns:1.4fr 94px 1.7fr 84px 78px}
   .ideas{margin-top:18px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
   .ideas-head{display:flex;justify-content:space-between;align-items:center;width:100%;background:var(--surface-2);border:0;font:inherit;font-size:13px;font-weight:700;color:var(--ink);padding:11px 14px;cursor:pointer}
@@ -1773,12 +1773,16 @@ function auditThumbs(host,spec){
 function auditFlowTable(host,S,spec){
   const rec=name=>{const n=(name||'').toLowerCase(),h=re=>re.test(n);   // order-independent: matches "Abandoned Checkout" as well as "Checkout Abandonment"
     if(h(/welcome|onboard|acquisition/))return 7;
-    if(h(/post.?purchase|thank.?you|win.?back|winback/))return 11;
+    if(h(/back.?in.?stock|restock|in stock/))return 3;
+    if(h(/win.?back|sunset|lapsed/))return 5;
+    if(h(/replenish|repeat|re.?order|nurture/))return 4;
+    if(h(/post.?purchase|thank.?you/))return 5;
     if(h(/aband|abandon/)){
       if(h(/checkout/))return 9;
       if(h(/cart/))return 9;
       if(h(/browse/))return 8;
-      if(h(/site|product.?view|viewed/))return 6;}
+      if(h(/site|product.?view|viewed/))return 6;
+      return 6;}
     return null;};
   let fs=(S.flow_summary||[]).map(r=>({name:r[1],rev:r[2],deliv:r[3],msgs:r[5],rpr:r[3]?r[2]/r[3]:0,fid:r[0],rec:rec(r[1])}));
   fs.forEach(r=>r.gap=(r.rec!=null?r.msgs-r.rec:99));
@@ -2081,26 +2085,35 @@ function auditTesting(host,spec){
   host.appendChild(foot);}
 function auditReentry(host,S){
   const cls=n=>{n=(n||'').toLowerCase();
-    if(/abandon/.test(n))return{cat:'Abandonment',rec:'4–7 days',max:7,want:true};
-    if(/review submitted/.test(n))return{cat:'Review (submitted)',rec:'≤7 days',max:7,want:true};
-    if(/leave a review|trustpilot|review/.test(n))return{cat:'Review request',rec:'≤30 days',max:30,want:true};
-    if(/winback|sunset|lapsed|bounce/.test(n))return{cat:'Winback',rec:'30–90 days',want:false};
-    if(/welcome|onboard/.test(n))return{cat:'Welcome',rec:'Once',want:false};
-    if(/post.?purchase|thank/.test(n))return{cat:'Post-purchase',rec:'~3 days',max:3,want:true};
-    return{cat:'Other',rec:'—',want:false};};
-  const rows=(S.flow_reentry||[]).filter(f=>!/buyer property assignment/i.test(f[1]||'')).map(f=>{const c=cls(f[1]);
-    return{fid:f[0],name:f[1],days:f[2],cat:c.cat,rec:c.rec,flag:!!(c.want&&(f[2]==null||f[2]>c.max))};});
-  rows.sort((a,b)=>(b.flag-a.flag)||((b.days||0)-(a.days||0)));
+    if(/abandon/.test(n))return{cat:'Abandonment',rec:'4–7 days',max:7,startRec:'≤1 hr',startMax:4,want:true};
+    if(/review submitted/.test(n))return{cat:'Review (submitted)',rec:'≤7 days',max:7,startRec:'~5 days',startMax:168,want:true};
+    if(/leave a review|trustpilot|review/.test(n))return{cat:'Review request',rec:'≤30 days',max:30,startRec:'~7 days',startMax:336,want:true};
+    if(/winback|sunset|lapsed|bounce/.test(n))return{cat:'Winback',rec:'30–90 days',startRec:'—',want:true};
+    if(/back.?in.?stock|restock|in stock/.test(n))return{cat:'Back in stock',rec:'per restock',startRec:'Immediate',startMax:1,want:true};
+    if(/post.?purchase|thank/.test(n))return{cat:'Post-purchase',rec:'~3 days',max:3,startRec:'1–3 days',want:true};
+    if(/welcome|onboard/.test(n))return{cat:'Welcome',rec:'Once',startRec:'≤1 hr',startMax:4,want:false};
+    return{cat:'Other',rec:'—',startRec:'—',want:false};};
+  // how soon the first message fires (entry action delay, in hours), and re-entry period.
+  const dfmt=h=>h==null?'—':h<=0?'Immediate':h<1?Math.round(h*60)+' min':h<24?(+h.toFixed(h<10?1:0))+' hr'+(h>=2?'s':''):(+(h/24).toFixed((h/24)%1?1:0))+' day'+(h>=48?'s':'');
+  const rows=(S.flow_reentry||[]).filter(f=>!/buyer property assignment|update property|category interest/i.test(f[1]||'')).map(f=>{
+    const c=cls(f[1]),init=(f.length>3?f[3]:null);
+    const slowReentry=c.want&&c.max!=null&&(f[2]==null||f[2]>c.max);
+    const slowStart=c.startMax!=null&&init!=null&&init>c.startMax;
+    return{fid:f[0],name:f[1],days:f[2],init,cat:c.cat,rec:c.rec,startRec:c.startRec,want:c.want,
+      flag:!!(slowReentry||slowStart),slowStart};});
+  const shown=rows.filter(r=>r.cat!=='Other');   // focus on the flows where timing is actionable
+  shown.sort((a,b)=>(b.flag-a.flag)||(a.cat.localeCompare(b.cat)));
   const wrap=document.createElement('div');wrap.className='conc rntbl';
-  wrap.innerHTML='<div class="conc-row conc-head"><span>Flow</span><span>Type</span><span class="cn">Current re-entry</span><span class="cn">Recommended</span></div>'
-    +rows.map(r=>'<div class="conc-row'+(r.flag?' flagged':'')+'">'
+  wrap.innerHTML='<div class="conc-row conc-head"><span>Flow</span><span>Type</span><span class="cn">First msg</span><span class="cn">Re-entry</span><span class="cn">Recommended</span></div>'
+    +shown.map(r=>'<div class="conc-row'+(r.flag?' flagged':'')+'">'
       +'<a href="https://www.klaviyo.com/flow/'+r.fid+'/edit" target="_blank" rel="noopener" title="'+r.name+'">'+r.name+' ↗</a>'
       +'<span class="rn-cat">'+r.cat+'</span>'
-      +'<span class="cn"'+(r.flag?' style="color:var(--crit);font-weight:700"':'')+'>'+(r.days==null?'Once':r.days+' days')+'</span>'
-      +'<span class="cn">'+r.rec+'</span></div>').join('');
+      +'<span class="cn"'+(r.slowStart?' style="color:var(--crit);font-weight:700"':'')+'>'+dfmt(r.init)+'</span>'
+      +'<span class="cn"'+((r.flag&&!r.slowStart)?' style="color:var(--crit);font-weight:700"':'')+'>'+(r.days==null?'Once':r.days+' days')+'</span>'
+      +'<span class="cn">'+r.rec+(r.startRec&&r.startRec!=='—'?' · start '+r.startRec:'')+'</span></div>').join('');
   host.appendChild(wrap);
   const note=document.createElement('div');note.style.cssText='font-size:12px;color:var(--muted);margin-top:10px';
-  note.textContent='Red rows re-open too slowly, or are enter-once when they should repeat, so returning customers miss the flow. The recommended window for each is in the last column.';
+  note.textContent='Two timing checks per flow: "First msg" is how soon the first email fires after someone enters (abandonment should fire fast, within about an hour), and "Re-entry" is how long before the same person can enter again (abandonment should re-open in 4 to 7 days, not stay enter-once). Red marks a value that is too slow.';
   host.appendChild(note);}
 function auditVolume(host,S,spec){
   const fs=(S.flow_summary||[]).slice().sort((a,b)=>b[3]-a[3]).slice(0,10),mx=Math.max(...fs.map(r=>r[3]),1);
