@@ -439,10 +439,11 @@
   .tile .val{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-top:7px}
   .tile.hero .val{font-size:30px}
   .tile.hero .lab{font-size:12px}
-  .tile.sparktile{display:flex;align-items:stretch;gap:16px}
-  .tile.sparktile>.tile-body{flex:1;min-width:0}
-  .tile.sparktile>.spark-box{flex:0 0 44%;align-self:stretch;min-height:104px;border-left:1px solid var(--border);padding-left:14px;display:flex;align-items:flex-end}
-  @media(max-width:520px){.tile.sparktile{flex-direction:column}.tile.sparktile>.spark-box{flex:none;width:100%;border-left:0;border-top:1px solid var(--border);padding-left:0;padding-top:10px;min-height:88px}}
+  .tile.sparktile{display:flex;align-items:stretch;overflow:hidden}
+  .tile.sparktile>.tile-body{flex:0 0 auto;min-width:0;padding-right:18px}
+  .tile.sparktile>.spark-box{flex:1;align-self:stretch;min-height:104px;margin:-18px -20px -18px 0;padding:12px 12px 6px;border-left:1px solid var(--border);display:flex;align-items:stretch}
+  .tile.sparktile>.spark-box>svg{width:100%;height:100%}
+  @media(max-width:520px){.tile.sparktile{flex-direction:column;overflow:visible}.tile.sparktile>.tile-body{padding-right:0}.tile.sparktile>.spark-box{flex:none;width:auto;margin:10px -20px -18px;border-left:0;border-top:1px solid var(--border);min-height:96px}}
   .pietile .pie-wrap{display:flex;align-items:center;gap:12px;margin-top:10px}
   .donut{width:72px;height:72px;flex:none}
   .pie-leg{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink2);font-weight:600}
@@ -703,7 +704,7 @@
           <div class="grid">
             <div class="card wide" id="c-camp"><h3>Campaign volume — sends &amp; recipients</h3>
               <button class="miniToggle" id="campRevTog" aria-pressed="false" title="Overlay campaign revenue"><span class="dot"></span>Revenue overlay</button>
-              <button class="miniToggle" id="campSubsTog" aria-pressed="false" title="Overlay net new subscribers as an area"><span class="dot"></span>Net subscribers overlay</button>
+              <button class="miniToggle" id="campSubsTog" aria-pressed="false" title="Overlay cumulative net subscribers over the period"><span class="dot"></span>Cumulative subscribers</button>
               <div class="cap">Send count and total recipients side by side — volume context for the campaign-revenue line above.</div></div>
           </div>
         </div></div>
@@ -2327,14 +2328,15 @@ function renderIpNote(){const el=document.getElementById('ipnote');
 
 function renderCamp(){const{cur}=windows();const cc=document.getElementById('c-camp');let sm=cc.querySelector('.sm');if(sm)sm.remove();
   sm=document.createElement('div');sm.className='sm';
-  const ov=campSubs?' <span style="color:var(--good)">· net subscribers</span>':campRev?' <span style="color:var(--aqua)">· revenue overlay</span>':'';
+  const ov=campSubs?' <span style="color:var(--good)">· cumulative net subs</span>':campRev?' <span style="color:var(--aqua)">· revenue overlay</span>':'';
   const a=document.createElement('div');a.innerHTML='<div class="lab">Campaign sends'+ov+'</div>';const ac=document.createElement('div');a.appendChild(ac);
   const b=document.createElement('div');b.innerHTML='<div class="lab">Campaign recipients'+ov+'</div>';const bc=document.createElement('div');b.appendChild(bc);
   sm.appendChild(a);sm.appendChild(b);cc.appendChild(sm);
   // net new subscribers per month (new subs − email unsubscribes), aligned to the working window
   const on=inProgress&&CUR&&CUR.mtd;
   let netSubs=BM.map((_,i)=>Math.max(0,(Bsubs[i]||0)-(Bucount[i]||0)));if(on)netSubs=netSubs.concat([CUR.mtd.subs||0]);
-  const area=campSubs?{data:netSubs,color:'var(--good)',label:'Net subs',fmt:nfmt,proj:IP?IP.proj.subs:null}
+  let run=0;const netCum=netSubs.map((v,i)=>{run+=(i>=cur[0]?(v||0):0);return run;});   // cumulative net subscribers across the visible window
+  const area=campSubs?{data:netCum,color:'var(--good)',label:'Cumulative net subs',fmt:nfmt,proj:null}
             :campRev?{data:camp,color:'var(--aqua)',label:'Campaign rev',fmt:money,proj:IP?IP.proj.camp:null}:null;
   const ipSend=IP?{idx:IP.idx,project:IP.project,proj:IP.proj.csends}:null;
   const ipRec=IP?{idx:IP.idx,project:IP.project,proj:IP.proj.crecip}:null;
