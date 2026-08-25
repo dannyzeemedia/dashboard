@@ -690,6 +690,9 @@
             <div class="card" id="c-mix"><h3>Revenue mix — flow vs campaign</h3>
               <div class="cap">Share of attributed revenue, % per month.</div>
               <div class="legend"><span><i style="background:var(--flow)"></i>Flow %</span><span><i style="background:var(--camp)"></i>Campaign %</span></div></div>
+            <div class="card" id="c-attrshare"><h3>Attributed share of store revenue</h3>
+              <div class="cap">Klaviyo-attributed revenue as a % of total store revenue, per month.</div>
+              <div class="legend"><span><i style="background:var(--flow)"></i>Attributed % of store</span></div></div>
           </div>
         </div></div>
       </div>
@@ -2277,6 +2280,10 @@ function renderDash(){clearDash();const{cur}=windows();renderTiles();renderRpr()
   const hser=[];if(healthMode!=='spam')hser.push({name:'Unsub %',color:'var(--flow)',data:unsub});if(healthMode!=='unsub')hser.push({name:'Spam %',color:'var(--camp)',data:spam});
   lineChart('c-health',cur,hser,v=>v.toFixed(2)+'%',{ip:ipR});
   lineChart('c-mix',cur,[{name:'Flow %',color:'var(--flow)',data:flowPct},{name:'Campaign %',color:'var(--camp)',data:campPct}],v=>v+'%',{yfmt:v=>v+'%',ip:ipR});
+  {const attrShare=total.map((t,i)=>store[i]?+(t/store[i]*100).toFixed(1):null);   // attributed as % of store revenue, over the range
+   const asCard=document.getElementById('c-attrshare'),hasStore=store.slice(cur[0],cur[1]+1).some(v=>v>0);
+   if(asCard)asCard.style.display=hasStore?'':'none';
+   if(hasStore)lineChart('c-attrshare',cur,[{name:'Attributed % of store',color:'var(--flow)',data:attrShare}],v=>v+'%',{yfmt:v=>v+'%',ip:ipR});}
   renderCamp();
   renderSms();
   renderIpNote();
