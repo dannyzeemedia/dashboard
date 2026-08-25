@@ -1257,7 +1257,7 @@ function miniCols(card,win,vals0,color,fmt,labhint,area,ip){const[i0,i1]=win;con
    const areas=(!area?[]:(Array.isArray(area)?area:[area])).filter(a=>a&&a.data);
    const oneAxis=areas.length===1;
    const ipK=ip&&ip.idx>=i0&&ip.idx<=i1?ip.idx-i0:-1;
-   const W=520,H=240,PL=44,PR=oneAxis?54:12,PT=12,PB=28,iw=W-PL-PR,ih=H-PT-PB,n=vals.length,step=iw/n,bw=step*0.6;
+   const W=520,H=240,PL=44,PR=oneAxis?54:12,PT=12,PB=40,iw=W-PL-PR,ih=H-PT-PB,n=vals.length,step=iw/n,bw=step*0.6;
    const mv=[...vals]; if(ipK>=0&&ip.project&&ip.proj!=null)mv.push(ip.proj);
    const max=niceMax(Math.max(...mv,0));const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
    const y=v=>PT+ih-(v/max)*ih,ev=lblEvery(n);
@@ -1276,7 +1276,7 @@ function miniCols(card,win,vals0,color,fmt,labhint,area,ip){const[i0,i1]=win;con
    vals.forEach((v,i)=>{const x=PL+step*i+(step-bw)/2,h=v/max*ih,isip=(i===ipK);
      svg.appendChild(el('rect',{x,y:PT+ih-h,width:bw,height:Math.max(h,0),rx:2.5,fill:color,'fill-opacity':isip?0.5:1}));
      if(isip&&ip.project&&ip.proj!=null)svg.appendChild(el('rect',{x,y:y(ip.proj),width:bw,height:Math.max(PT+ih-y(ip.proj),0),rx:2.5,fill:'none',stroke:'var(--ink2)','stroke-width':1.4,'stroke-dasharray':'4 3',opacity:.75}));
-     if(i%ev===0||i===n-1){const tx=el('text',{class:'ax',x:x+bw/2,y:H-10,'text-anchor':'middle'});tx.textContent=mlabel(L[i])+(isip?'*':'');svg.appendChild(tx);}
+     if(i%ev===0||i===n-1){const lx=x+bw/2,ly=H-9;const tx=el('text',{class:'ax',x:lx,y:ly,'text-anchor':'end',transform:`rotate(-32 ${lx} ${ly})`});tx.textContent=mlabel(L[i])+(isip?'*':'');svg.appendChild(tx);}   // angled so end-of-axis labels don't overlap
      const hit=el('rect',{x:PL+step*i,y:PT,width:step,height:ih,fill:'transparent'});
      hit.addEventListener('mousemove',e=>{const rows=[[labhint,v,color]];A.forEach(({a,av})=>rows.push([a.label,av[i],a.color,a.fmt]));
        let title=mlabel(L[i]);
@@ -1288,7 +1288,7 @@ function miniCols(card,win,vals0,color,fmt,labhint,area,ip){const[i0,i1]=win;con
    svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));card.appendChild(svg);}
 
 function miniCols2(card,win,a0,b0,ca,cb,fmt,la,lb,ip){const[i0,i1]=win;const L=MONTHS.slice(i0,i1+1),A=a0.slice(i0,i1+1),B=b0.slice(i0,i1+1);
-  const W=520,H=240,PL=44,PR=10,PT=12,PB=28,iw=W-PL-PR,ih=H-PT-PB,n=L.length,step=iw/n,bw=step*0.32,gap=2;
+  const W=520,H=240,PL=44,PR=10,PT=12,PB=40,iw=W-PL-PR,ih=H-PT-PB,n=L.length,step=iw/n,bw=step*0.32,gap=2;
   const ipK=ip&&ip.idx>=i0&&ip.idx<=i1?ip.idx-i0:-1;
   const max=niceMax(Math.max(...A,...B,0));const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
   const y=v=>PT+ih-(v/max)*ih,ev=lblEvery(n);
@@ -1297,7 +1297,7 @@ function miniCols2(card,win,a0,b0,ca,cb,fmt,la,lb,ip){const[i0,i1]=win;const L=M
   L.forEach((m,i)=>{const cx=PL+step*i+step/2,x1=cx-bw-gap/2,x2=cx+gap/2,ha=A[i]/max*ih,hb=B[i]/max*ih,op=(i===ipK)?0.5:1;
     svg.appendChild(el('rect',{x:x1,y:PT+ih-ha,width:bw,height:Math.max(ha,0),rx:2,fill:ca,'fill-opacity':op}));
     svg.appendChild(el('rect',{x:x2,y:PT+ih-hb,width:bw,height:Math.max(hb,0),rx:2,fill:cb,'fill-opacity':op}));
-    if(i%ev===0||i===n-1){const tx=el('text',{class:'ax',x:cx,y:H-10,'text-anchor':'middle'});tx.textContent=mlabel(m)+((i===ipK)?'*':'');svg.appendChild(tx);}
+    if(i%ev===0||i===n-1){const ly=H-9;const tx=el('text',{class:'ax',x:cx,y:ly,'text-anchor':'end',transform:`rotate(-32 ${cx} ${ly})`});tx.textContent=mlabel(m)+((i===ipK)?'*':'');svg.appendChild(tx);}   // angled to avoid end-of-axis overlap
     const hit=el('rect',{x:PL+step*i,y:PT,width:step,height:ih,fill:'transparent'});
     hit.addEventListener('mousemove',e=>showTip(card,e,mlabel(m),[[la,A[i],ca],[lb,B[i],cb]],fmt));
     hit.addEventListener('mouseleave',()=>hideTip(card));svg.appendChild(hit);});
