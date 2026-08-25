@@ -1814,50 +1814,72 @@ function auditFlowCoverage(host,spec){
     +col(spec.missingTitle||'Missing',spec.missing||[],'n','✕');
   host.appendChild(wrap);
   if(spec.note){const n=document.createElement('div');n.className='conc-note';n.textContent=spec.note;host.appendChild(n);}}
-var seasonMode='base';
+var seasonBday=false;
 function auditSeasonBars(host,S,spec){
   const N=spec.months||12,m=S.months.slice(-N),store=(S.store||[]).slice(-N),peak=spec.peak||[11,12,1,2],est=spec.birthdayEst||0;
-  const camp=(S.camp||[]).slice(-N),csends=(S.csends||[]).slice(-N),isP=i=>peak.includes(+m[i].split('-')[1]);
-  const DR=spec.doubleDR||0.7;   // diminishing-returns factor on the doubled (incremental) off-season sends
-  const canDouble=camp.some(v=>v>0);
-  // off-season economics for the note
-  let offSends=0,offCamp=0;m.forEach((mm,i)=>{if(!isP(i)){offSends+=csends[i]||0;offCamp+=camp[i]||0;}});
-  const offAvgPerSend=offSends?offCamp/offSends:0;
   host.style.position='relative';
   const box=document.createElement('div');host.appendChild(box);
-  function inc(i){if(seasonMode==='bday')return est;if(seasonMode==='double')return isP(i)?0:Math.round((camp[i]||0)*DR);return 0;}
   function draw(){box.innerHTML='';
-    const modes=[['base','Store revenue']];if(est)modes.push(['bday','+ Birthday club (est.)']);if(canDouble)modes.push(['double','+ Double off-season sends (est.)']);
-    if(modes.length>1){const ctrl=document.createElement('div');ctrl.style.cssText='margin-bottom:8px';
+    if(est){const ctrl=document.createElement('div');ctrl.style.cssText='margin-bottom:8px';
       const seg=document.createElement('div');seg.className='chartseg';seg.style.margin='0';
-      modes.forEach(([v,lab])=>{const b=document.createElement('button');b.className='csg'+(seasonMode===v?' on':'');b.textContent=lab;
-        b.addEventListener('click',e=>{e.stopPropagation();seasonMode=v;draw();});seg.appendChild(b);});
+      [['base','Store revenue'],['bday','+ Birthday club (est.)']].forEach(([v,lab])=>{const on=(v==='bday')===seasonBday;
+        const b=document.createElement('button');b.className='csg'+(on?' on':'');b.textContent=lab;
+        b.addEventListener('click',e=>{e.stopPropagation();seasonBday=(v==='bday');draw();});seg.appendChild(b);});
       ctrl.appendChild(seg);box.appendChild(ctrl);}
-    const incCol=seasonMode==='double'?'var(--aqua)':'var(--good)';
-    const incLab=seasonMode==='double'?'Extra off-season campaigns (est.)':'Birthday club (est.)';
+    const showB=seasonBday&&est;
     const W=1080,H=260,PL=64,PR=18,PT=18,PB=40,iw=W-PL-PR,ih=H-PT-PB,n=m.length;
-    const mx=niceMax(Math.max(...store.map((v,i)=>v+inc(i)),1));
+    const mx=niceMax(Math.max(...store.map(v=>v+(showB?est:0)),1));
     const bw=iw/n*0.68,x=i=>PL+iw*(i+0.5)/n,y=v=>PT+ih-(v/mx)*ih;
     const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
     for(let g=0;g<=4;g++){svg.appendChild(el('line',{class:'gl',x1:PL,x2:W-PR,y1:y(mx*g/4),y2:y(mx*g/4)}));
       const t=el('text',{class:'ax',x:PL-8,y:y(mx*g/4)+4,'text-anchor':'end'});t.textContent=kfmt(mx*g/4);svg.appendChild(t);}
-    store.forEach((v,i)=>{const p=isP(i),iv=inc(i);
-      const base=el('rect',{x:x(i)-bw/2,y:y(v),width:bw,height:(PT+ih)-y(v),rx:3,cursor:'pointer',fill:p?'var(--camp)':'color-mix(in srgb,var(--muted) 38%,var(--surface))'});
-      base.addEventListener('mousemove',e=>showTip(host,e,mlabel(m[i])+(p?' (peak)':''),iv?[['Store revenue',v,p?'var(--camp)':'var(--muted)',kfmt],[incLab,iv,incCol,kfmt],['Total (est.)',v+iv,'var(--ink)',kfmt]]:[['Store revenue',v,p?'var(--camp)':'var(--muted)',kfmt]]));
+    store.forEach((v,i)=>{const isPk=peak.includes(+m[i].split('-')[1]);
+      const base=el('rect',{x:x(i)-bw/2,y:y(v),width:bw,height:(PT+ih)-y(v),rx:3,cursor:'pointer',fill:isPk?'var(--camp)':'color-mix(in srgb,var(--muted) 38%,var(--surface))'});
+      base.addEventListener('mousemove',e=>showTip(host,e,mlabel(m[i])+(isPk?' (peak)':''),showB?[['Store revenue',v,isPk?'var(--camp)':'var(--muted)',kfmt],['Birthday club (est.)',est,'var(--good)',kfmt],['Total (est.)',v+est,'var(--ink)',kfmt]]:[['Store revenue',v,isPk?'var(--camp)':'var(--muted)',kfmt]]));
       base.addEventListener('mouseleave',()=>hideTip(host));svg.appendChild(base);
-      if(iv>0){const yb=y(v+iv);const bd=el('rect',{x:x(i)-bw/2,y:yb,width:bw,height:y(v)-yb,rx:2,fill:incCol,'fill-opacity':0.9,cursor:'pointer'});
-        bd.addEventListener('mousemove',e=>showTip(host,e,mlabel(m[i])+' — '+incLab,[[incLab,iv,incCol,kfmt]]));
+      if(showB){const yb=y(v+est);const bd=el('rect',{x:x(i)-bw/2,y:yb,width:bw,height:y(v)-yb,rx:2,fill:'var(--good)','fill-opacity':0.9,cursor:'pointer'});
+        bd.addEventListener('mousemove',e=>showTip(host,e,mlabel(m[i])+' — birthday club',[['Additional (est.)',est,'var(--good)',kfmt]]));
         bd.addEventListener('mouseleave',()=>hideTip(host));svg.appendChild(bd);}});
     const ev=lblEvery(n);
     m.forEach((mm,i)=>{if(i%ev===0||i===n-1){const t=el('text',{class:'ax',x:x(i),y:H-16,'text-anchor':'middle'});t.textContent=mlabel(mm);svg.appendChild(t);}});
     svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
-    if(seasonMode==='double')box.appendChild(alegend(['Store revenue','var(--muted)'],['Peak months','var(--camp)'],['Extra from doubling off-season sends (est.)','var(--aqua)']));
     box.appendChild(svg);
-    const annualExtra=m.reduce((a,_,i)=>a+inc(i),0);
-    let noteTxt=spec.note||'';
-    if(seasonMode==='bday'&&spec.birthdayNote)noteTxt=spec.birthdayNote;
-    if(seasonMode==='double')noteTxt='Off-season campaigns earn about '+kfmt(offAvgPerSend)+' each right now. Doubling the number of sends in the quiet months, with a '+Math.round((1-DR)*100)+'% diminishing-returns haircut on the extra sends, would add roughly '+kfmt(annualExtra)+' a year (the aqua caps). Peak months are left alone. Illustrative, at the current list size.';
-    const note=document.createElement('div');note.className='conc-note';note.textContent=noteTxt;box.appendChild(note);}
+    const note=document.createElement('div');note.className='conc-note';note.textContent=(showB&&spec.birthdayNote)?spec.birthdayNote:(spec.note||'');box.appendChild(note);}
+  draw();}
+// Campaign-revenue projection: what doubling off-season sends could add (diminishing returns). Lives on the cadence card.
+function auditCampDouble(host,S,spec){spec=spec||{};
+  const N=spec.months||12,m=S.months.slice(-N),camp=(S.camp||[]).slice(-N),csends=(S.csends||[]).slice(-N),peak=spec.peak||[11,12,1,2];
+  const DR=spec.doubleDR||0.7,isP=i=>peak.includes(+m[i].split('-')[1]);
+  let offSends=0,offCamp=0;m.forEach((mm,i)=>{if(!isP(i)){offSends+=csends[i]||0;offCamp+=camp[i]||0;}});
+  const offAvg=offSends?offCamp/offSends:0;
+  host.style.position='relative';const box=document.createElement('div');host.appendChild(box);
+  let on=false;
+  function inc(i){return (on&&!isP(i))?Math.round((camp[i]||0)*DR):0;}
+  function draw(){box.innerHTML='';
+    const ctrl=document.createElement('div');ctrl.style.marginBottom='8px';const seg=document.createElement('div');seg.className='chartseg';seg.style.margin='0';
+    [['base','Campaign revenue'],['dbl','+ Double off-season sends (est.)']].forEach(([v,lab])=>{const b=document.createElement('button');b.className='csg'+((v==='dbl')===on?' on':'');b.textContent=lab;
+      b.addEventListener('click',e=>{e.stopPropagation();on=(v==='dbl');draw();});seg.appendChild(b);});
+    ctrl.appendChild(seg);box.appendChild(ctrl);
+    const W=1080,H=260,PL=64,PR=18,PT=18,PB=40,iw=W-PL-PR,ih=H-PT-PB,n=m.length;
+    const mx=niceMax(Math.max(...camp.map((v,i)=>v+inc(i)),1)),bw=iw/n*0.68,x=i=>PL+iw*(i+0.5)/n,y=v=>PT+ih-(v/mx)*ih,ev=lblEvery(n);
+    const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
+    for(let g=0;g<=4;g++){svg.appendChild(el('line',{class:'gl',x1:PL,x2:W-PR,y1:y(mx*g/4),y2:y(mx*g/4)}));
+      const t=el('text',{class:'ax',x:PL-8,y:y(mx*g/4)+4,'text-anchor':'end'});t.textContent=kfmt(mx*g/4);svg.appendChild(t);}
+    camp.forEach((v,i)=>{const p=isP(i),iv=inc(i);
+      const base=el('rect',{x:x(i)-bw/2,y:y(v),width:bw,height:(PT+ih)-y(v),rx:3,cursor:'pointer',fill:p?'var(--camp)':'color-mix(in srgb,var(--muted) 40%,var(--surface))'});
+      base.addEventListener('mousemove',e=>showTip(host,e,mlabel(m[i])+(p?' (peak)':''),iv?[['Campaign revenue',v,'var(--muted)',kfmt],['Extra from doubling (est.)',iv,'var(--aqua)',kfmt],['Total (est.)',v+iv,'var(--ink)',kfmt]]:[['Campaign revenue',v,p?'var(--camp)':'var(--muted)',kfmt]]));
+      base.addEventListener('mouseleave',()=>hideTip(host));svg.appendChild(base);
+      if(iv>0){const yb=y(v+iv);const bd=el('rect',{x:x(i)-bw/2,y:yb,width:bw,height:y(v)-yb,rx:2,fill:'var(--aqua)','fill-opacity':0.9,cursor:'pointer'});
+        bd.addEventListener('mousemove',e=>showTip(host,e,mlabel(m[i])+' — extra from doubling',[['Extra (est.)',iv,'var(--aqua)',kfmt]]));
+        bd.addEventListener('mouseleave',()=>hideTip(host));svg.appendChild(bd);}});
+    m.forEach((mm,i)=>{if(i%ev===0||i===n-1){const t=el('text',{class:'ax',x:x(i),y:H-16,'text-anchor':'middle'});t.textContent=mlabel(mm);svg.appendChild(t);}});
+    svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
+    if(on)box.appendChild(alegend(['Campaign revenue','var(--muted)'],['Peak months','var(--camp)'],['Extra from doubling off-season sends (est.)','var(--aqua)']));
+    box.appendChild(svg);
+    const annual=m.reduce((a,_,i)=>a+inc(i),0);
+    const note=document.createElement('div');note.className='conc-note';
+    note.textContent=on?('Off-season campaigns earn about '+kfmt(offAvg)+' each. Doubling the number of sends in the quiet months, with a '+Math.round((1-DR)*100)+'% diminishing-returns haircut on the extra sends, would add roughly '+kfmt(annual)+' a year (aqua caps). Peak months are left alone. Illustrative, at the current list size.'):'Monthly campaign revenue. Toggle to project what doubling the number of off-season sends could add.';
+    box.appendChild(note);}
   draw();}
 function auditFlowSplit(host,spec){
   host.style.position='relative';
@@ -1954,6 +1976,7 @@ function renderAuditChart(host,spec,S){
   if(spec.type==='funnel')return auditFunnel(host,spec);
   if(spec.type==='reachladder')return auditReach(host,spec);
   if(spec.type==='channelrev')return auditChannelRev(host,S,spec);
+  if(spec.type==='campdouble')return auditCampDouble(host,S,spec);
   if(spec.type==='stackarea')return auditStackArea(host,spec);
   if(spec.type==='thumbs')return auditThumbs(host,spec);
   if(spec.type==='flowcoverage')return auditFlowCoverage(host,spec);
