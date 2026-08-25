@@ -1183,8 +1183,7 @@ function showTip(card,ev,title,rows,fmt){const t=tipEl(card);
 const hideTip=c=>{const t=c.querySelector('.tip');if(t)t.style.opacity=0;};
 const lblEvery=k=>Math.max(1,Math.ceil(k/7));
 function labIdx(n){if(n<=9){const s=new Set();for(let k=0;k<n;k++)s.add(k);return s;}   // few enough months → label them all
-  const maxL=Math.min(7,Math.floor((n-1)/2)+1),st=(n-1)/(maxL-1),s=new Set();            // else ~7 evenly spaced, always incl. first+last, min 2 apart
-  for(let k=0;k<maxL;k++)s.add(Math.round(k*st));return s;}
+  const k=Math.ceil((n-1)/7),s=new Set();for(let i=n-1;i>=0;i-=k)s.add(i);return s;}     // else a fixed even step anchored to the last month: uniform gaps, current always labelled
 function mlab(svg,cx,ly,txt){const t=el('text',{class:'ax',x:cx,y:ly,'text-anchor':'end',transform:`rotate(-20 ${cx} ${ly})`});t.textContent=txt;svg.appendChild(t);}   // ly = just below the axis; text angles down-left
 
 function stackedCols(id,win){const card=document.getElementById(id);const[i0,i1]=win;const L=MONTHS.slice(i0,i1+1);
