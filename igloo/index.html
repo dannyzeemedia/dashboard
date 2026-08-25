@@ -439,6 +439,9 @@
   .tile .val{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-top:7px}
   .tile.hero .val{font-size:30px}
   .tile.hero .lab{font-size:12px}
+  .tile.sparktile{position:relative;overflow:hidden}
+  .tile.sparktile>.spark100{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+  .tile.sparktile>.tile-body{position:relative;z-index:1}
   .pietile .pie-wrap{display:flex;align-items:center;gap:12px;margin-top:10px}
   .donut{width:72px;height:72px;flex:none}
   .pie-leg{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink2);font-weight:600}
@@ -690,9 +693,6 @@
             <div class="card" id="c-mix"><h3>Revenue mix — flow vs campaign</h3>
               <div class="cap">Share of attributed revenue, % per month.</div>
               <div class="legend"><span><i style="background:var(--flow)"></i>Flow %</span><span><i style="background:var(--camp)"></i>Campaign %</span></div></div>
-            <div class="card" id="c-attrshare"><h3>Attributed share of store revenue</h3>
-              <div class="cap">Klaviyo-attributed revenue as a % of total store revenue, per month.</div>
-              <div class="legend"><span><i style="background:var(--flow)"></i>Attributed % of store</span></div></div>
           </div>
         </div></div>
       </div>
@@ -989,6 +989,22 @@ function flowAgg([i,j]){const map={};for(const row of FLOWDATA){const idx=MI[row
 const flowDelivTotal=w=>{const a=flowAgg(w);let d=0;for(const k in a)d+=a[k].d;return d;};
 const flowRevTotal=w=>{const a=flowAgg(w);let r=0;for(const k in a)r+=a[k].r;return r;};
 
+// 100%-stacked-area overlay for a tile: attributed share (bottom band) vs rest of store (top),
+// per month over the range. Stretches to fill the tile behind the text. vals = fraction 0..1.
+function stack100SVG(vals){
+  const idx=[];vals.forEach((v,i)=>{if(v!=null&&isFinite(v))idx.push(i);});
+  if(idx.length<2)return '';
+  const n=vals.length,W=320,H=120,x=i=>n<=1?0:W*i/(n-1),y=s=>H*(1-Math.max(0,Math.min(1,s)));
+  const bpts=idx.map(i=>x(i).toFixed(1)+' '+y(vals[i]).toFixed(1));
+  const first=x(idx[0]).toFixed(1),last=x(idx[idx.length-1]).toFixed(1);
+  const attr='M'+first+' '+H+' L'+bpts.join(' L')+' L'+last+' '+H+' Z';
+  const rest='M'+first+' 0 L'+bpts.join(' L')+' L'+last+' 0 Z';
+  const li='M'+bpts.join(' L');
+  return `<svg class="spark100" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">`
+    +`<path d="${rest}" fill="var(--camp)" fill-opacity="0.06"/>`
+    +`<path d="${attr}" fill="var(--flow)" fill-opacity="0.15"/>`
+    +`<path d="${li}" fill="none" stroke="var(--flow)" stroke-opacity="0.5" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
+}
 function renderTiles(){
   // tiles always summarise COMPLETE months (never the partial in-progress one)
   const n=IP?MONTHS.length-1:MONTHS.length,len=RANGE===0?n:Math.min(RANGE,n),cur=[n-len,n-1];
@@ -998,9 +1014,10 @@ function renderTiles(){
   const stC=sum(store,cur), atC=sum(total,cur);
   // Order (Danny): store revenue first, then attributed, then flow & campaign, then the rest.
   // First two are emphasised "hero" tiles; the remainder flow into a responsive row.
+  const tShare=[];for(let k=cur[0];k<=cur[1];k++)tShare.push(store[k]?total[k]/store[k]:null);   // attributed share of store, per month, for the tile overlay
   const rows=[
     {l:`Total store revenue · ${len}mo`,v:kfmt(stC),d:cD?delta(stC,sum(store,cD)):null,hero:true},
-    {l:`Total attributed · ${len}mo`,v:kfmt(atC),d:cD?delta(atC,sum(total,cD)):null,sub:(stC?Math.round(atC/stC*100)+'% of store revenue':null),hero:true},
+    {l:`Total attributed · ${len}mo`,v:kfmt(atC),d:cD?delta(atC,sum(total,cD)):null,sub:(stC?Math.round(atC/stC*100)+'% of store revenue':null),hero:true,spark:tShare},
     {pie:true,l:'Attributed mix',flow:sum(flow,cur),camp:sum(camp,cur)},
     {l:`Flow revenue · ${len}mo`,v:kfmt(sum(flow,cur)),d:cD?delta(sum(flow,cur),sum(flow,cD)):null,sub:(atC?Math.round(sum(flow,cur)/atC*100)+'% of attributed':null)},
     {l:`Campaign revenue · ${len}mo`,v:kfmt(sum(camp,cur)),d:cD?delta(sum(camp,cur),sum(camp,cD)):null,sub:(atC?Math.round(sum(camp,cur)/atC*100)+'% of attributed':null)},
@@ -1019,7 +1036,9 @@ function renderTiles(){
     if(t.d){let c=t.d.c;if(t.inv&&c==='up')c='down';else if(t.inv&&c==='down')c='up';
       dd=`<div class="delta ${c}">${t.d.t} vs ${CMP==='yoy'?'LY':'prev'}</div>`;}
     else dd=`<div class="delta flat">no prior period</div>`;
-    return `<div class="tile${t.hero?' hero':''}"><div class="lab">${t.l}</div><div class="val">${t.v}</div>${t.sub?'<div class="tsub">'+t.sub+'</div>':''}${dd}</div>`;};
+    const body=`<div class="lab">${t.l}</div><div class="val">${t.v}</div>${t.sub?'<div class="tsub">'+t.sub+'</div>':''}${dd}`;
+    if(t.spark){const sv=stack100SVG(t.spark);if(sv)return `<div class="tile${t.hero?' hero':''} sparktile">${sv}<div class="tile-body">${body}</div></div>`;}
+    return `<div class="tile${t.hero?' hero':''}">${body}</div>`;};
   const hero=rows.filter(t=>t.hero), rest=rows.filter(t=>!t.hero);
   document.getElementById('tiles').innerHTML=
     '<div class="trow-hero">'+hero.map(tileHTML).join('')+'</div>'+
@@ -2280,10 +2299,6 @@ function renderDash(){clearDash();const{cur}=windows();renderTiles();renderRpr()
   const hser=[];if(healthMode!=='spam')hser.push({name:'Unsub %',color:'var(--flow)',data:unsub});if(healthMode!=='unsub')hser.push({name:'Spam %',color:'var(--camp)',data:spam});
   lineChart('c-health',cur,hser,v=>v.toFixed(2)+'%',{ip:ipR});
   lineChart('c-mix',cur,[{name:'Flow %',color:'var(--flow)',data:flowPct},{name:'Campaign %',color:'var(--camp)',data:campPct}],v=>v+'%',{yfmt:v=>v+'%',ip:ipR});
-  {const attrShare=total.map((t,i)=>store[i]?+(t/store[i]*100).toFixed(1):null);   // attributed as % of store revenue, over the range
-   const asCard=document.getElementById('c-attrshare'),hasStore=store.slice(cur[0],cur[1]+1).some(v=>v>0);
-   if(asCard)asCard.style.display=hasStore?'':'none';
-   if(hasStore)lineChart('c-attrshare',cur,[{name:'Attributed % of store',color:'var(--flow)',data:attrShare}],v=>v+'%',{yfmt:v=>v+'%',ip:ipR});}
   renderCamp();
   renderSms();
   renderIpNote();
