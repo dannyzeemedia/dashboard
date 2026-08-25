@@ -439,9 +439,10 @@
   .tile .val{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-top:7px}
   .tile.hero .val{font-size:30px}
   .tile.hero .lab{font-size:12px}
-  .tile.sparktile{position:relative;overflow:hidden}
-  .tile.sparktile>.spark100{position:absolute;inset:0;width:100%;height:100%;z-index:0}
-  .tile.sparktile>.tile-body{position:relative;z-index:1}
+  .tile.sparktile{display:flex;align-items:stretch;gap:16px}
+  .tile.sparktile>.tile-body{flex:1;min-width:0}
+  .tile.sparktile>.spark-box{flex:0 0 44%;align-self:stretch;min-height:104px;border-left:1px solid var(--border);padding-left:14px;display:flex;align-items:flex-end}
+  @media(max-width:520px){.tile.sparktile{flex-direction:column}.tile.sparktile>.spark-box{flex:none;width:100%;border-left:0;border-top:1px solid var(--border);padding-left:0;padding-top:10px;min-height:88px}}
   .pietile .pie-wrap{display:flex;align-items:center;gap:12px;margin-top:10px}
   .donut{width:72px;height:72px;flex:none}
   .pie-leg{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink2);font-weight:600}
@@ -989,21 +990,28 @@ function flowAgg([i,j]){const map={};for(const row of FLOWDATA){const idx=MI[row
 const flowDelivTotal=w=>{const a=flowAgg(w);let d=0;for(const k in a)d+=a[k].d;return d;};
 const flowRevTotal=w=>{const a=flowAgg(w);let r=0;for(const k in a)r+=a[k].r;return r;};
 
-// 100%-stacked-area overlay for a tile: attributed share (bottom band) vs rest of store (top),
-// per month over the range. Stretches to fill the tile behind the text. vals = fraction 0..1.
-function stack100SVG(vals){
+// Compartmentalised 100%-stacked-area chart for the Total-attributed tile: attributed share
+// (bottom band) vs rest of store (top), per month over the range, with hover (date + %).
+function drawAttrShare(host,months,vals){
+  host.innerHTML='';host.style.position='relative';
   const idx=[];vals.forEach((v,i)=>{if(v!=null&&isFinite(v))idx.push(i);});
-  if(idx.length<2)return '';
-  const n=vals.length,W=320,H=120,x=i=>n<=1?0:W*i/(n-1),y=s=>H*(1-Math.max(0,Math.min(1,s)));
+  if(idx.length<2){host.style.display='none';return;} host.style.display='';
+  const n=vals.length,W=300,H=118,PT=6,PB=15,ih=H-PT-PB;
+  const x=i=>n<=1?0:W*i/(n-1),y=s=>PT+ih*(1-Math.max(0,Math.min(1,s))),base=PT+ih;
   const bpts=idx.map(i=>x(i).toFixed(1)+' '+y(vals[i]).toFixed(1));
   const first=x(idx[0]).toFixed(1),last=x(idx[idx.length-1]).toFixed(1);
-  const attr='M'+first+' '+H+' L'+bpts.join(' L')+' L'+last+' '+H+' Z';
-  const rest='M'+first+' 0 L'+bpts.join(' L')+' L'+last+' 0 Z';
-  const li='M'+bpts.join(' L');
-  return `<svg class="spark100" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">`
-    +`<path d="${rest}" fill="var(--camp)" fill-opacity="0.06"/>`
-    +`<path d="${attr}" fill="var(--flow)" fill-opacity="0.15"/>`
-    +`<path d="${li}" fill="none" stroke="var(--flow)" stroke-opacity="0.5" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:'100%'});svg.style.display='block';svg.style.height='100%';
+  svg.appendChild(el('path',{d:'M'+first+' '+PT+' L'+bpts.join(' L')+' L'+last+' '+PT+' Z',fill:'var(--camp)','fill-opacity':0.08}));
+  svg.appendChild(el('path',{d:'M'+first+' '+base+' L'+bpts.join(' L')+' L'+last+' '+base+' Z',fill:'var(--flow)','fill-opacity':0.18}));
+  svg.appendChild(el('path',{d:'M'+bpts.join(' L'),fill:'none',stroke:'var(--flow)','stroke-width':2,'stroke-linejoin':'round'}));
+  [idx[0],idx[idx.length-1]].forEach((i,k)=>{const t=el('text',{x:x(i),y:H-3,'text-anchor':k?'end':'start',fill:'var(--muted)','font-size':9.5,'font-family':'system-ui'});t.textContent=mlabel(months[i]);svg.appendChild(t);});
+  const guide=el('line',{x1:0,x2:0,y1:PT,y2:base,stroke:'var(--flow)','stroke-width':1,'stroke-dasharray':'3 3','stroke-opacity':0});svg.appendChild(guide);
+  const hit=el('rect',{x:0,y:0,width:W,height:H,fill:'transparent'});hit.style.cursor='crosshair';svg.appendChild(hit);
+  host.appendChild(svg);
+  hit.addEventListener('mousemove',e=>{const r=svg.getBoundingClientRect();let i=Math.round((e.clientX-r.left)/r.width*(n-1));i=Math.max(0,Math.min(n-1,i));if(vals[i]==null)return;
+    guide.setAttribute('x1',x(i));guide.setAttribute('x2',x(i));guide.setAttribute('stroke-opacity',0.4);
+    showTip(host,e,mlabel(months[i]),[['Attributed % of store',vals[i]*100,'var(--flow)',v=>v.toFixed(1)+'%'],['Rest of store',(1-vals[i])*100,'var(--camp)',v=>v.toFixed(1)+'%']]);});
+  hit.addEventListener('mouseleave',()=>{hideTip(host);guide.setAttribute('stroke-opacity',0);});
 }
 function renderTiles(){
   // tiles always summarise COMPLETE months (never the partial in-progress one)
@@ -1037,12 +1045,13 @@ function renderTiles(){
       dd=`<div class="delta ${c}">${t.d.t} vs ${CMP==='yoy'?'LY':'prev'}</div>`;}
     else dd=`<div class="delta flat">no prior period</div>`;
     const body=`<div class="lab">${t.l}</div><div class="val">${t.v}</div>${t.sub?'<div class="tsub">'+t.sub+'</div>':''}${dd}`;
-    if(t.spark){const sv=stack100SVG(t.spark);if(sv)return `<div class="tile${t.hero?' hero':''} sparktile">${sv}<div class="tile-body">${body}</div></div>`;}
+    if(t.spark){return `<div class="tile${t.hero?' hero':''} sparktile"><div class="tile-body">${body}</div><div class="spark-box" id="tile-attrshare"></div></div>`;}
     return `<div class="tile${t.hero?' hero':''}">${body}</div>`;};
   const hero=rows.filter(t=>t.hero), rest=rows.filter(t=>!t.hero);
   document.getElementById('tiles').innerHTML=
     '<div class="trow-hero">'+hero.map(tileHTML).join('')+'</div>'+
     '<div class="trow-rest">'+rest.map(tileHTML).join('')+'</div>';
+  {const sb=document.getElementById('tile-attrshare');if(sb)drawAttrShare(sb,MONTHS.slice(cur[0],cur[1]+1),tShare);}
   document.getElementById('rangeText').textContent=`${mlabel(MONTHS[cur[0]])} – ${mlabel(MONTHS[cur[1]])}`+
     (valid?`  ·  vs ${mlabel(MONTHS[cmp[0]])} – ${mlabel(MONTHS[cmp[1]])}`:'  ·  no comparison period');}
 
