@@ -1171,8 +1171,11 @@ const niceMax=m=>{if(m<=0)return 1;const p=Math.pow(10,Math.floor(Math.log10(m))
 const tipEl=c=>{let t=c.querySelector('.tip');if(!t){if(getComputedStyle(c).position==='static')c.style.position='relative';t=document.createElement('div');t.className='tip';c.appendChild(t);}return t;};
 function showTip(card,ev,title,rows,fmt){const t=tipEl(card);
   t.innerHTML=`<div class="tt-m">${title}</div>`+rows.map(([n,v,c,f])=>`<div class="tt-r"><span style="display:flex;gap:7px;align-items:center;color:var(--ink2)"><i style="background:${c}"></i>${n}</span><b>${(f||fmt)(v)}</b></div>`).join('');
-  const cr=card.getBoundingClientRect();let lx=ev.clientX-cr.left+14,ly=ev.clientY-cr.top+14;
-  if(lx>cr.width-150)lx=ev.clientX-cr.left-150;t.style.left=lx+'px';t.style.top=ly+'px';t.style.opacity=1;}
+  t.style.opacity=1;   // make it measurable before positioning
+  const cr=card.getBoundingClientRect(),tw=t.offsetWidth,th=t.offsetHeight,px=ev.clientX-cr.left,py=ev.clientY-cr.top,PAD=6;
+  let lx=px+14;if(lx+tw>cr.width-PAD)lx=px-tw-14;lx=Math.max(PAD,Math.min(lx,cr.width-tw-PAD));   // flip left near right edge, clamp
+  let ly=py+14;if(ly+th>cr.height-PAD)ly=py-th-14;ly=Math.max(PAD,Math.min(ly,cr.height-th-PAD));  // flip above near bottom, clamp
+  t.style.left=lx+'px';t.style.top=ly+'px';}
 const hideTip=c=>{const t=c.querySelector('.tip');if(t)t.style.opacity=0;};
 const lblEvery=k=>Math.max(1,Math.ceil(k/7));
 
