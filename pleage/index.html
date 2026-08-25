@@ -731,14 +731,15 @@
         <button class="asec-head" type="button"><span class="asec-chev">▸</span><span class="asec-name">List Growth</span></button>
         <div class="asec-body"><div class="asec-inner">
           <div class="grid">
-            <div class="card" id="c-subs"><h3>New subscribers / month <span class="helpi" tabindex="0" title="New subscribers = unique “Subscribed to List” profiles per month (email), from Klaviyo.&#10;&#10;Net (after unsubs) subtracts marketing opt-outs attributed to flow + campaign sends.&#10;&#10;It does NOT include manual suppressions, list cleans, bounces/spam suppressions, or profile deletions — so true list attrition may be higher.">i</span></h3>
+            <div class="card" id="c-subs"><h3>New subscribers / month <span class="helpi" tabindex="0" title="New subscribers = unique opt-ins per month — “Subscribed to List” for email, “Subscribed to Text Messaging Marketing” for SMS.&#10;&#10;Net (after unsubs) subtracts list opt-outs for the same channel, so it can go negative when opt-outs outrun opt-ins (a real net loss).&#10;&#10;It does NOT include manual suppressions, list cleans, bounces/invalid-number suppressions, or profile deletions — so Klaviyo’s “Exclusions” (and true attrition) can be higher.">i</span></h3>
               <div class="chartseg" id="subsChanSeg" hidden><button class="csg on" data-ch="email">Email</button><button class="csg" data-ch="sms">SMS</button><button class="csg" data-ch="combined">Combined</button></div>
               <button class="miniToggle" id="subsNetTog" aria-pressed="false" style="display:none" title="Subtract email unsubscribes to show net list growth"><span class="dot"></span>Net (after unsubs)</button>
               <div class="cap" id="subs-cap">Unique “Subscribed to List” profiles.</div>
               <div class="legend"><span><i style="background:var(--flow)"></i>New subs</span><span><i style="background:var(--camp)"></i>3-mo avg</span></div></div>
             <div class="card" id="c-health"><h3>List health</h3>
+              <div class="chartseg" id="healthChanSeg" hidden style="margin-bottom:6px"><button class="csg on" data-hc="email">Email</button><button class="csg" data-hc="sms">SMS</button></div>
               <div class="chartseg" id="healthSeg"><button class="csg on" data-h="both">Both</button><button class="csg" data-h="unsub">Unsub</button><button class="csg" data-h="spam">Spam</button></div>
-              <div class="cap">Unsub &amp; spam rate (% of delivered).</div>
+              <div class="cap">Unsub &amp; spam rate (% of delivered). SMS shows opt-out rate (no spam signal on SMS).</div>
               <div class="legend"><span><i style="background:var(--flow)"></i>Unsub %</span><span><i style="background:var(--camp)"></i>Spam %</span></div></div>
           </div>
         </div></div>
@@ -832,9 +833,16 @@ let auditUnsubBlended=false;   // audit #3 unsub chart: false = flow vs campaign
 // working arrays above from these depending on the "include current" toggle.
 let BM=[],Bflow=[],Bcamp=[],Bsubs=[],Bcsends=[],Bcrecip=[],Bunsub=[],Bspam=[],BFLOW=[],Btl=[],Btc=[],Btw=[],Bucount=[],Bstore=[];
 let Bremail=[],Brsms=[],Bsmsd=[],Bsubs_sms=[];
+let Bsubs_unsub=[],Bsubs_sms_unsub=[];   // list-consent opt-OUTs per month, by channel (net growth)
+let smsUnsub=[];           // derived SMS unsub RATE (opt-outs / delivered) for List health
 let subsChannel='email';   // New-subscribers channel: 'email' (Subscribed to List), 'sms', or 'combined' (email+sms)
 let subsNet=false;         // New-subscribers "Net (after unsubscribes)" toggle
-let healthMode='both';     // List health: 'both' | 'unsub' | 'spam'
+let healthMode='both';     // List health metric: 'both' | 'unsub' | 'spam'
+let healthChannel='email'; // List health channel: 'email' | 'sms'
+function updateSubsCap(){const cap=document.getElementById('subs-cap');if(!cap)return;
+  const src=subsChannel==='sms'?'new SMS opt-ins':subsChannel==='combined'?'new email + SMS opt-ins':'new “Subscribed to List” profiles';
+  const out=subsChannel==='sms'?'SMS opt-outs':subsChannel==='combined'?'email + SMS opt-outs':'email unsubscribes';
+  cap.textContent=subsNet?`Net list growth: ${src} minus ${out}, per month (can go negative).`:`Unique ${src} per month.`;}
 let CUR=null, IP=null;
 
 function hydrate(series){
@@ -844,13 +852,22 @@ function hydrate(series){
   Btl=series.tlaunched||[]; Btc=series.tconcluded||[]; Btw=series.twon||[];
   Bremail=series.remail||[]; Brsms=series.rsms||[]; Bsmsd=series.sms_deliv||[];
   Bsubs_sms=series.subs_sms||[];
+  Bsubs_unsub=series.subs_unsub||[]; Bsubs_sms_unsub=series.subs_sms_unsub||[];
   CUR=series.current||null;
+  const hasSmsSubs=Bsubs_sms.some(v=>v>0);
+  const hasSmsHealth=Bsubs_sms_unsub.some(v=>v>0)&&Bsmsd.some(v=>v>0);
   // channel toggle only makes sense where SMS subscriptions actually exist
   const seg=document.getElementById('subsChanSeg');
-  if(seg){const hasSms=Bsubs_sms.some(v=>v>0);seg.hidden=!hasSms;if(!hasSms)subsChannel='email';
+  if(seg){seg.hidden=!hasSmsSubs;if(!hasSmsSubs)subsChannel='email';
     seg.querySelectorAll('.csg').forEach(b=>b.classList.toggle('on',b.dataset.ch===subsChannel));}
-  const netTog=document.getElementById('subsNetTog');   // net toggle only when we have unsubscribe counts
-  if(netTog){const hasU=Bucount.some(v=>v);netTog.style.display=hasU?'':'none';if(!hasU)subsNet=false;netTog.setAttribute('aria-pressed',subsNet);}
+  // net toggle whenever we have any list-consent opt-out data for the fleet
+  const netTog=document.getElementById('subsNetTog');
+  if(netTog){const hasU=Bsubs_unsub.some(v=>v)||Bsubs_sms_unsub.some(v=>v)||Bucount.some(v=>v);
+    netTog.style.display=hasU?'':'none';if(!hasU)subsNet=false;netTog.setAttribute('aria-pressed',subsNet);}
+  // List health channel toggle only where SMS opt-out data exists
+  const hseg=document.getElementById('healthChanSeg');
+  if(hseg){hseg.hidden=!hasSmsHealth;if(!hasSmsHealth)healthChannel='email';
+    hseg.querySelectorAll('.csg').forEach(b=>b.classList.toggle('on',b.dataset.hc===healthChannel));}
   applyMode();
   const ct=document.getElementById('curTog');ct.hidden=!(CUR&&CUR.mtd);ct.setAttribute('aria-pressed',inProgress);
   document.getElementById('dash-title').textContent=series.name+' — Lifecycle & Retention';
@@ -950,11 +967,21 @@ function applyMode(){
   const bSubCh=subsChannel==='sms'?Bsubs_sms:subsChannel==='combined'?Bsubs.map((v,i)=>v+(Bsubs_sms[i]||0)):Bsubs;
   const mSubCh=on?(subsChannel==='sms'?(CUR.mtd.subs_sms||0):subsChannel==='combined'?((CUR.mtd.subs||0)+(CUR.mtd.subs_sms||0)):CUR.mtd.subs):0;
   subs=cat(bSubCh,mSubCh);
-  if(subsNet&&subsChannel==='email')subs=subs.map((v,i)=>Math.max(0,v-((i<Bucount.length)?(Bucount[i]||0):0)));   // net = new subs − email unsubscribes (current in-progress month stays gross)
+  if(subsNet){   // net = new subs − list opt-outs, per channel (email uses the list-unsub metric, falling back to deliverability unsubs)
+    const bEU=Bsubs_unsub.length?Bsubs_unsub:Bucount;
+    const bUn=subsChannel==='sms'?Bsubs_sms_unsub:subsChannel==='combined'?bEU.map((v,i)=>(v||0)+((Bsubs_sms_unsub[i]||0))):bEU;
+    const mUn=on?(subsChannel==='sms'?(CUR.mtd.subs_sms_unsub||0):subsChannel==='combined'?((CUR.mtd.subs_unsub||0)+(CUR.mtd.subs_sms_unsub||0)):(CUR.mtd.subs_unsub||0)):0;
+    const un=cat(bUn,mUn);
+    subs=subs.map((v,i)=>v-((un[i])||0));   // can go negative when opt-outs outrun opt-ins (a real net loss)
+  }
   csends=cat(Bcsends,on&&CUR.mtd.csends);
   crecip=cat(Bcrecip,on&&CUR.mtd.crecip); unsub=cat(Bunsub,on&&CUR.mtd.unsub);
   spam=cat(Bspam,on&&CUR.mtd.spam); store=cat(Bstore,on&&(CUR.mtd.store||0));
   remail=cat(Bremail,on&&CUR.mtd.remail); rsms=cat(Brsms,on&&CUR.mtd.rsms); smsDeliv=cat(Bsmsd,on&&CUR.mtd.sms_deliv);
+  // SMS opt-outs are keyword/STOP events not attributable to a month's delivered
+  // messages (opt-outs can exceed a month's sends), so List health shows the
+  // absolute opt-out COUNT for SMS, not a % — the honest, bounded signal.
+  smsUnsub=cat(Bsubs_sms_unsub,on&&(CUR.mtd.subs_sms_unsub||0));
   FLOWDATA=on?BFLOW.concat(CUR.mtd.flows):BFLOW.slice();
   const ct=on&&CUR.tests?CUR.tests:null;
   tlaunched=cat(Btl,ct?ct.launched:0); tconcluded=cat(Btc,ct?ct.concluded:0); twon=cat(Btw,ct?ct.won:0);
@@ -1195,10 +1222,12 @@ function lineChart(id,win,series,fmt,opts){opts=opts||{};const card=document.get
   const allv=S.flatMap(s=>s.data.filter(v=>v!=null));
   if(ipK>=0&&ip.project)(ip.proj||[]).forEach(v=>{if(v!=null)allv.push(v);});
   const max=niceMax(Math.max(...allv,0));
+  const rawmin=Math.min(...allv,0),min=rawmin<0?-niceMax(-rawmin):0,span=(max-min)||1;   // floor below 0 only when a series goes negative (e.g. net list loss)
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
-  const x=i=>PL+(n<=1?iw/2:iw*i/(n-1)),y=v=>PT+ih-(v/max)*ih,ev=lblEvery(n);
-  for(let g=0;g<=4;g++){const gv=max*g/4;svg.appendChild(el('line',{class:'gl',x1:PL,x2:W-PR,y1:y(gv),y2:y(gv)}));
+  const x=i=>PL+(n<=1?iw/2:iw*i/(n-1)),y=v=>PT+ih-((v-min)/span)*ih,ev=lblEvery(n);
+  for(let g=0;g<=4;g++){const gv=min+span*g/4;svg.appendChild(el('line',{class:'gl',x1:PL,x2:W-PR,y1:y(gv),y2:y(gv)}));
     const tx=el('text',{class:'ax',x:PL-8,y:y(gv)+4,'text-anchor':'end'});tx.textContent=(opts.yfmt||fmt)(gv);svg.appendChild(tx);}
+  if(min<0)svg.appendChild(el('line',{x1:PL,x2:W-PR,y1:y(0),y2:y(0),stroke:'var(--muted)','stroke-width':1,opacity:.6}));   // zero reference
   S.forEach(s=>{let d='',st=false;s.data.forEach((v,i)=>{if(v==null)return;d+=(st?'L':'M')+x(i)+' '+y(v);st=true;});
     if(d)svg.appendChild(el('path',{d,fill:'none',stroke:s.color,'stroke-width':2,'stroke-dasharray':s.dash?'5 4':'','stroke-linejoin':'round'}));
     for(let i=s.data.length-1;i>=0;i--){if(s.data[i]!=null){svg.appendChild(el('circle',{cx:x(i),cy:y(s.data[i]),r:3.5,fill:s.color}));break;}}});
@@ -2320,9 +2349,20 @@ function renderDash(){clearDash();const{cur}=windows();renderTiles();renderRpr()
   stackedCols('c-rev',cur);
   lineChart('c-total',cur,[{name:'Monthly',color:'var(--flow)',data:total},{name:'3-mo avg',color:'var(--camp)',data:roll3,dash:true}],kfmt,{ip:ipT});
   lineChart('c-subs',cur,[{name:(subsNet?'Net subs':'New subs'),color:'var(--flow)',data:subs},{name:'3-mo avg',color:'var(--camp)',data:subsR3,dash:true}],nfmt,{ip:ipS});
-  {const lg=document.querySelectorAll('#c-health .legend span');if(lg[0])lg[0].style.display=healthMode==='spam'?'none':'';if(lg[1])lg[1].style.display=healthMode==='unsub'?'none':'';}
-  const hser=[];if(healthMode!=='spam')hser.push({name:'Unsub %',color:'var(--flow)',data:unsub});if(healthMode!=='unsub')hser.push({name:'Spam %',color:'var(--camp)',data:spam});
-  lineChart('c-health',cur,hser,v=>v.toFixed(2)+'%',{ip:ipR});
+  // List health: email shows unsub/spam RATE (% of delivered); SMS shows the
+  // absolute opt-out COUNT (STOP events aren't send-attributable, so a rate is
+  // meaningless), and SMS has no spam signal — so the metric toggle is hidden.
+  {const sms=healthChannel==='sms';
+   const seg=document.getElementById('healthSeg');if(seg)seg.style.display=sms?'none':'';
+   const cap=document.querySelector('#c-health .cap');
+   if(cap)cap.textContent=sms?'SMS opt-outs (STOP / keyword) per month. Whole-list events, not tied to a month’s sends, so shown as a count not a rate.':'Unsub & spam rate (% of delivered).';
+   const lg=document.querySelectorAll('#c-health .legend span');
+   if(lg[0]){lg[0].style.display=(!sms&&healthMode==='spam')?'none':'';lg[0].lastChild.textContent=sms?'SMS opt-outs':'Unsub %';}
+   if(lg[1])lg[1].style.display=(sms||healthMode==='unsub')?'none':'';
+   const hser=[];
+   if(sms)hser.push({name:'SMS opt-outs',color:'var(--flow)',data:smsUnsub});
+   else{if(healthMode!=='spam')hser.push({name:'Unsub %',color:'var(--flow)',data:unsub});if(healthMode!=='unsub')hser.push({name:'Spam %',color:'var(--camp)',data:spam});}
+   lineChart('c-health',cur,hser,sms?nfmt:(v=>v.toFixed(2)+'%'),{ip:ipR});}
   lineChart('c-mix',cur,[{name:'Flow %',color:'var(--flow)',data:flowPct},{name:'Campaign %',color:'var(--camp)',data:campPct}],v=>v+'%',{yfmt:v=>v+'%',ip:ipR});
   renderCamp();
   renderSms();
@@ -2424,14 +2464,13 @@ function wireControls(){
     subsChannel=b.dataset.ch;
     document.querySelectorAll('#subsChanSeg .csg').forEach(x=>x.classList.toggle('on',x===b));
     const cap=document.getElementById('subs-cap');
-    if(cap)cap.textContent=subsChannel==='sms'?'Unique “Subscribed to Text Messaging Marketing” profiles.':subsChannel==='combined'?'“Subscribed to List” (email) plus SMS marketing subscriptions.':'Unique “Subscribed to List” profiles.';
-    applyMode();renderDash();});
+    updateSubsCap();applyMode();renderDash();});
   document.getElementById('subsNetTog').addEventListener('click',e=>{subsNet=!subsNet;e.currentTarget.setAttribute('aria-pressed',subsNet);
-    const cap=document.getElementById('subs-cap');
-    if(cap)cap.textContent=subsNet?'Net list growth: new “Subscribed to List” minus email unsubscribes, per month.':'Unique “Subscribed to List” profiles.';
-    applyMode();renderDash();});
+    updateSubsCap();applyMode();renderDash();});
   document.getElementById('healthSeg').addEventListener('click',e=>{const b=e.target.closest('.csg');if(!b)return;healthMode=b.dataset.h;
     document.querySelectorAll('#healthSeg .csg').forEach(x=>x.classList.toggle('on',x===b));renderDash();});
+  {const hcs=document.getElementById('healthChanSeg');if(hcs)hcs.addEventListener('click',e=>{const b=e.target.closest('.csg');if(!b)return;healthChannel=b.dataset.hc;
+    document.querySelectorAll('#healthChanSeg .csg').forEach(x=>x.classList.toggle('on',x===b));renderDash();});}
   (function(){
     const vm=document.getElementById('vidModal'),vif=document.getElementById('vidIframe');
     const open=()=>{const u=document.getElementById('vidBtn').dataset.embed||'';if(!u)return;vif.src=u;vm.hidden=false;};
