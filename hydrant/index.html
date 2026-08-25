@@ -1123,7 +1123,7 @@ function miniLine(card,win,vals0,color,fmt,dash0,lab,ip){const[i0,i1]=win;const 
     if(d)svg.appendChild(el('path',{d,fill:'none',stroke:c,'stroke-width':2,'stroke-dasharray':dsh?'5 4':'','stroke-linejoin':'round'}));};
   if(dash)draw(dash,'var(--camp)',true); draw(vals,color,false);
   if(ipK>=0&&vals[ipK]!=null)svg.appendChild(el('circle',{cx:x(ipK),cy:y(vals[ipK]),r:4.2,fill:'var(--surface)',stroke:color,'stroke-width':2}));
-  L.forEach((m,i)=>{if(i%ev===0||i===n-1){mlab(svg,x(i),PT+ih+16,mlabel(m)+(i===ipK?'*':''));}});
+  L.forEach((m,i)=>{if(labIdx(n).has(i)){mlab(svg,x(i),PT+ih+16,mlabel(m)+(i===ipK?'*':''));}});
   svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
   const hit=el('rect',{x:PL,y:PT,width:iw,height:ih,fill:'transparent'});
   hit.addEventListener('mousemove',e=>{const r=svg.getBoundingClientRect();const px=(e.clientX-r.left)/r.width*W;let i=Math.round((px-PL)/iw*(n-1));i=Math.max(0,Math.min(n-1,i));if(vals[i]!=null){const rows=[[lab||'',vals[i],color]];if(dash&&dash[i]!=null)rows.push(['3-mo avg',dash[i],'var(--camp)']);showTip(card,e,mlabel(L[i]),rows,fmt);}});
@@ -1182,6 +1182,9 @@ function showTip(card,ev,title,rows,fmt){const t=tipEl(card);
   t.style.left=lx+'px';t.style.top=ly+'px';}
 const hideTip=c=>{const t=c.querySelector('.tip');if(t)t.style.opacity=0;};
 const lblEvery=k=>Math.max(1,Math.ceil(k/7));
+function labIdx(n){if(n<=9){const s=new Set();for(let k=0;k<n;k++)s.add(k);return s;}   // few enough months → label them all
+  const maxL=Math.min(7,Math.floor((n-1)/2)+1),st=(n-1)/(maxL-1),s=new Set();            // else ~7 evenly spaced, always incl. first+last, min 2 apart
+  for(let k=0;k<maxL;k++)s.add(Math.round(k*st));return s;}
 function mlab(svg,cx,ly,txt){const t=el('text',{class:'ax',x:cx,y:ly,'text-anchor':'end',transform:`rotate(-20 ${cx} ${ly})`});t.textContent=txt;svg.appendChild(t);}   // ly = just below the axis; text angles down-left
 
 function stackedCols(id,win){const card=document.getElementById(id);const[i0,i1]=win;const L=MONTHS.slice(i0,i1+1);
@@ -1215,7 +1218,7 @@ function stackedCols(id,win){const card=document.getElementById(id);const[i0,i1]
       svg.appendChild(el('rect',{x,y:PT+ih-hf-hc-2,width:bw,height:Math.max(hc,0),rx:3,fill:C2,'fill-opacity':op}));
       if(ip&&IP.project)ghost(x,bw,P1+P2);}
     const lx=PL+step*i+step/2;
-    if(i%ev===0||i===n-1){mlab(svg,lx,PT+ih+16,mlabel(m)+(ip?'*':''));}
+    if(labIdx(n).has(i)){mlab(svg,lx,PT+ih+16,mlabel(m)+(ip?'*':''));}
     const hit=el('rect',{x:PL+step*i,y:PT,width:step,height:ih,fill:'transparent'});
     hit.addEventListener('mousemove',e=>{const rows=[[N1,fv[i],C1],[N2,cv[i],C2],['Total',tv[i],'var(--ink2)']];
       let title=mlabel(m); if(ip){title+=` · MTD ${IP.days}/${IP.dim}d`; if(IP.project)rows.push(['Projected total',P1+P2,'var(--ink2)']);}
@@ -1244,7 +1247,7 @@ function lineChart(id,win,series,fmt,opts){opts=opts||{};const card=document.get
     const pv=(ip.proj||[])[si];
     if(ip.project&&pv!=null){svg.appendChild(el('line',{x1:x(ipK),x2:x(ipK),y1:y(v),y2:y(pv),stroke:s.color,'stroke-width':1.5,'stroke-dasharray':'4 3',opacity:.85}));
       svg.appendChild(el('circle',{cx:x(ipK),cy:y(pv),r:3.5,fill:'none',stroke:s.color,'stroke-width':1.5,'stroke-dasharray':'3 2'}));}});
-  L.forEach((m,i)=>{if(i%ev===0||i===n-1){mlab(svg,x(i),PT+ih+16,mlabel(m)+(i===ipK?'*':''));}});
+  L.forEach((m,i)=>{if(labIdx(n).has(i)){mlab(svg,x(i),PT+ih+16,mlabel(m)+(i===ipK?'*':''));}});
   svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
   const cross=el('line',{class:'cross',y1:PT,y2:PT+ih,opacity:0});svg.appendChild(cross);
   const hit=el('rect',{x:PL,y:PT,width:iw,height:ih,fill:'transparent'});
@@ -1277,7 +1280,7 @@ function miniCols(card,win,vals0,color,fmt,labhint,area,ip){const[i0,i1]=win;con
    vals.forEach((v,i)=>{const x=PL+step*i+(step-bw)/2,h=v/max*ih,isip=(i===ipK);
      svg.appendChild(el('rect',{x,y:PT+ih-h,width:bw,height:Math.max(h,0),rx:2.5,fill:color,'fill-opacity':isip?0.5:1}));
      if(isip&&ip.project&&ip.proj!=null)svg.appendChild(el('rect',{x,y:y(ip.proj),width:bw,height:Math.max(PT+ih-y(ip.proj),0),rx:2.5,fill:'none',stroke:'var(--ink2)','stroke-width':1.4,'stroke-dasharray':'4 3',opacity:.75}));
-     if(i%ev===0||i===n-1){mlab(svg,x+bw/2,PT+ih+16,mlabel(L[i])+(isip?'*':''));}   // angled so end-of-axis labels don't overlap
+     if(labIdx(n).has(i)){mlab(svg,x+bw/2,PT+ih+16,mlabel(L[i])+(isip?'*':''));}   // angled so end-of-axis labels don't overlap
      const hit=el('rect',{x:PL+step*i,y:PT,width:step,height:ih,fill:'transparent'});
      hit.addEventListener('mousemove',e=>{const rows=[[labhint,v,color]];A.forEach(({a,av})=>rows.push([a.label,av[i],a.color,a.fmt]));
        let title=mlabel(L[i]);
@@ -1298,7 +1301,7 @@ function miniCols2(card,win,a0,b0,ca,cb,fmt,la,lb,ip){const[i0,i1]=win;const L=M
   L.forEach((m,i)=>{const cx=PL+step*i+step/2,x1=cx-bw-gap/2,x2=cx+gap/2,ha=A[i]/max*ih,hb=B[i]/max*ih,op=(i===ipK)?0.5:1;
     svg.appendChild(el('rect',{x:x1,y:PT+ih-ha,width:bw,height:Math.max(ha,0),rx:2,fill:ca,'fill-opacity':op}));
     svg.appendChild(el('rect',{x:x2,y:PT+ih-hb,width:bw,height:Math.max(hb,0),rx:2,fill:cb,'fill-opacity':op}));
-    if(i%ev===0||i===n-1){mlab(svg,cx,PT+ih+16,mlabel(m)+((i===ipK)?'*':''));}   // angled to avoid end-of-axis overlap
+    if(labIdx(n).has(i)){mlab(svg,cx,PT+ih+16,mlabel(m)+((i===ipK)?'*':''));}   // angled to avoid end-of-axis overlap
     const hit=el('rect',{x:PL+step*i,y:PT,width:step,height:ih,fill:'transparent'});
     hit.addEventListener('mousemove',e=>showTip(card,e,mlabel(m),[[la,A[i],ca],[lb,B[i],cb]],fmt));
     hit.addEventListener('mouseleave',()=>hideTip(card));svg.appendChild(hit);});
@@ -1705,7 +1708,7 @@ function auditStoreShare(host,S,spec){spec=spec||{};const cur=(S.current&&S.curr
     let lp='';share.forEach((v,i)=>lp+=(i?'L':'M')+x(i)+' '+yp(v));svg.appendChild(el('path',{d:lp,fill:'none',stroke:'var(--flow)','stroke-width':3,'stroke-linejoin':'round'}));
     share.forEach((v,i)=>svg.appendChild(el('circle',{cx:x(i),cy:yp(v),r:3.2,fill:'var(--flow)'})));
     let mp='';ma3.forEach((v,i)=>mp+=(i?'L':'M')+x(i)+' '+yp(v));svg.appendChild(el('path',{d:mp,fill:'none',stroke:'var(--aqua)','stroke-width':2.5,'stroke-dasharray':'6 4','stroke-linejoin':'round'}));
-    m.forEach((mm,i)=>{if(i%ev===0||i===n-1){mlab(svg,x(i),PT+ih+16,mlabel(mm)+(cur&&i===n-1?'*':''));}});
+    m.forEach((mm,i)=>{if(labIdx(n).has(i)){mlab(svg,x(i),PT+ih+16,mlabel(mm)+(cur&&i===n-1?'*':''));}});
     svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
     const cross=el('line',{class:'cross',y1:PT,y2:PT+ih,opacity:0});svg.appendChild(cross);
     const hit=el('rect',{x:PL,y:PT,width:iw,height:ih,fill:'transparent'});
@@ -1842,7 +1845,7 @@ function auditSeasonBars(host,S,spec){
         bd.addEventListener('mousemove',e=>showTip(host,e,mlabel(m[i])+' — birthday club',[['Additional (est.)',est,'var(--good)',kfmt]]));
         bd.addEventListener('mouseleave',()=>hideTip(host));svg.appendChild(bd);}});
     const ev=lblEvery(n);
-    m.forEach((mm,i)=>{if(i%ev===0||i===n-1){mlab(svg,x(i),PT+ih+16,mlabel(mm));}});
+    m.forEach((mm,i)=>{if(labIdx(n).has(i)){mlab(svg,x(i),PT+ih+16,mlabel(mm));}});
     svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
     box.appendChild(svg);
     const note=document.createElement('div');note.className='conc-note';note.textContent=(showB&&spec.birthdayNote)?spec.birthdayNote:(spec.note||'');box.appendChild(note);}
@@ -1873,7 +1876,7 @@ function auditCampDouble(host,S,spec){spec=spec||{};
       if(iv>0){const yb=y(v+iv);const bd=el('rect',{x:x(i)-bw/2,y:yb,width:bw,height:y(v)-yb,rx:2,fill:'var(--aqua)','fill-opacity':0.9,cursor:'pointer'});
         bd.addEventListener('mousemove',e=>showTip(host,e,mlabel(m[i])+' — extra from doubling',[['Extra (est.)',iv,'var(--aqua)',kfmt]]));
         bd.addEventListener('mouseleave',()=>hideTip(host));svg.appendChild(bd);}});
-    m.forEach((mm,i)=>{if(i%ev===0||i===n-1){mlab(svg,x(i),PT+ih+16,mlabel(mm));}});
+    m.forEach((mm,i)=>{if(labIdx(n).has(i)){mlab(svg,x(i),PT+ih+16,mlabel(mm));}});
     svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
     if(on)box.appendChild(alegend(['Campaign revenue','var(--muted)'],['Peak months','var(--camp)'],['Extra from doubling off-season sends (est.)','var(--aqua)']));
     box.appendChild(svg);
@@ -1962,7 +1965,7 @@ function auditChannelRev(host,S,spec){spec=spec||{};const cur=(S.current&&S.curr
   m.forEach((mm,i)=>{const x=PL+step*i+(step-bw)/2,he=em[i]/mx*ih,hs=(sm[i]||0)/mx*ih,fade=(cur&&i===n-1);
     svg.appendChild(el('rect',{x,y:PT+ih-he,width:bw,height:Math.max(he,0),rx:2,fill:'var(--flow)','fill-opacity':fade?.4:.85}));   // email (bottom)
     if(sm[i]>0)svg.appendChild(el('rect',{x,y:PT+ih-he-Math.max(hs,1.5),width:bw,height:Math.max(hs,1.5),rx:2,fill:'var(--camp)','fill-opacity':fade?.5:1}));  // SMS (cap, min 1.5px so it stays visible)
-    if(i%ev===0||i===n-1){mlab(svg,cx(i),PT+ih+16,mlabel(mm)+(fade?'*':''));}});
+    if(labIdx(n).has(i)){mlab(svg,cx(i),PT+ih+16,mlabel(mm)+(fade?'*':''));}});
   svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
   const cross=el('line',{class:'cross',y1:PT,y2:PT+ih,opacity:0});svg.appendChild(cross);
   const hit=el('rect',{x:PL,y:PT,width:iw,height:ih,fill:'transparent'});
@@ -2010,7 +2013,7 @@ function auditArea(host,months,vals,fmt,label,ipIdx){
   let d='';vals.forEach((v,i)=>d+=(i?'L':'M')+x(i)+' '+y(v));
   svg.appendChild(el('path',{d,fill:'none',stroke:'var(--flow)','stroke-width':2.5,'stroke-linejoin':'round'}));
   vals.forEach((v,i)=>svg.appendChild(el('circle',{cx:x(i),cy:y(v),r:i===ipIdx?4.5:3,fill:i===ipIdx?'var(--surface)':'var(--flow)',stroke:i===ipIdx?'var(--flow)':'none','stroke-width':i===ipIdx?2:0})));
-  months.forEach((mm,i)=>{if(i%ev===0||i===n-1){mlab(svg,x(i),PT+ih+16,mlabel(mm)+(i===ipIdx?'*':''));}});
+  months.forEach((mm,i)=>{if(labIdx(n).has(i)){mlab(svg,x(i),PT+ih+16,mlabel(mm)+(i===ipIdx?'*':''));}});
   svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
   const cross=el('line',{class:'cross',y1:PT,y2:PT+ih,opacity:0});svg.appendChild(cross);
   const hit=el('rect',{x:PL,y:PT,width:iw,height:ih,fill:'transparent'});
@@ -2040,7 +2043,7 @@ function auditMixed(host,S){
     sends.forEach((v,i)=>{const x=PL+step*i+(step-bw)/2,h=v/cmax*ih;svg.appendChild(el('rect',{x,y:PT+ih-h,width:bw,height:Math.max(h,0),rx:3,fill:'var(--aqua)','fill-opacity':.8}));});
     let sl='';subs.forEach((v,i)=>sl+=(i?'L':'M')+cx(i)+' '+yc(v));svg.appendChild(el('path',{d:sl,fill:'none',stroke:'var(--camp)','stroke-width':2.5,'stroke-linejoin':'round'}));
     subs.forEach((v,i)=>svg.appendChild(el('circle',{cx:cx(i),cy:yc(v),r:3,fill:'var(--camp)'})));
-    m.forEach((mm,i)=>{if(i%ev===0||i===n-1){mlab(svg,cx(i),PT+ih+16,mlabel(mm));}});
+    m.forEach((mm,i)=>{if(labIdx(n).has(i)){mlab(svg,cx(i),PT+ih+16,mlabel(mm));}});
     svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
     const cross=el('line',{class:'cross',y1:PT,y2:PT+ih,opacity:0});svg.appendChild(cross);
     const hit=el('rect',{x:PL,y:PT,width:iw,height:ih,fill:'transparent'});
@@ -2235,7 +2238,7 @@ function auditDual(host,months,bars,line,bfmt,lfmt,blab,llab,line2,l2lab,ipIdx,b
     svg.appendChild(el('path',{d,fill:'var(--ink2)','fill-opacity':0.08,stroke:'none'}));}   // gap-to-target band
   months.forEach((m,i)=>{const x=PL+step*i+(step-bw)/2,h=bars[i]/bmax*ih,fade=(i===ipIdx);
     svg.appendChild(el('rect',{x,y:PT+ih-h,width:bw,height:Math.max(h,0),rx:3,fill:'var(--aqua)','fill-opacity':fade?.35:.8}));
-    if(i%ev===0||i===n-1){mlab(svg,cx(i),PT+ih+16,mlabel(m)+(fade?'*':''));}});
+    if(labIdx(n).has(i)){mlab(svg,cx(i),PT+ih+16,mlabel(m)+(fade?'*':''));}});
   if(line2){let d='';months.forEach((m,i)=>{d+=(i===0?'M':'L')+cx(i)+' '+yl(line2[i]);});
     svg.appendChild(el('path',{d,fill:'none',stroke:'var(--ink2)','stroke-width':2,'stroke-dasharray':'5 4','stroke-linejoin':'round'}));}   // expected
   if(fillLine){const idx=line.map((v,i)=>v!=null?i:-1).filter(i=>i>=0);
@@ -2364,7 +2367,7 @@ function auditLineChart(host,months,series,fmt,ref,reflabel,ipIdx){
     svg.appendChild(el('path',{d,fill:'none',stroke:s.color,'stroke-width':2.5,'stroke-dasharray':s.dash?'6 5':'','stroke-linejoin':'round'}));
     s.data.forEach((v,i)=>{if(v==null)return;if(i===ipIdx&&!s.dash)svg.appendChild(el('circle',{cx:x(i),cy:y(v),r:4.5,fill:'var(--surface)',stroke:s.color,'stroke-width':2}));
       else svg.appendChild(el('circle',{cx:x(i),cy:y(v),r:s.dash?2.5:3,fill:s.color}));});});
-  months.forEach((mm,i)=>{if(i%ev===0||i===n-1){mlab(svg,x(i),PT+ih+16,mlabel(mm)+(i===ipIdx?'*':''));}});
+  months.forEach((mm,i)=>{if(labIdx(n).has(i)){mlab(svg,x(i),PT+ih+16,mlabel(mm)+(i===ipIdx?'*':''));}});
   svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
   const cross=el('line',{class:'cross',y1:PT,y2:PT+ih,opacity:0});svg.appendChild(cross);
   const hit=el('rect',{x:PL,y:PT,width:iw,height:ih,fill:'transparent'});
