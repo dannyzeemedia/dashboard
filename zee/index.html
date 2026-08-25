@@ -694,6 +694,7 @@
           <div class="grid">
             <div class="card wide" id="c-camp"><h3>Campaign volume — sends &amp; recipients</h3>
               <button class="miniToggle" id="campRevTog" aria-pressed="false" title="Overlay campaign revenue"><span class="dot"></span>Revenue overlay</button>
+              <button class="miniToggle" id="campSubsTog" aria-pressed="false" title="Overlay net new subscribers as an area"><span class="dot"></span>Net subscribers overlay</button>
               <div class="cap">Send count and total recipients side by side — volume context for the campaign-revenue line above.</div></div>
           </div>
         </div></div>
@@ -801,7 +802,7 @@ const sb=(window.supabase&&window.supabase.createClient)?window.supabase.createC
 let MONTHS=[],flow=[],camp=[],subs=[],csends=[],crecip=[],unsub=[],spam=[],FLOWDATA=[],MI={};
 let total=[],flowPct=[],campPct=[],roll3=[],SYM='$',store=[];
 let remail=[],rsms=[],smsDeliv=[];
-let campRev=false;
+let campRev=false, campSubs=false;
 let revGroup=false;
 let revChannel=false;
 let inProgress=true;   // "Include current (in-progress)" on by default
@@ -987,8 +988,8 @@ function renderTiles(){
   const rows=[
     {l:`Total store revenue · ${len}mo`,v:kfmt(stC),d:cD?delta(stC,sum(store,cD)):null,hero:true},
     {l:`Total attributed · ${len}mo`,v:kfmt(atC),d:cD?delta(atC,sum(total,cD)):null,sub:(stC?Math.round(atC/stC*100)+'% of store revenue':null),hero:true},
-    {l:`Flow revenue · ${len}mo`,v:kfmt(sum(flow,cur)),d:cD?delta(sum(flow,cur),sum(flow,cD)):null},
-    {l:`Campaign revenue · ${len}mo`,v:kfmt(sum(camp,cur)),d:cD?delta(sum(camp,cur),sum(camp,cD)):null},
+    {l:`Flow revenue · ${len}mo`,v:kfmt(sum(flow,cur)),d:cD?delta(sum(flow,cur),sum(flow,cD)):null,sub:(atC?Math.round(sum(flow,cur)/atC*100)+'% of attributed':null)},
+    {l:`Campaign revenue · ${len}mo`,v:kfmt(sum(camp,cur)),d:cD?delta(sum(camp,cur),sum(camp,cD)):null,sub:(atC?Math.round(sum(camp,cur)/atC*100)+'% of attributed':null)},
     {l:'Blended flow RPR',v:SYM+rprCur.toFixed(2),d:rprCmp?delta(rprCur,rprCmp):null},
     {l:'Avg unsub rate',v:avg(unsub,cur).toFixed(2)+'%',d:cD?delta(avg(unsub,cur),avg(unsub,cD)):null,inv:true},
     {l:`New subscribers · ${len}mo`,v:nfmt(sum(subs,cur)),d:cD?delta(sum(subs,cur),sum(subs,cD)):null},
@@ -2277,11 +2278,15 @@ function renderIpNote(){const el=document.getElementById('ipnote');
 
 function renderCamp(){const{cur}=windows();const cc=document.getElementById('c-camp');let sm=cc.querySelector('.sm');if(sm)sm.remove();
   sm=document.createElement('div');sm.className='sm';
-  const revLab=campRev?'<div class="lab">Campaign sends <span style="color:var(--aqua)">· revenue overlay</span></div>':'<div class="lab">Campaign sends</div>';
-  const a=document.createElement('div');a.innerHTML=revLab;const ac=document.createElement('div');a.appendChild(ac);
-  const b=document.createElement('div');b.innerHTML=campRev?'<div class="lab">Campaign recipients <span style="color:var(--aqua)">· revenue overlay</span></div>':'<div class="lab">Campaign recipients</div>';const bc=document.createElement('div');b.appendChild(bc);
+  const ov=campSubs?' <span style="color:var(--good)">· net subscribers</span>':campRev?' <span style="color:var(--aqua)">· revenue overlay</span>':'';
+  const a=document.createElement('div');a.innerHTML='<div class="lab">Campaign sends'+ov+'</div>';const ac=document.createElement('div');a.appendChild(ac);
+  const b=document.createElement('div');b.innerHTML='<div class="lab">Campaign recipients'+ov+'</div>';const bc=document.createElement('div');b.appendChild(bc);
   sm.appendChild(a);sm.appendChild(b);cc.appendChild(sm);
-  const area=campRev?{data:camp,color:'var(--aqua)',label:'Campaign rev',fmt:money,proj:IP?IP.proj.camp:null}:null;
+  // net new subscribers per month (new subs − email unsubscribes), aligned to the working window
+  const on=inProgress&&CUR&&CUR.mtd;
+  let netSubs=BM.map((_,i)=>Math.max(0,(Bsubs[i]||0)-(Bucount[i]||0)));if(on)netSubs=netSubs.concat([CUR.mtd.subs||0]);
+  const area=campSubs?{data:netSubs,color:'var(--good)',label:'Net subs',fmt:nfmt,proj:IP?IP.proj.subs:null}
+            :campRev?{data:camp,color:'var(--aqua)',label:'Campaign rev',fmt:money,proj:IP?IP.proj.camp:null}:null;
   const ipSend=IP?{idx:IP.idx,project:IP.project,proj:IP.proj.csends}:null;
   const ipRec=IP?{idx:IP.idx,project:IP.project,proj:IP.proj.crecip}:null;
   miniCols(ac,cur,csends,'var(--camp)',v=>Math.round(v),'Sends',area,ipSend);
@@ -2331,7 +2336,10 @@ function wireControls(){
   document.getElementById('cmpChips').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
     [...e.currentTarget.children].forEach(x=>x.setAttribute('aria-selected',x===b));CMP=b.dataset.c;renderDash();});
   // (view switching is handled by the single #viewSeg listener below)
-  document.getElementById('campRevTog').addEventListener('click',e=>{campRev=!campRev;e.currentTarget.setAttribute('aria-pressed',campRev);renderCamp();});
+  {const rt=document.getElementById('campRevTog'),st=document.getElementById('campSubsTog');
+   const sync=()=>{rt.setAttribute('aria-pressed',campRev);st.setAttribute('aria-pressed',campSubs);renderCamp();};
+   rt.addEventListener('click',()=>{campRev=!campRev;if(campRev)campSubs=false;sync();});
+   st.addEventListener('click',()=>{campSubs=!campSubs;if(campSubs)campRev=false;sync();});}
   document.getElementById('revGroupTog').addEventListener('click',e=>{revGroup=!revGroup;e.currentTarget.setAttribute('aria-pressed',revGroup);
     document.querySelectorAll('#c-rev svg,#c-rev .tip').forEach(n=>n.remove());stackedCols('c-rev',windows().cur);});
   document.getElementById('revChanTog').addEventListener('click',e=>{revChannel=!revChannel;e.currentTarget.setAttribute('aria-pressed',revChannel);
