@@ -113,6 +113,8 @@
   .clogo-btn[aria-current="true"]{opacity:1;background:var(--surface-2);border-color:var(--border)}
   .clogo-btn.litebg{background:#fff;border-color:var(--border)}   /* dark mode: light chip behind transparent colour logos */
   .clogo-btn.litebg[aria-current="true"]{background:#fff}
+  .clogo-btn.darkchip{border-color:transparent;padding:6px 12px}  /* light mode: dark brand chip behind a light logo (bg set inline) */
+  .clogo-btn.darkchip[aria-current="true"]{border-color:transparent}
   .glogo{height:40px;width:auto;max-width:132px;display:block}
   .glogo.inv{filter:brightness(0) invert(1)}
   .gdiv{width:1px;height:28px;background:var(--border);display:inline-block;flex:none}
@@ -925,7 +927,9 @@ function buildSwitcher(){const b=document.getElementById('brand');b.innerHTML=''
     const active=(slug===ACTIVE);
     const {src,invert}=logoInfo(data, !active && !single);   // inactive → icon-only mark
     const litebg=isDark()&&!data.logo_dark&&!invert;   // transparent colour logo on dark → keep a light chip so it stays visible
-    const btn=document.createElement('button');btn.className='clogo-btn'+(active?' full':' icon')+(litebg?' litebg':'');btn.dataset.slug=slug;
+    const darkchip=data.logo_chip&&!isDark();          // light logo on the light theme → dark brand chip so it stays visible
+    const btn=document.createElement('button');btn.className='clogo-btn'+(active?' full':' icon')+(litebg?' litebg':'')+(darkchip?' darkchip':'');btn.dataset.slug=slug;
+    if(darkchip)btn.style.background=data.logo_chip;
     if(active)btn.setAttribute('aria-current','true');
     btn.title=data.name;
     const img=new Image();img.className='clogo swlogo'+(invert?' inv':'');img.alt=data.name;
