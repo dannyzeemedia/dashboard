@@ -810,6 +810,11 @@ let REPORT=null, SLUG='', RANGE=12, CMP='prev', REPORT_OPEN=null;
 let tlaunched=[], tconcluded=[], twon=[], subsR3=[];
 // multi-client: all series/reports the logged-in user may read, keyed by slug
 let SERIES={}, REPORTS={}, ORDER=[], ACTIVE='';
+// Per-client feature flags (Supabase client_series.data.features). Lets a change be
+// scoped to one client while living in the single shared renderer: gate it with
+// feat('name'). Broad edits still reach every client; client-specifics only activate
+// where the flag is set, so nothing diverges and nothing gets clobbered on deploy.
+const feat=n=>((SERIES[ACTIVE]||{}).features||{})[n];
 let auditUnsubBlended=false;   // audit #3 unsub chart: false = flow vs campaign split, true = blended
 // base (complete-month) series + the in-progress block; applyMode() derives the
 // working arrays above from these depending on the "include current" toggle.
