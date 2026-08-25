@@ -439,6 +439,11 @@
   .tile .val{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-top:7px}
   .tile.hero .val{font-size:30px}
   .tile.hero .lab{font-size:12px}
+  .pietile .pie-wrap{display:flex;align-items:center;gap:12px;margin-top:10px}
+  .donut{width:72px;height:72px;flex:none}
+  .pie-leg{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--ink2);font-weight:600}
+  .pie-leg span{display:inline-flex;align-items:center;gap:7px}
+  .pie-leg i{width:11px;height:11px;border-radius:3px;display:inline-block}
   .delta{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:700;margin-top:6px}
   .delta.up{color:var(--good)} .delta.down{color:var(--crit)} .delta.flat{color:var(--muted)}
 
@@ -993,6 +998,7 @@ function renderTiles(){
   const rows=[
     {l:`Total store revenue · ${len}mo`,v:kfmt(stC),d:cD?delta(stC,sum(store,cD)):null,hero:true},
     {l:`Total attributed · ${len}mo`,v:kfmt(atC),d:cD?delta(atC,sum(total,cD)):null,sub:(stC?Math.round(atC/stC*100)+'% of store revenue':null),hero:true},
+    {pie:true,l:'Attributed mix',flow:sum(flow,cur),camp:sum(camp,cur)},
     {l:`Flow revenue · ${len}mo`,v:kfmt(sum(flow,cur)),d:cD?delta(sum(flow,cur),sum(flow,cD)):null,sub:(atC?Math.round(sum(flow,cur)/atC*100)+'% of attributed':null)},
     {l:`Campaign revenue · ${len}mo`,v:kfmt(sum(camp,cur)),d:cD?delta(sum(camp,cur),sum(camp,cD)):null,sub:(atC?Math.round(sum(camp,cur)/atC*100)+'% of attributed':null)},
     {l:'Blended flow RPR',v:SYM+rprCur.toFixed(2),d:rprCmp?delta(rprCur,rprCmp):null},
@@ -1000,6 +1006,13 @@ function renderTiles(){
     {l:`New subscribers · ${len}mo`,v:nfmt(sum(subs,cur)),d:cD?delta(sum(subs,cur),sum(subs,cD)):null},
   ];
   const tileHTML=t=>{let dd;
+    if(t.pie){const tot=(t.flow||0)+(t.camp||0);if(!tot)return'';
+      const fp=t.flow/tot*100,cp=100-fp,R=38,C=2*Math.PI*R,fl=C*t.flow/tot;
+      return `<div class="tile pietile"><div class="lab">${t.l}</div>`
+       +`<div class="pie-wrap"><svg viewBox="0 0 100 100" class="donut" role="img">`
+       +`<circle cx="50" cy="50" r="${R}" fill="none" stroke="var(--camp)" stroke-width="16"><title>Campaign ${SYM}${Math.round(t.camp).toLocaleString()} · ${cp.toFixed(0)}%</title></circle>`
+       +`<circle cx="50" cy="50" r="${R}" fill="none" stroke="var(--flow)" stroke-width="16" stroke-dasharray="${fl} ${C-fl}" transform="rotate(-90 50 50)"><title>Flow ${SYM}${Math.round(t.flow).toLocaleString()} · ${fp.toFixed(0)}%</title></circle></svg>`
+       +`<div class="pie-leg"><span><i style="background:var(--flow)"></i>Flow ${fp.toFixed(0)}%</span><span><i style="background:var(--camp)"></i>Campaign ${cp.toFixed(0)}%</span></div></div></div>`;}
     if(t.d){let c=t.d.c;if(t.inv&&c==='up')c='down';else if(t.inv&&c==='down')c='up';
       dd=`<div class="delta ${c}">${t.d.t} vs ${CMP==='yoy'?'LY':'prev'}</div>`;}
     else dd=`<div class="delta flat">no prior period</div>`;
