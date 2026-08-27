@@ -802,6 +802,48 @@
   button.rm-flag:hover{border-color:var(--flow)}
   .rm-flag b{color:var(--ink);flex:none}
   .rm-flag.c{--sev:var(--crit)} .rm-flag.w{--sev:var(--warn)} .rm-flag.ok{--sev:var(--good)}
+  /* --- node popover --- */
+  .rm-pop{position:absolute;z-index:6;width:352px;max-width:min(352px,78vw);
+    background:var(--surface);border-radius:15px;padding:16px 18px 18px;
+    box-shadow:0 10px 34px -8px rgba(20,32,56,.32),0 2px 6px rgba(20,32,56,.12);
+    border:1px solid var(--border);font-size:12.5px;color:var(--ink2);
+    max-height:min(70vh,520px);overflow:auto}
+  .rm-pop::after{content:"";position:absolute;top:26px;width:13px;height:13px;
+    background:var(--surface);border-left:1px solid var(--border);
+    border-bottom:1px solid var(--border);transform:rotate(45deg)}
+  .rm-pop.r::after{left:-7px}
+  .rm-pop.l::after{right:-7px;transform:rotate(225deg)}
+  .rm-pop h5{margin:0 34px 3px 0;font-size:14px;color:var(--ink);letter-spacing:-.01em}
+  .rm-pop .psub{color:var(--muted);font-size:12px;line-height:1.45;margin-bottom:11px}
+  .rm-pop .pclose{position:absolute;top:11px;right:11px;width:24px;height:24px;border:0;
+    border-radius:7px;background:var(--surface-2);color:var(--ink2);cursor:pointer;
+    font:inherit;font-size:14px;line-height:1;display:grid;place-items:center}
+  .rm-pop .pclose:hover{background:var(--border);color:var(--ink)}
+  .rm-pop .ptags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px}
+  .rm-pop .ptag{font-size:9.5px;font-weight:800;letter-spacing:.08em;padding:4px 9px;
+    border-radius:999px;background:var(--surface-2);color:var(--muted)}
+  .rm-pop .ptag.g{color:var(--good);background:color-mix(in srgb,var(--good) 13%,transparent)}
+  .rm-pop .ptag.w{color:var(--warn);background:color-mix(in srgb,var(--warn) 15%,transparent)}
+  .rm-pop .ptag.c{color:var(--crit);background:color-mix(in srgb,var(--crit) 13%,transparent)}
+  .rm-pop .pwhat{font-size:12.5px;line-height:1.55;color:var(--ink2);margin:0 0 13px}
+  .rm-pop .pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:13px}
+  .rm-pop .pgrid div{background:var(--surface-2);border-radius:9px;padding:8px 10px}
+  .rm-pop .pgrid dt{font-size:8.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--muted)}
+  .rm-pop .pgrid dd{margin:3px 0 0;font-size:13.5px;font-weight:700;color:var(--ink);
+    font-variant-numeric:tabular-nums}
+  .rm-pop .pwhy{list-style:none;margin:0 0 13px;padding:0;display:flex;flex-direction:column;gap:8px}
+  .rm-pop .pwhy li{border-left:3px solid var(--sv,var(--warn));padding:2px 0 2px 11px;
+    line-height:1.5;font-size:12px}
+  .rm-pop .pwhy li.c{--sv:var(--crit)} .rm-pop .pwhy li.w{--sv:var(--warn)}
+  .rm-pop .pwhy b{display:block;color:var(--ink);font-size:12px;margin-bottom:2px}
+  .rm-pop .plist{list-style:none;margin:0 0 13px;padding:0;font-size:12px;line-height:1.6}
+  .rm-pop .plist li{padding-left:13px;position:relative;color:var(--ink2)}
+  .rm-pop .plist li::before{content:"•";position:absolute;left:0;color:var(--muted)}
+  .rm-pop .pacts{display:flex;gap:8px;flex-wrap:wrap}
+  .rm-pop .pacts a{font-size:12px;font-weight:600;color:var(--flow);text-decoration:none;
+    border:1px solid var(--border);border-radius:8px;padding:7px 11px;background:var(--surface)}
+  .rm-pop .pacts a:hover{border-color:var(--flow)}
   .rm-empty{color:var(--muted);font-size:13px;padding:40px 20px;text-align:center}
   @media (max-width:900px){
     .rm-row{grid-template-columns:1fr;gap:9px}
@@ -1017,7 +1059,6 @@
       <div id="map-filters"></div>
     </div>
 
-    <div id="map-detail"></div>
     <div id="map-issues"></div>
   </section>
 
@@ -3209,7 +3250,7 @@ function rmIssues(n){
 function rmDraw(){
   const M=rmData(), host=document.getElementById('map-plane'); if(!M||!host)return;
   const flow=M.flows.find(f=>f.id===RM_FLOW);
-  host.innerHTML=''; document.getElementById('map-detail').innerHTML='';
+  host.innerHTML=''; rmClosePop();
   if(!flow){host.innerHTML='<div class="rm-empty">No flow selected.</div>';return;}
   const nodes=flow.nodes||[];
   const cov=M.coverage.find(c=>(c.flows||[]).indexOf(flow.id)>=0);
@@ -3335,9 +3376,8 @@ function rmDraw(){
       const tint=isSms?P.tealSoft:P.accentSoft, tcol=isSms?P.teal:P.accent;
       g.appendChild(sv('rect',{x:p.x+16,y:p.y+16,width:26,height:26,rx:9,fill:tint}));
       drawIcon(p.x+21,p.y+21,16,tcol,isSms?'sms':'email');
-      // badges stack in from the right: state dot, A/B, then the status tag
+      // state badges group top-right; health is the left stripe, never adjacent
       let bx=p.x+p.w-16;
-      if(sev){g.appendChild(sv('circle',{cx:bx-5,cy:p.y+22,r:4.5,fill:sev}));bx-=17;}
       if(n.ab){
         const alive=n.ab.experiment_status==='live', albl=alive?'TESTING':'TEST IDLE';
         const aw=rmMeasure(albl,8,800)+16; bx-=aw;
@@ -3352,6 +3392,7 @@ function rmDraw(){
        const sb=n.status==='draft'?P.warnSoft:n.status==='manual'?P.accentSoft:P.goodSoft;
        g.appendChild(sv('rect',{x:bx,y:p.y+14,width:sw,height:17,rx:8.5,fill:sb}));
        rmText(g,bx+sw/2,p.y+26,st2,8,800,sc,1,'.09em');}
+      if(sev)g.appendChild(sv('rect',{x:p.x+4,y:p.y+14,width:4,height:p.h-28,rx:2,fill:sev}));
       const tx=p.x+52, inner=Math.max(60,bx-tx-10);
       rmText(g,tx,p.y+28,rmTrunc(n.name||(isSms?'SMS':'Email'),inner,13,650),13,650,P.ink,1,'-.005em','start');
       rmText(g,tx,p.y+45,rmTrunc(n.subject||n.preview||'',p.w-52-20,11.5,400),11.5,400,P.dim,1,null,'start');
@@ -3442,62 +3483,97 @@ function rmWhy(n){
   return out;
 }
 
+function rmClosePop(){
+  const old=document.getElementById('rm-pop'); if(old)old.remove();
+}
 function rmDetail(n,iss,flow){
-  const el=document.getElementById('map-detail'), k=rmKind(n);
+  // Anchored to the node inside the scroll container, so it travels with
+  // pan/zoom and survives Expand — the panel under the canvas did neither.
+  rmClosePop();
+  const box=document.querySelector('#map-scroll .rm-planebox');
+  const p=RM_L&&RM_L.pos[n.id];
+  if(!box||!p)return;
+  const pop=document.createElement('div');
+  pop.className='rm-pop'; pop.id='rm-pop';
+  pop.innerHTML=rmPopHtml(n,flow);
+  box.appendChild(pop);
+  const W=pop.offsetWidth||352, gap=16;
+  const right=(p.x+p.w)*RM_Z+gap, left=p.x*RM_Z-W-gap;
+  // Prefer the right of the node. Only flip left when the card would land
+  // outside the visible area AND there is real room on the left — clamping a
+  // left placement to 0 used to park the card on top of the node it describes.
+  const sc0=document.getElementById('map-scroll');
+  const viewRight=sc0.scrollLeft+sc0.clientWidth;
+  const useLeft=(right+W>viewRight)&&left>=4;
+  pop.classList.add(useLeft?'l':'r');
+  pop.style.left=(useLeft?left:right)+'px';
+  pop.style.top=Math.max(4,(p.y*RM_Z)-6)+'px';
+  pop.querySelector('.pclose').addEventListener('click',()=>{
+    rmClosePop(); RM_SEL=null;
+    document.querySelectorAll('#map-plane .rm-node').forEach(el=>{
+      el.classList.remove('sel');
+      const h=el.querySelector('.halo'); if(h)h.setAttribute('opacity',0);});});
+  pop.addEventListener('pointerdown',e=>e.stopPropagation());
+  const r=pop.getBoundingClientRect(), sc=document.getElementById('map-scroll');
+  const sr=sc.getBoundingClientRect();
+  if(r.right>sr.right)sc.scrollLeft+=r.right-sr.right+12;
+  if(r.bottom>sr.bottom)sc.scrollTop+=Math.min(r.top-sr.top-8,r.bottom-sr.bottom+12);
+}
+
+function rmPopHtml(n,flow){
+  const k=rmKind(n);
   const why=rmWhy(n);
+  const close='<button class="pclose" type="button" aria-label="Close">✕</button>';
   const acts=[];
-  if(flow)acts.push('<a class="rm-open" href="'+rmFlowUrl(flow.id)+'" target="_blank" rel="noopener">↗ Open flow in Klaviyo</a>');
-  if(n.msg_id)acts.push('<a class="rm-open" href="'+rmMsgUrl(n.msg_id)+'" target="_blank" rel="noopener">↗ Open this message</a>');
-  const actions='<div class="rm-acts">'+acts.join('')+'</div>';
-  const whyHtml=why.length?'<ul class="rm-why">'+why.map(w=>
-    '<li class="'+w[0]+'"><span class="sq"></span><span><b>'+esc(w[1])+'</b>'+esc(w[2])+'</span></li>').join('')+'</ul>':'';
+  if(flow)acts.push('<a href="'+rmFlowUrl(flow.id)+'" target="_blank" rel="noopener">↗ Open flow</a>');
+  if(n.msg_id)acts.push('<a href="'+rmMsgUrl(n.msg_id)+'" target="_blank" rel="noopener">↗ Open this message</a>');
+  const actions=acts.length?'<div class="pacts">'+acts.join('')+'</div>':'';
+  const whyHtml=why.length?'<ul class="pwhy">'+why.map(w=>
+    '<li class="'+w[0]+'"><b>'+esc(w[1])+'</b>'+esc(w[2])+'</li>').join('')+'</ul>':'';
 
   if(k==='trigger'){
-    el.innerHTML='<div class="rm-detail"><h4>'+esc(n.label)+'</h4>'
-      +'<div class="sub">Flow trigger</div>'
-      +'<p class="rm-what">'+esc(rmWhat(n))+'</p>'
-      +(n.filters.length?'<ul class="rm-flist plain" style="margin-top:14px">'
-        +n.filters.map(l=>'<li>'+esc(l)+'</li>').join('')+'</ul>'
-        :'<p class="rm-what">This flow has no filters, so nothing is suppressed at entry.</p>')
-      +actions+'</div>';
-    return;
+    return close+'<h5>'+esc(n.label)+'</h5><div class="psub">Flow trigger</div>'
+      +'<p class="pwhat">'+esc(rmWhat(n))+'</p>'
+      +(n.filters.length?'<div class="ptags"><span class="ptag">'+n.filters.length
+        +' FLOW FILTER'+(n.filters.length>1?'S':'')+'</span></div>'
+        +'<ul class="plist">'+n.filters.map(l=>'<li>'+esc(l)+'</li>').join('')+'</ul>'
+        :'<p class="pwhat">No flow filters, so nothing is suppressed at entry.</p>')
+      +actions;
   }
   if(k==='delay'||k==='split'){
-    el.innerHTML='<div class="rm-detail"><h4>'+(k==='delay'?'Wait '+esc(rmDelay(n)):'Condition')+'</h4>'
-      +'<div class="sub">'+esc(k==='delay'
-        ? ((n.delay&&n.delay.tz?n.delay.tz+' timezone':'')||'\u2014')
+    return close+'<h5>'+(k==='delay'?'Wait '+esc(rmDelay(n)):'Condition')+'</h5>'
+      +'<div class="psub">'+esc(k==='delay'
+        ? ((n.delay&&n.delay.tz?'Evaluated in the '+n.delay.tz+' timezone':'')||'')
         : (n.cond_full||n.cond||''))+'</div>'
-      +'<p class="rm-what">'+esc(rmWhat(n))+'</p>'+actions+'</div>';
-    return;
+      +'<p class="pwhat">'+esc(rmWhat(n))+'</p>'+actions;
   }
-  const st=rmStats(n);
-  const dl=st?[['Delivered',st.delivered.toLocaleString()],['Revenue',rmMoney(st.revenue)],
-    ['RPR',st.rpr.toFixed(2)],['Orders',st.orders.toLocaleString()],['Open',st.open+'%'],
-    ['Click',st.click+'%'],['Unsub',st.unsub+'%']]:[['Sends in this window','none']];
+  const st=rmStats(n), stat=(n.status||'live');
+  const tags=['<span class="ptag '+(stat==='live'?'g':'w')+'">'+esc(stat.toUpperCase())+'</span>',
+              '<span class="ptag">'+(k==='sms'?'SMS':'EMAIL')+'</span>'];
+  if(n.ab)tags.push('<span class="ptag '+(n.ab.experiment_status==='live'?'g':'w')+'">'
+    +(n.ab.experiment_status==='live'?'A/B RUNNING':'A/B IDLE')+'</span>');
+  if(n.smart_sending===false)tags.push('<span class="ptag">SMART SENDING OFF</span>');
+  const grid=st?[['Delivered',st.delivered.toLocaleString()],['Revenue',rmMoney(st.revenue)],
+    ['RPR',st.rpr.toFixed(2)],['Open',st.open+'%'],['Click',st.click+'%'],['Unsub',st.unsub+'%']]
+    :[['Sends','none']];
   let ab='';
   if(n.ab){
-    const a=n.ab, live=a.experiment_status==='live';
-    ab='<div class="rm-ab"><div class="rm-abh">'
-      +'<span class="rm-dflag '+(live?'g':'w')+'">'+(live?'A/B test running':'A/B test not running')+'</span>'
-      +'<span class="dim">winner on '+esc((a.winner_metric||'').replace(/-/g,' '))
+    const a=n.ab;
+    ab='<div class="psub" style="margin:0 0 8px">Winner on '
+      +esc((a.winner_metric||'').replace(/-/g,' '))
       +(a.auto_winner?', picked automatically':'')
-      +(a.started?', started '+esc(String(a.started).slice(0,10)):', never started')+'</span></div>'
-      +'<ul>'+(a.variations||[]).map(v=>'<li><b>'+esc(v.name||'Variation')+'</b>'
-        +(v.share!=null?' <span class="dim">'+Math.round(v.share*100)+'%</span>':'')
-        +' <span class="dim">'+esc(v.status||'')+'</span>'
-        +(v.subject?'<br><span class="dim">'+esc(v.subject)+'</span>':'')+'</li>').join('')+'</ul></div>';
+      +(a.started?', started '+esc(String(a.started).slice(0,10)):', never started')+'</div>'
+      +'<ul class="plist">'+(a.variations||[]).map(v=>'<li>'+esc(v.name||'Variation')
+        +(v.share!=null?' — '+Math.round(v.share*100)+'%':'')+', '+esc(v.status||'')+'</li>').join('')
+      +'</ul>';
   }
-  const stat=(n.status||'live');
-  el.innerHTML='<div class="rm-detail"><h4>'+esc(n.name||'Message')+'</h4>'
-    +'<div class="sub">'+esc(n.subject||n.preview||'')
-    +(n.sender?' · from '+esc(n.sender):'')
-    +(n.smart_sending===false?' · smart sending off':'')+'</div>'
-    +'<div class="rm-tagline"><span class="rm-dflag '
-      +(stat==='draft'?'w':stat==='manual'?'w':'g')+'">'+esc(stat.toUpperCase())+'</span>'
-    +'<span class="rm-dflag" style="color:var(--muted)">'+esc(k==='sms'?'SMS':'EMAIL')+'</span></div>'
-    +'<p class="rm-what">'+esc(rmWhat(n))+'</p>'
-    +'<dl style="margin-top:16px">'+dl.map(d=>'<div><dt>'+d[0]+'</dt><dd>'+d[1]+'</dd></div>').join('')+'</dl>'
-    +whyHtml+ab+actions+'</div>';
+  return close+'<h5>'+esc(n.name||'Message')+'</h5>'
+    +'<div class="psub">'+esc(n.subject||n.preview||'')
+    +(n.sender?'<br>from '+esc(n.sender):'')+'</div>'
+    +'<div class="ptags">'+tags.join('')+'</div>'
+    +'<p class="pwhat">'+esc(rmWhat(n))+'</p>'
+    +'<dl class="pgrid">'+grid.map(d=>'<div><dt>'+d[0]+'</dt><dd>'+d[1]+'</dd></div>').join('')+'</dl>'
+    +whyHtml+ab+actions;
 }
 
 function rmFilters(flow,cov){
@@ -3602,13 +3678,22 @@ function rmWire(){
   document.getElementById('map-openflow').addEventListener('click',()=>{
     if(RM_FLOW)window.open(rmFlowUrl(RM_FLOW),'_blank','noopener');});
   document.getElementById('map-full').addEventListener('click',()=>rmFullscreen());
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&RM_FULL)rmFullscreen(false);});
+  document.addEventListener('keydown',e=>{
+    if(e.key!=='Escape')return;
+    if(document.getElementById('rm-pop')){rmClosePop();return;}
+    if(RM_FULL)rmFullscreen(false);});
   const sc=document.getElementById('map-scroll');
   sc.addEventListener('wheel',e=>{
     if(!(e.ctrlKey||e.metaKey||RM_FULL))return;   // page scroll stays page scroll inline
     e.preventDefault(); rmZoom(e.deltaY<0?1.12:1/1.12,e.clientX,e.clientY);},{passive:false});
   let down=false,sx=0,sy=0,l=0,t=0;
-  sc.addEventListener('pointerdown',e=>{if(e.target.closest('.rm-node'))return;
+  sc.addEventListener('pointerdown',e=>{
+    if(!e.target.closest('.rm-node')&&!e.target.closest('.rm-pop')){
+      rmClosePop(); RM_SEL=null;
+      document.querySelectorAll('#map-plane .rm-node').forEach(el=>{
+        el.classList.remove('sel');
+        const h=el.querySelector('.halo'); if(h)h.setAttribute('opacity',0);});}
+    if(e.target.closest('.rm-node')||e.target.closest('.rm-pop'))return;
     down=true;sx=e.clientX;sy=e.clientY;l=sc.scrollLeft;t=sc.scrollTop;
     sc.classList.add('drag');sc.setPointerCapture(e.pointerId);});
   sc.addEventListener('pointermove',e=>{if(!down)return;
