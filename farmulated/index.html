@@ -3477,7 +3477,9 @@ function rmDraw(){
            stroke:P.good,'stroke-width':9,'stroke-linecap':'butt',
            'stroke-dasharray':(yes*C).toFixed(2)+' '+C.toFixed(2),
            transform:'rotate(-90 '+dcx+' '+dcy+')'}));
-         rmText(g,dcx,dcy+4,Math.round(yes*100)+'%',10.5,800,P.good,1,'-.02em');
+         // the middle shows whichever side actually dominates, in that side's colour
+         const domPct=yes>=0.5?yes:1-yes, domCol=yes>=0.5?P.good:P.crit;
+         rmText(g,dcx,dcy+4,Math.round(domPct*100)+'%',10.5,800,domCol,1,'-.02em');
        }}
     }else{
       const isSms=k==='sms';
