@@ -1858,6 +1858,40 @@ function repChart(host,name,data){
       rect.addEventListener('mouseleave',()=>hideTip(host));});
     host.appendChild(s);
   }
+  else if(name==='barline'||name.indexOf('barline')===0){   // dual axis: weekly bars (left) + cumulative line (right)
+    const d=data,n=d.bars.length,intf=v=>Math.round(v).toLocaleString();
+    const W=760,H=326,L=44,R=64,PT=22,PB=64,iw=W-L-R,ih=H-PT-PB;
+    const maxB=Math.max.apply(null,d.bars),mxB=4*Math.ceil((maxB+1)/4);
+    const rawL=Math.max.apply(null,d.line)*1.06,stepL=Math.ceil(rawL/4/1000)*1000,mxL=stepL*4;
+    const cx=i=>L+iw*(i+0.5)/n, yB=v=>PT+ih-ih*v/mxB, yL=v=>PT+ih-ih*Math.min(v,mxL)/mxL;
+    const bw=Math.min(46,iw/n*0.52);
+    const s=svg(W,H);
+    for(let g=0;g<=4;g++){const f=g/4,yy=PT+ih-ih*f;
+      s.appendChild(el('line',{x1:L,x2:W-R,y1:yy,y2:yy,stroke:'var(--border)','stroke-width':1}));
+      const lt=el('text',{x:L-8,y:yy+3,'text-anchor':'end',fill:'var(--muted)','font-size':10.5,'font-family':'system-ui'});lt.textContent=Math.round(mxB*f);s.appendChild(lt);
+      const rt=el('text',{x:W-R+8,y:yy+3,'text-anchor':'start',fill:'var(--muted)','font-size':10.5,'font-family':'system-ui'});rt.textContent=Math.round(mxL*f/1000)+'k';s.appendChild(rt);}
+    d.bars.forEach((b,i)=>{const x=cx(i)-bw/2,bh=Math.max(2,ih*b/mxB),y=PT+ih-bh;
+      const rect=el('rect',{x,y,width:bw,height:bh,rx:4,fill:OFF,'fill-opacity':0.9});s.appendChild(rect);
+      const vt=el('text',{x:cx(i),y:y-6,'text-anchor':'middle',fill:'var(--ink2)','font-size':11.5,'font-weight':800,'font-family':'system-ui'});vt.textContent=b;s.appendChild(vt);});
+    let p='';d.line.forEach((v,i)=>p+=(i?'L':'M')+cx(i)+' '+yL(v));
+    s.appendChild(el('path',{d:p,fill:'none',stroke:ON,'stroke-width':2.5,'stroke-linejoin':'round'}));
+    d.line.forEach((v,i)=>s.appendChild(el('circle',{cx:cx(i),cy:yL(v),r:3.5,fill:ON,stroke:'var(--card)','stroke-width':1.5})));
+    d.x.forEach((lb,i)=>{const t=el('text',{x:cx(i),y:PT+ih+18,'text-anchor':'middle',fill:'var(--muted)','font-size':10,'font-family':'system-ui'});t.textContent=lb;s.appendChild(t);});
+    // per-week hover band
+    const guide=el('line',{x1:L,x2:L,y1:PT,y2:PT+ih,stroke:'var(--ink)','stroke-width':1,'stroke-dasharray':'3 3','stroke-opacity':0});s.appendChild(guide);
+    for(let i=0;i<n;i++){const hit=el('rect',{x:L+iw*i/n,y:PT,width:iw/n,height:ih,fill:'transparent'});hit.style.cursor='pointer';s.appendChild(hit);
+      const dt=(d.detail&&d.detail[i])||[];
+      hit.addEventListener('mousemove',e=>{guide.setAttribute('x1',cx(i));guide.setAttribute('x2',cx(i));guide.setAttribute('stroke-opacity',0.3);
+        const rows=[[d.barLabel||'Campaigns',d.bars[i],OFF,intf]];
+        if(dt.length===3){rows.push(['New subscribers',dt[0],ON,intf],['Unsubscribes',dt[1],OFF,intf],['Net this week',dt[2],ACC,intf]);}
+        rows.push([d.lineLabel||'Cumulative',d.line[i],'var(--ink)',intf]);
+        showTip(host,e,'Week of '+d.x[i],rows,intf);});
+      hit.addEventListener('mouseleave',()=>{hideTip(host);guide.setAttribute('stroke-opacity',0);});}
+    host.appendChild(s);
+    const lg=document.createElement('div');lg.className='rep-lg';
+    lg.innerHTML='<span><i style="background:var(--camp)"></i>'+esc(d.barLabel||'Campaigns sent')+'</span><span><i style="background:var(--flow)"></i>'+esc(d.lineLabel||'Net subscribers (cumulative)')+'</span>';
+    host.appendChild(lg);
+  }
 }
 
 // ---- Audit view ----
