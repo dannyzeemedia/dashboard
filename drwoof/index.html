@@ -3135,8 +3135,8 @@ function rmPresence(c){
 function rmPick(id){RM_FLOW=id;RM_SEL=null;document.getElementById('map-pick').value=id;rmDraw();rmFit();}
 
 // ---- layered layout: longest-path ranks + median relaxation ----
-const RM_W={msg:276,delay:150,split:244};
-const RM_HB={msg:80,delay:50,split:76};   // base heights; messages grow when stats show
+const RM_W={msg:300,delay:150,split:250};
+const RM_HB={msg:66,delay:50,split:76};   // base heights; messages grow when stats show
 const RM_GAPX=40, RM_GAPY=88, RM_PAD=64;
 // how far below a condition card its branches fan out — the donut sits ON this line
 const RM_FAN=52;
@@ -3155,7 +3155,7 @@ function rmBox(n){
   if(k==='trigger')return {w:RM_W.msg,h:74};
   if(k==='delay')return {w:RM_W.delay,h:RM_HB.delay};
   if(k==='split')return {w:RM_W.split,h:RM_HB.split};
-  return {w:RM_W.msg,h:RM_HB.msg+(RM_PERF&&n.stats?36:0)+(rmHasMeta(n)?17:0)};
+  return {w:RM_W.msg,h:RM_HB.msg+(RM_PERF&&n.stats?70:0)+(rmHasMeta(n)?17:0)};
 }
 
 function rmLayout(nodes){
@@ -3257,6 +3257,10 @@ function rmMeasure(t,size,weight){
   const fam=getComputedStyle(document.body).fontFamily||'system-ui,sans-serif';
   RM_MC.font=(weight||400)+' '+size+'px '+fam;
   return RM_MC.measureText(t).width;
+}
+// measureText ignores letter-spacing; add it back or tracked labels under-measure
+function rmMeasureLS(t,size,weight,lsEm){
+  return rmMeasure(t,size,weight)+(t?t.length*size*(lsEm||0):0);
 }
 function rmTrunc(t,px,size,weight){
   t=(t||'').trim(); if(!t)return '';
@@ -3525,15 +3529,32 @@ function rmDraw(){
       rmText(g,tx,p.y+45,rmTrunc(n.subject||n.preview||'',p.w-52-20,11.5,400),11.5,400,P.dim,1,null,'start');
       const metaOff=rmHasMeta(n)?17:0;
       if(RM_PERF&&rmStats(n)){
-        const st=rmStats(n), yb=p.y+p.h-20-metaOff;
-        g.appendChild(sv('line',{x1:p.x+16,y1:yb-20,x2:p.x+p.w-16,y2:yb-20,
+        const st=rmStats(n), fb=p.y+p.h-metaOff;
+        g.appendChild(sv('line',{x1:p.x+16,y1:fb-70,x2:p.x+p.w-16,y2:fb-70,
           stroke:P.rule,'stroke-width':1}));
-        const rpr=st.rpr.toFixed(2);
-        const t=rmText(g,p.x+16,yb+4,rpr,20,700,st.rpr>=1?P.accent:P.ink,1,'-.025em','start');
-        rmText(g,p.x+16+rmMeasure(rpr,20,700)+5,yb+4,'RPR',8.5,800,P.mute,1,'.11em','start');
-        rmText(g,p.x+p.w-16,yb-4,rmMoney(st.revenue),12.5,650,P.dim,1,null,'end');
-        rmText(g,p.x+p.w-16,yb+8,st.unsub.toFixed(2)+'% unsub',10,600,
-          st.unsub>=1?P.crit:P.mute,1,null,'end');
+        // two equal headline figures: what a send earns, and what it earned
+        rmText(g,p.x+16,fb-54,'RPR',8.5,800,P.mute,1,'.11em','start');
+        rmText(g,p.x+16,fb-35,st.rpr.toFixed(2),18,700,P.ink,1,'-.025em','start');
+        rmText(g,p.x+p.w-16,fb-54,'REVENUE',8.5,800,P.mute,1,'.11em','end');
+        rmText(g,p.x+p.w-16,fb-35,rmMoney(st.revenue),18,700,P.ink,1,'-.025em','end');
+        // the rates, on one line
+        const por=st.delivered?(st.orders/st.delivered*100):0;
+        const cells=[['OR',st.open.toFixed(1)+'%',P.dim],
+                   ['CR',st.click.toFixed(1)+'%',P.dim],
+                   ['POR',por.toFixed(2)+'%',P.dim],
+                   ['SENT',st.delivered.toLocaleString(),P.dim],
+                   ['UNSUB',st.unsub.toFixed(2)+'%',st.unsub>=1?P.crit:P.dim]];
+        // two lines: the rates, then the volumes — all five fit without a wider card
+        [[cells.slice(0,3),fb-18],[cells.slice(3),fb-3]].forEach(([row,ry])=>{
+          let mx=p.x+16;
+          row.forEach((c2,i)=>{
+            if(i){rmText(g,mx+2,ry,'·',8.5,700,P.mute,.5,null,'start');mx+=13;}
+            rmText(g,mx,ry,c2[0],8,800,P.mute,1,'.09em','start');
+            mx+=rmMeasureLS(c2[0],8,800,.09)+5;
+            rmText(g,mx,ry,c2[1],9.5,700,c2[2],1,null,'start');
+            mx+=rmMeasure(c2[1],9.5,700);
+          });
+        });
       }
       // meta line along the bottom edge: smart sending, and any filters set on
       // this message specifically (on top of the flow's own filters)
@@ -3547,7 +3568,7 @@ function rmDraw(){
         bits.forEach((b,i)=>{
           if(i){rmText(g,mx,p.y+p.h-9,'·',8,700,P.mute,.6,null,'start');mx+=8;}
           rmText(g,mx,p.y+p.h-9,b[0],8,800,b[1],1,'.09em','start');
-          mx+=rmMeasure(b[0],8,800)+7;
+          mx+=rmMeasureLS(b[0],8,800,.09)+7;
         });
       }
     }
