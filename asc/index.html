@@ -842,6 +842,16 @@
   .rm-pop .plist{list-style:none;margin:0 0 13px;padding:0;font-size:12px;line-height:1.6}
   .rm-pop .plist li{padding-left:13px;position:relative;color:var(--ink2)}
   .rm-pop .plist li::before{content:"•";position:absolute;left:0;color:var(--muted)}
+  .rm-pop .pbar{height:9px;border-radius:999px;background:color-mix(in srgb,var(--ink) 9%,transparent);
+    overflow:hidden;margin-bottom:8px}
+  .rm-pop .pbar span{display:block;height:100%;border-radius:999px;background:var(--flow)}
+  .rm-pop .pbark{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2);
+    font-variant-numeric:tabular-nums}
+  .rm-pop .pbark span{display:flex;align-items:center;gap:6px}
+  .rm-pop .pbark i{width:8px;height:8px;border-radius:2px;flex:none}
+  .rm-pop .pbark i.y{background:var(--flow)}
+  .rm-pop .pbark i.n{background:color-mix(in srgb,var(--ink) 20%,transparent)}
+  .rm-pop .pnote{font-size:11px;line-height:1.5;color:var(--muted);margin:10px 0 0}
   .rm-pop .pacts{display:flex;gap:8px;flex-wrap:wrap}
   .rm-pop .pacts a{font-size:12px;font-weight:600;color:var(--flow);text-decoration:none;
     border:1px solid var(--border);border-radius:8px;padding:7px 11px;background:var(--surface)}
@@ -2985,6 +2995,7 @@ function wireControls(){
 // client-kpi-reports; the tab only exists for clients we have mapped.
 let RM_FLOW=null, RM_PERF=true, RM_Z=1, RM_SEL=null, RM_FULL=false, RM_L=null;
 let RM_RANGE='90d';
+let _rmSplitMemo={};
 const RM_RLABEL={'30d':'last 30 days','90d':'last 90 days','12m':'last 12 months'};
 // stats are stored per window so the time shifter needs no round trip
 const rmStats=n=>(n&&n.stats&&n.stats[RM_RANGE])||null;
@@ -3235,6 +3246,47 @@ function rmTrunc(t,px,size,weight){
   return lo>0?t.slice(0,lo).trim()+'…':'';
 }
 
+// Walk a branch to the first sending message on every path and total what it
+// delivered. Stops at the first message per path — anything deeper has been
+// thinned by later splits and filters, so it would understate the branch.
+function rmBranchReach(startId, by){
+  const ids=new Set(), seen=new Set();
+  let blocked=false;
+  (function walk(id){
+    if(!id||seen.has(id))return; seen.add(id);
+    const n=by[id]; if(!n)return;
+    const k=rmKind(n);
+    if(k==='email'||k==='sms'||k==='push'){
+      ids.add(n.id);
+      const st=rmStats(n);
+      if(!st||!st.delivered)blocked=true;   // draft, or no sends in this window
+      return;
+    }
+    if(n.yes||n.no){ if(n.yes)walk(n.yes); if(n.no)walk(n.no); return; }
+    walk(n.next);
+  })(startId);
+  let d=0;
+  ids.forEach(id=>{const st=rmStats(by[id]); if(st)d+=st.delivered||0;});
+  return {ids, delivered:d, blocked};
+}
+// Yes/No share for one split, or null when it cannot be read honestly.
+function rmSplit(n, by){
+  const key=n.id+'|'+RM_RANGE;
+  if(key in _rmSplitMemo)return _rmSplitMemo[key];
+  let out=null;
+  if(n.yes&&n.no){
+    const y=rmBranchReach(n.yes,by), o=rmBranchReach(n.no,by);
+    // if the two branches reach the same message they have re-merged before
+    // either has sent, and the totals would double-count
+    let overlap=false; y.ids.forEach(id=>{if(o.ids.has(id))overlap=true;});
+    const tot=y.delivered+o.delivered;
+    out={yes:y.delivered,no:o.delivered,total:tot,overlap:overlap,
+         blocked:y.blocked||o.blocked,
+         yesPct:tot?y.delivered/tot:null,noPct:tot?o.delivered/tot:null,
+         readable:!!tot&&!overlap};
+  }
+  _rmSplitMemo[key]=out; return out;
+}
 function rmIssues(n){
   const out=[], st=rmStats(n), k=rmKind(n);
   if(k==='email'||k==='sms'||k==='push'){
@@ -3282,6 +3334,7 @@ function rmDraw(){
     label:trg.join(', ')||flow.trigger||'Trigger',
     filters:(flow.filters&&flow.filters.lines)||[]};
   const drawn=trigNode.outs.length?[trigNode].concat(nodes):nodes;
+  _rmSplitMemo={};
   const L=rmLayout(drawn); RM_L=L;
   const P=RM_PAL();
 
@@ -3317,7 +3370,17 @@ function rmDraw(){
         'stroke-linecap':'round','stroke-linejoin':'round','marker-end':'url(#rm-ar)'}));
       if(lab){
         const lx=x1+(x2-x1)*0.5, ly=y1+21;
-        rmText(eg,lx,ly,lab,10,700,P.mute,1,'.1em');
+        const sp=rmSplit(n,L.by);
+        const pct=sp&&sp.readable?(lab==='Yes'?sp.yesPct:sp.noPct):null;
+        if(pct==null){
+          rmText(eg,lx,ly,lab,10,700,P.mute,1,'.1em');
+        }else{
+          const txt=lab+'  '+Math.round(pct*100)+'%';
+          const w=rmMeasure(txt,10,700)+18;
+          eg.appendChild(sv('rect',{x:lx-w/2,y:ly-13,width:w,height:19,rx:9.5,
+            fill:P.card,stroke:P.edge,'stroke-width':1}));
+          rmText(eg,lx,ly,txt,10,700,pct>=0.5?P.ink:P.dim,1,'.04em');
+        }
       }
     });
   });
@@ -3388,6 +3451,14 @@ function rmDraw(){
       drawIcon(p.x+16,p.y+15,17,P.accent,'split');
       rmText(g,p.x+40,p.y+27,'CONDITION',8.5,800,P.accent,1,'.13em','start');
       rmText(g,p.x+16,p.y+50,rmTrunc(n.cond||'condition',p.w-32,11.5,600),11.5,600,P.ink,1,null,'start');
+      {const sp=rmSplit(n,L.by);
+       if(sp&&sp.readable){
+         const t=Math.round(sp.yesPct*100)+' / '+Math.round(sp.noPct*100);
+         const w=rmMeasure(t,8.5,800)+16;
+         g.appendChild(sv('rect',{x:p.x+p.w-w-14,y:p.y+14,width:w,height:17,rx:8.5,
+           fill:P.accentSoft}));
+         rmText(g,p.x+p.w-w/2-14,p.y+26,t,8.5,800,P.accent,1,'.06em');
+       }}
     }else{
       const isSms=k==='sms';
       const tint=isSms?P.tealSoft:P.accentSoft, tcol=isSms?P.teal:P.accent;
@@ -3573,11 +3644,35 @@ function rmPopHtml(n,flow){
       +actions;
   }
   if(k==='delay'||k==='split'){
+    let traffic='';
+    if(k==='split'&&RM_L){
+      const sp=rmSplit(n,RM_L.by);
+      if(sp&&sp.readable){
+        const yp=Math.round(sp.yesPct*100), np=100-yp;
+        traffic='<div class="psub" style="margin:13px 0 7px"><b>Where the traffic goes</b></div>'
+          +'<div class="pbar"><span style="width:'+yp+'%"></span></div>'
+          +'<div class="pbark"><span><i class="y"></i>Yes '+yp+'% · '
+            +sp.yes.toLocaleString()+' delivered</span>'
+          +'<span><i class="n"></i>No '+np+'% · '+sp.no.toLocaleString()+'</span></div>'
+          +'<p class="pnote">Measured from the first message that sends on each branch over the '
+          +RM_RLABEL[RM_RANGE]+'. Klaviyo does not report split traffic, so this is a proxy: it '
+          +'counts sends, not people entering the branch, and later filters or smart sending will '
+          +'shave both sides.'
+          +(sp.blocked?' One branch begins with a message that is not sending, so its share reads low.':'')
+          +'</p>';
+      }else if(sp&&sp.overlap){
+        traffic='<p class="pnote" style="margin-top:13px">Both branches rejoin before either sends, '
+          +'so the split cannot be measured without double-counting.</p>';
+      }else if(sp){
+        traffic='<p class="pnote" style="margin-top:13px">Neither branch has sent anything over the '
+          +RM_RLABEL[RM_RANGE]+', so there is no traffic to read.</p>';
+      }
+    }
     return close+'<h5>'+(k==='delay'?'Wait '+esc(rmDelay(n)):'Condition')+'</h5>'
       +'<div class="psub">'+esc(k==='delay'
         ? ((n.delay&&n.delay.tz?'Evaluated in the '+n.delay.tz+' timezone':'')||'')
         : (n.cond_full||n.cond||''))+'</div>'
-      +'<p class="pwhat">'+esc(rmWhat(n))+'</p>'+actions;
+      +'<p class="pwhat">'+esc(rmWhat(n))+'</p>'+traffic+actions;
   }
   const st=rmStats(n), stat=(n.status||'live');
   const tags=['<span class="ptag '+(stat==='live'?'g':'w')+'">'+esc(stat.toUpperCase())+'</span>',
