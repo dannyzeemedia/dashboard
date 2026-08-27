@@ -690,6 +690,23 @@
   .rm-bar select{font:inherit;font-size:13px;font-weight:600;color:var(--ink);background:var(--surface);
     border:1px solid var(--border);border-radius:9px;padding:8px 11px;max-width:340px}
   .rm-bar .sp{flex:1}
+  .rm-bar .chips{flex:none}
+  .rm-open{font:inherit;font-size:12.5px;font-weight:600;color:var(--ink2);
+    background:var(--surface);border:1px solid var(--border);border-radius:9px;
+    padding:8px 13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .rm-open:hover{border-color:var(--flow);color:var(--ink)}
+  .rm-tagline{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .rm-what{font-size:13px;color:var(--ink2);line-height:1.6;margin:14px 0 0;max-width:74ch}
+  .rm-why{list-style:none;margin:16px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+  .rm-why li{display:flex;gap:11px;align-items:flex-start;font-size:12.5px;line-height:1.55;
+    color:var(--ink2);background:var(--surface-2);border-radius:11px;padding:12px 15px}
+  .rm-why b{display:block;color:var(--ink);margin-bottom:2px;font-size:12.5px}
+  .rm-why .sq{width:8px;height:8px;border-radius:50%;flex:none;margin-top:5px;
+    background:var(--sv,var(--warn))}
+  .rm-why li.c{--sv:var(--crit)} .rm-why li.w{--sv:var(--warn)}
+  .rm-acts{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}
+  .rm-src{font-size:11.5px;color:var(--muted);margin-top:12px;line-height:1.5}
+  .rm-src b{color:var(--warn)}
   .rm-zoom{display:flex;align-items:center;gap:2px;background:var(--surface-2);
     border:1px solid var(--border);border-radius:9px;padding:3px}
   .rm-zoom button{font:inherit;font-size:13px;font-weight:700;color:var(--ink2);background:none;
@@ -722,7 +739,7 @@
   .rm-node{cursor:pointer}
   .rm-node text{pointer-events:none;font-family:inherit}
   .rm-node:hover .shape{filter:brightness(1.07)}
-  .rm-node.sel .shape{stroke:var(--camp);stroke-width:3;stroke-dasharray:none}
+  .rm-node.sel .shape{filter:none}
 
   .rm-legend{display:flex;gap:16px;flex-wrap:wrap;padding:11px 15px;border-top:1px solid var(--border);
     font-size:11.5px;color:var(--muted);align-items:center}
@@ -966,6 +983,12 @@
     <div class="rm-stage" id="map-stage">
       <div class="rm-bar">
         <select id="map-pick" aria-label="Flow to draw"></select>
+        <button class="rm-open" id="map-openflow" type="button" title="Open this flow in Klaviyo">↗ Open flow</button>
+        <div class="chips" id="map-range" role="group" aria-label="Time period">
+          <button data-r="30d">30 days</button>
+          <button data-r="90d" aria-selected="true">90 days</button>
+          <button data-r="12m">12 months</button>
+        </div>
         <button class="togBtn" id="map-perf" aria-pressed="true" type="button"
           title="Show 90-day performance inside each message"><span class="dot"></span>Performance</button>
         <span class="sp"></span>
@@ -985,8 +1008,10 @@
         <span><i class="rm-key" style="background:#C6CDDA;width:16px;height:9px;border-radius:5px"></i>Wait</span>
         <span><i class="rm-key" style="background:#E9F0FE;border:1px solid #3B6FF5;width:11px;height:11px;border-radius:4px"></i>Condition</span>
         <span><i class="rm-key" style="background:var(--crit);width:9px;height:9px;border-radius:50%"></i>Needs attention</span>
-        <span><i class="rm-key" style="background:var(--camp)"></i>A/B test on the message</span>
-        <span>Dashed = draft or manual, not sending</span>
+        <span>Every message is tagged <b style="color:var(--good)">LIVE</b>,
+          <b style="color:var(--warn)">DRAFT</b> or <b style="color:var(--flow)">MANUAL</b></span>
+        <span>A/B state shows as <b style="color:var(--good)">TESTING</b> or
+          <b style="color:var(--warn)">TEST IDLE</b></span>
         <span style="margin-left:auto;opacity:.8">Drag to pan &middot; &#8984;/Ctrl + scroll to zoom</span>
       </div>
       <div id="map-filters"></div>
@@ -2915,6 +2940,14 @@ function wireControls(){
 // client_series.data.retention_map, written by retention_map.py in
 // client-kpi-reports; the tab only exists for clients we have mapped.
 let RM_FLOW=null, RM_PERF=true, RM_Z=1, RM_SEL=null, RM_FULL=false, RM_L=null;
+let RM_RANGE='90d';
+const RM_RLABEL={'30d':'last 30 days','90d':'last 90 days','12m':'last 12 months'};
+// stats are stored per window so the time shifter needs no round trip
+const rmStats=n=>(n&&n.stats&&n.stats[RM_RANGE])||null;
+const rmTotals=f=>(f&&f.totals&&f.totals[RM_RANGE])||{revenue:f&&f.revenue||0,delivered:f&&f.delivered||0};
+const KL='https://www.klaviyo.com';
+const rmFlowUrl=id=>KL+'/flow/'+id+'/edit';
+const rmMsgUrl=id=>KL+'/flow/message/'+id+'/edit';
 const rmData=()=>(SERIES[ACTIVE]||{}).retention_map||null;
 
 const RM_STATE={ok:['rm-ok','built'],thin:['rm-thin','under-built'],crit:['rm-crit','stub'],
@@ -2927,7 +2960,8 @@ function renderMap(){
   document.getElementById('map-sub').textContent=
     'Every flow in the account drawn against the retention map, with the filters each '
     +'flow actually runs compared to the ones the map prescribes. Depth counts the longest '
-    +'single path a profile can travel, so branch copies never inflate it. Last 90 days.';
+    +'single path a profile can travel, so branch copies never inflate it. '
+    +'Figures are the '+RM_RLABEL[RM_RANGE]+'.';
 
   const core=M.coverage.filter(c=>c.group==='core');
   const eB=core.reduce((a,c)=>a+c.built.email,0), eP=core.reduce((a,c)=>a+(c.prescribed.email||0),0);
@@ -2963,11 +2997,16 @@ function renderMap(){
 
   const sel=document.getElementById('map-pick');
   const slotted=new Set(); M.coverage.forEach(c=>c.flows.forEach(id=>slotted.add(id)));
-  const opt=f=>'<option value="'+f.id+'">'+esc(f.name)+(f.status!=='live'?'  — '+f.status:'')+'</option>';
-  const on=M.flows.filter(f=>slotted.has(f.id)).sort((a,b)=>b.revenue-a.revenue);
-  const off=M.flows.filter(f=>!slotted.has(f.id)).sort((a,b)=>b.revenue-a.revenue);
-  sel.innerHTML='<optgroup label="On the retention map">'+on.map(opt).join('')+'</optgroup>'
-    +(off.length?'<optgroup label="In the account, not on the map">'+off.map(opt).join('')+'</optgroup>':'');
+  const opt=f=>'<option value="'+f.id+'">'+esc(f.name)
+    +(slotted.has(f.id)?'':'  · not on map')+'</option>';
+  const byStatus={};
+  M.flows.slice().sort((a,b)=>rmTotals(b).revenue-rmTotals(a).revenue)
+    .forEach(f=>{(byStatus[f.status]=byStatus[f.status]||[]).push(f);});
+  sel.innerHTML=['live','draft','manual'].concat(Object.keys(byStatus).filter(
+      k=>['live','draft','manual'].indexOf(k)<0))
+    .filter(k=>byStatus[k]&&byStatus[k].length)
+    .map(k=>'<optgroup label="'+k.charAt(0).toUpperCase()+k.slice(1)+' ('+byStatus[k].length+')">'
+      +byStatus[k].map(opt).join('')+'</optgroup>').join('');
 
   if(!RM_FLOW||!byId[RM_FLOW]){
     const w=M.coverage.find(c=>c.key==='welcome');
@@ -2995,8 +3034,10 @@ function rmRow(c,byId){
       +' vs '+re.prescribed_days+'d</span>');
     filt=bits.length?bits.join('<br>'):'<span class="rm-fok">filters match</span>';
   }
-  const note=c.revenue?('<b>'+rmMoney(c.revenue)+'</b> <span style="color:var(--muted)">/90d</span>'
-    +(c.duplicate_revenue?'<br><span class="rm-fbad">+'+rmMoney(c.duplicate_revenue)+' in copies</span>':'')):'';
+  const rv=(c.revenue_by&&c.revenue_by[RM_RANGE]!=null)?c.revenue_by[RM_RANGE]:c.revenue;
+  const dv=(c.duplicate_revenue_by&&c.duplicate_revenue_by[RM_RANGE]!=null)?c.duplicate_revenue_by[RM_RANGE]:c.duplicate_revenue;
+  const note=rv?('<b>'+rmMoney(rv)+'</b> <span style="color:var(--muted)">'+RM_RLABEL[RM_RANGE]+'</span>'
+    +(dv?'<br><span class="rm-fbad">+'+rmMoney(dv)+' in copies</span>':'')):'';
   const sub=lead?'<span>'+esc(lead.name)+(flows.length>1?' +'+(flows.length-1)+' more':'')+'</span>':'';
   const inner='<div class="rm-nm">'+esc(c.label)+sub+'</div>'
     +'<div><span class="rm-chip '+cls+'">'+txt+'</span></div>'+meters
@@ -3025,6 +3066,7 @@ const RM_HB={msg:80,delay:50,split:76};   // base heights; messages grow when st
 const RM_GAPX=40, RM_GAPY=62, RM_PAD=64;
 
 function rmKind(n){
+  if(n.type==='flow-trigger')return 'trigger';
   if(n.type==='send-email')return 'email';
   if(n.type==='send-sms')return 'sms';
   if(n.type==='send-push')return 'push';
@@ -3033,6 +3075,7 @@ function rmKind(n){
 }
 function rmBox(n){
   const k=rmKind(n);
+  if(k==='trigger')return {w:RM_W.msg,h:74};
   if(k==='delay')return {w:RM_W.delay,h:RM_HB.delay};
   if(k==='split')return {w:RM_W.split,h:RM_HB.split};
   return {w:RM_W.msg,h:RM_HB.msg+(RM_PERF&&n.stats?36:0)};
@@ -3040,7 +3083,7 @@ function rmBox(n){
 
 function rmLayout(nodes){
   const by={}; nodes.forEach(n=>by[n.id]=n);
-  const kids=n=>[n.yes,n.no,n.next].filter(x=>x&&by[x]);
+  const kids=n=>[].concat(n.outs||[],[n.yes,n.no,n.next]).filter(x=>x&&by[x]);
   const refd=new Set(); nodes.forEach(n=>kids(n).forEach(k=>refd.add(k)));
   let roots=nodes.filter(n=>!refd.has(n.id)).map(n=>n.id);
   if(!roots.length&&nodes.length)roots=[nodes[0].id];
@@ -3099,12 +3142,14 @@ function RM_PAL(){
     edge:'#39404E', rule:'#2A303B', accent:'#6E9BFF', accentSoft:'#1E2A45',
     teal:'#3FD0C9', tealSoft:'#12312F', crit:'#F2686C', warn:'#E3A544',
     good:'#4FC98A', goodSoft:'#123227', warnSoft:'#3A2E14',
+    trigBg:'#242A36', trigInk:'#DCE3F2',
     shadow:'#000000', shadowOp:0.5,
   } : {
     card:'#FFFFFF', chip:'#F5F7FB', ink:'#141821', dim:'#5B6473', mute:'#98A1B0',
     edge:'#C6CDDA', rule:'#EDF0F5', accent:'#3B6FF5', accentSoft:'#E9F0FE',
     teal:'#0FB5AE', tealSoft:'#E1F7F5', crit:'#E5484D', warn:'#C77700',
     good:'#2FA36B', goodSoft:'#E4F5EC', warnSoft:'#FDF1DC',
+    trigBg:'#1E2534', trigInk:'#FFFFFF',
     shadow:'#48597A', shadowOp:0.16,
   };
 }
@@ -3146,7 +3191,7 @@ function rmTrunc(t,px,size,weight){
 }
 
 function rmIssues(n){
-  const out=[], st=n.stats||null, k=rmKind(n);
+  const out=[], st=rmStats(n), k=rmKind(n);
   if(k==='email'||k==='sms'||k==='push'){
     if(n.status==='draft')out.push(['crit','Draft — not sending']);
     else if(n.status==='manual')out.push(['warn','Manual — held for manual send']);
@@ -3176,8 +3221,8 @@ function rmDraw(){
     ['Depth',flow.depth.email+' email'+(flow.depth.sms?' + '+flow.depth.sms+' SMS':'')
       +(cov&&cov.prescribed.email?' <span class="dim">of '+cov.prescribed.email
         +(cov.prescribed.sms?' + '+cov.prescribed.sms+' SMS':'')+'</span>':'')],
-    ['Revenue',rmMoney(flow.revenue)+' <span class="dim">/90d</span>'],
-    ['Delivered',flow.delivered.toLocaleString()]];
+    ['Revenue',rmMoney(rmTotals(flow).revenue)+' <span class="dim">'+RM_RLABEL[RM_RANGE]+'</span>'],
+    ['Delivered',rmTotals(flow).delivered.toLocaleString()]];
   if(flow.duplicate)meta.push(['','<span class="rm-fbad">Duplicate / test copy</span>']);
   document.getElementById('map-meta').innerHTML=meta.map(m=>
     '<span>'+(m[0]?'<i>'+m[0]+'</i> ':'')+m[1]+'</span>').join('');
@@ -3186,7 +3231,13 @@ function rmDraw(){
   if(!nodes.length){host.innerHTML='<div class="rm-empty">This flow has no actions in it yet.</div>';
     document.getElementById('map-issues').innerHTML='';return;}
 
-  const L=rmLayout(nodes); RM_L=L;
+  // A synthetic trigger node at the head of the graph, the way Klaviyo draws it.
+  const trigNode={id:'__trigger',type:'flow-trigger',
+    outs:(flow.entries||[]).filter(e=>nodes.some(n=>n.id===e)),
+    label:trg.join(', ')||flow.trigger||'Trigger',
+    filters:(flow.filters&&flow.filters.lines)||[]};
+  const drawn=trigNode.outs.length?[trigNode].concat(nodes):nodes;
+  const L=rmLayout(drawn); RM_L=L;
   const P=RM_PAL();
 
   const svg=sv('svg',{width:L.width,height:L.height,viewBox:'0 0 '+L.width+' '+L.height,xmlns:RM_NS});
@@ -3205,9 +3256,9 @@ function rmDraw(){
 
   // ---- connectors: quiet greyscale, so the data is the only colour ----
   const eg=sv('g',{});
-  nodes.forEach(n=>{
+  drawn.forEach(n=>{
     const a=L.pos[n.id]; if(!a)return;
-    [[n.yes,'Yes'],[n.no,'No'],[n.next,null]].filter(e=>e[0]&&L.pos[e[0]]).forEach(([kid,lab])=>{
+    [].concat((n.outs||[]).map(o=>[o,null]),[[n.yes,'Yes'],[n.no,'No'],[n.next,null]]).filter(e=>e[0]&&L.pos[e[0]]).forEach(([kid,lab])=>{
       const b=L.pos[kid];
       const x1=a.x+a.w/2,y1=a.y+a.h,x2=b.x+b.w/2,y2=b.y;
       let d;
@@ -3228,7 +3279,7 @@ function rmDraw(){
   svg.appendChild(eg);
 
   // ---- nodes ----
-  nodes.forEach(n=>{
+  drawn.forEach(n=>{
     const p=L.pos[n.id]; if(!p)return;
     const k=rmKind(n), iss=rmIssues(n);
     const sev=iss.some(i=>i[0]==='crit')?P.crit:iss.length?P.warn:null;
@@ -3248,6 +3299,7 @@ function rmDraw(){
     g.appendChild(shape);
 
     const ICON={
+      trigger:'M11.4 2.4 3.6 11.6h5l-.4 6 7.8-9.2h-5z',
       email:'M2 4.6c0-.9.7-1.6 1.6-1.6h12.8c.9 0 1.6.7 1.6 1.6v10.8c0 .9-.7 1.6-1.6 1.6H3.6c-.9 0-1.6-.7-1.6-1.6z M2.6 5.2 10 10.6l7.4-5.4',
       sms:'M3 4.6C3 3.7 3.7 3 4.6 3h10.8c.9 0 1.6.7 1.6 1.6v7.6c0 .9-.7 1.6-1.6 1.6H8.2L4 17.4V13.8h-.6c-.2 0-.4-.2-.4-.4z',
       delay:'M10 3.2a6.8 6.8 0 1 0 0 13.6 6.8 6.8 0 0 0 0-13.6z M10 6.4V10l2.6 1.6',
@@ -3259,7 +3311,19 @@ function rmDraw(){
       gi.appendChild(sv('path',{d:ICON[key]})); g.appendChild(gi);
     };
 
-    if(k==='delay'){
+    if(k==='trigger'){
+      shape.setAttribute('fill',P.trigBg);
+      drawIcon(p.x+16,p.y+16,17,P.trigInk,'trigger');
+      rmText(g,p.x+40,p.y+28,'FLOW TRIGGER',8.5,800,P.trigInk,.75,'.13em','start');
+      rmText(g,p.x+16,p.y+52,rmTrunc(n.label,p.w-32,13.5,650),13.5,650,P.trigInk,1,null,'start');
+      if(n.filters.length){
+        const t=n.filters.length+' flow filter'+(n.filters.length>1?'s':'');
+        const w=rmMeasure(t,8.5,700)+16;
+        g.appendChild(sv('rect',{x:p.x+p.w-w-14,y:p.y+15,width:w,height:17,rx:8.5,
+          fill:P.trigInk,'fill-opacity':.16}));
+        rmText(g,p.x+p.w-w/2-14,p.y+27,t,8.5,700,P.trigInk,.9);
+      }
+    }else if(k==='delay'){
       drawIcon(p.x+16,p.y+p.h/2-8,16,P.mute,'delay');
       rmText(g,p.x+40,p.y+p.h/2+4.5,rmDelay(n),12.5,600,P.dim,1,null,'start');
     }else if(k==='split'){
@@ -3271,19 +3335,28 @@ function rmDraw(){
       const tint=isSms?P.tealSoft:P.accentSoft, tcol=isSms?P.teal:P.accent;
       g.appendChild(sv('rect',{x:p.x+16,y:p.y+16,width:26,height:26,rx:9,fill:tint}));
       drawIcon(p.x+21,p.y+21,16,tcol,isSms?'sms':'email');
-      const tx=p.x+52, inner=p.w-52-20-(sev?14:0)-(n.ab?54:0);
+      // badges stack in from the right: state dot, A/B, then the status tag
+      let bx=p.x+p.w-16;
+      if(sev){g.appendChild(sv('circle',{cx:bx-5,cy:p.y+22,r:4.5,fill:sev}));bx-=17;}
+      if(n.ab){
+        const alive=n.ab.experiment_status==='live', albl=alive?'TESTING':'TEST IDLE';
+        const aw=rmMeasure(albl,8,800)+16; bx-=aw;
+        g.appendChild(sv('rect',{x:bx,y:p.y+14,width:aw,height:17,rx:8.5,
+          fill:alive?P.goodSoft:P.warnSoft}));
+        rmText(g,bx+aw/2,p.y+26,albl,8,800,alive?P.good:P.warn,1,'.09em');
+        bx-=8;
+      }
+      {const st2=(n.status||'live').toUpperCase();
+       const sw=rmMeasure(st2,8,800)+16; bx-=sw;
+       const sc=n.status==='draft'?P.warn:n.status==='manual'?P.accent:P.good;
+       const sb=n.status==='draft'?P.warnSoft:n.status==='manual'?P.accentSoft:P.goodSoft;
+       g.appendChild(sv('rect',{x:bx,y:p.y+14,width:sw,height:17,rx:8.5,fill:sb}));
+       rmText(g,bx+sw/2,p.y+26,st2,8,800,sc,1,'.09em');}
+      const tx=p.x+52, inner=Math.max(60,bx-tx-10);
       rmText(g,tx,p.y+28,rmTrunc(n.name||(isSms?'SMS':'Email'),inner,13,650),13,650,P.ink,1,'-.005em','start');
       rmText(g,tx,p.y+45,rmTrunc(n.subject||n.preview||'',p.w-52-20,11.5,400),11.5,400,P.dim,1,null,'start');
-      if(sev)g.appendChild(sv('circle',{cx:p.x+p.w-18,cy:p.y+22,r:4.5,fill:sev}));
-      if(n.ab){
-        const live=n.ab.experiment_status==='live', lbl=live?'TESTING':'TEST IDLE';
-        const w=rmMeasure(lbl,8,800)+16, bx=p.x+p.w-w-(sev?32:18);
-        g.appendChild(sv('rect',{x:bx,y:p.y+14,width:w,height:17,rx:8.5,
-          fill:live?P.goodSoft:P.warnSoft}));
-        rmText(g,bx+w/2,p.y+26,lbl,8,800,live?P.good:P.warn,1,'.09em');
-      }
-      if(RM_PERF&&n.stats){
-        const st=n.stats, yb=p.y+p.h-20;
+      if(RM_PERF&&rmStats(n)){
+        const st=rmStats(n), yb=p.y+p.h-20;
         g.appendChild(sv('line',{x1:p.x+16,y1:yb-20,x2:p.x+p.w-16,y2:yb-20,
           stroke:P.rule,'stroke-width':1}));
         const rpr=st.rpr.toFixed(2);
@@ -3292,19 +3365,18 @@ function rmDraw(){
         rmText(g,p.x+p.w-16,yb-4,rmMoney(st.revenue),12.5,650,P.dim,1,null,'end');
         rmText(g,p.x+p.w-16,yb+8,st.unsub.toFixed(2)+'% unsub',10,600,
           st.unsub>=1?P.crit:P.mute,1,null,'end');
-      }else if(notLive){
-        rmText(g,p.x+52,p.y+p.h-18,(n.status||'').toUpperCase(),8.5,800,P.warn,1,'.12em','start');
       }
     }
 
     const tt=sv('title',{});
-    tt.textContent=[n.name,n.subject,n.cond_full||n.cond,k==='delay'?('wait '+rmDelay(n)):'',
+    tt.textContent=[k==='trigger'?('Trigger: '+n.label):'',n.name,n.subject,n.cond_full||n.cond,k==='delay'?('wait '+rmDelay(n)):'',
       n.status?('status: '+n.status):'',
-      n.stats?('90d: '+n.stats.delivered.toLocaleString()+' delivered · RPR '+n.stats.rpr.toFixed(2)
-        +' · open '+n.stats.open+'% · click '+n.stats.click+'% · unsub '+n.stats.unsub+'%'):'',
+      (()=>{const q=rmStats(n);return q?(RM_RLABEL[RM_RANGE]+': '+q.delivered.toLocaleString()
+        +' delivered · RPR '+q.rpr.toFixed(2)+' · open '+q.open+'% · click '+q.click
+        +'% · unsub '+q.unsub+'%'):'';})(),
       ...iss.map(x=>'! '+x[1])].filter(Boolean).join('\n');
     g.appendChild(tt);
-    g.addEventListener('click',e=>{e.stopPropagation();RM_SEL=n.id;rmDetail(n,iss);
+    g.addEventListener('click',e=>{e.stopPropagation();RM_SEL=n.id;rmDetail(n,iss,flow);
       document.querySelectorAll('#map-plane .rm-node').forEach(el=>{
         const on=el.dataset.node===n.id; el.classList.toggle('sel',on);
         const h=el.querySelector('.halo'); if(h)h.setAttribute('opacity',on?1:0);});});
@@ -3322,20 +3394,86 @@ function rmText(g,x,y,txt,size,weight,fill,op,ls,anchor){
   t.textContent=txt; g.appendChild(t); return t;
 }
 
-function rmDetail(n,iss){
+function rmWhat(n){
+  const k=rmKind(n);
+  if(k==='trigger')return 'Everyone who matches this trigger enters the flow here, provided '
+    +'they also pass the flow filters below.';
+  if(k==='delay')return 'The flow pauses here. Nobody is removed — they simply wait before '
+    +'the next step.';
+  if(k==='split')return 'Everyone is tested against this condition. Those who match take the '
+    +'Yes branch, everyone else takes the No branch. The two branches are separate from here on.';
+  if(k==='sms')return 'An SMS sent to everyone who reaches this step.';
+  return 'An email sent to everyone who reaches this step.';
+}
+// Plain-English explanation of each flag, not just the metric that tripped it.
+function rmWhy(n){
+  const out=[], st=rmStats(n), win=RM_RLABEL[RM_RANGE];
+  if(n.status==='draft')out.push(['c','This message is switched off',
+    'It is built, but Klaviyo is not sending it. Anyone reaching this step gets nothing and '
+    +'moves straight on to the next step, so the flow is effectively one message shorter.']);
+  if(n.status==='manual')out.push(['w','Held for manual send',
+    'Klaviyo will not send this automatically. Someone has to trigger it by hand, which in a '
+    +'lifecycle flow usually means it never goes out.']);
+  if(st&&st.delivered>=500&&st.unsub>=1){
+    const people=Math.round(st.delivered*st.unsub/100);
+    out.push(['c','Unsubscribes are high',
+      st.unsub.toFixed(2)+'% of the '+st.delivered.toLocaleString()+' people who received this '
+      +'over the '+win+' unsubscribed — roughly '+people.toLocaleString()+' people. A healthy '
+      +'flow email sits under about 0.3%. Every one of them is off the list for good, not just '
+      +'out of this flow.']);
+  }
+  if(st&&st.delivered>=1000&&st.rpr<0.1){
+    out.push(['w','Earning almost nothing per send',
+      'This makes '+rmMoney(st.revenue)+' across '+st.delivered.toLocaleString()+' sends over the '
+      +win+', an RPR of '+st.rpr.toFixed(2)+'. Under about 0.10 a message is not paying for the '
+      +'list health it costs. Either the content needs work or the step should be cut.']);
+  }
+  if(st&&st.delivered===0&&n.status==='live'){
+    out.push(['w','Live but silent',
+      'Switched on, but it has not sent once in the '+win+'. Either nobody is reaching this step, '
+      +'or a filter or split upstream is routing everyone past it.']);
+  }
+  if(n.ab&&n.ab.experiment_status!=='live'){
+    out.push(['w','A test is set up but not running',
+      'An A/B test is configured on this message'
+      +(n.ab.started?' and was started '+String(n.ab.started).slice(0,10):' but has never been started')
+      +'. Until it runs, every recipient gets the control and the variants sit idle.']);
+  }
+  return out;
+}
+
+function rmDetail(n,iss,flow){
   const el=document.getElementById('map-detail'), k=rmKind(n);
-  const flag=(iss||[]).length?'<div class="rm-dflags">'+iss.map(i=>
-    '<span class="rm-dflag '+(i[0]==='crit'?'c':'w')+'">'+esc(i[1])+'</span>').join('')+'</div>':'';
-  if(k==='delay'||k==='split'){
-    el.innerHTML='<div class="rm-detail"><h4>'+(k==='delay'?'Wait':'Conditional split')+'</h4>'
-      +'<div class="sub">'+esc(k==='delay'?(rmDelay(n)+(n.delay&&n.delay.tz?' · '+n.delay.tz+' timezone':''))
-        :(n.cond_full||n.cond||''))+'</div></div>';
+  const why=rmWhy(n);
+  const acts=[];
+  if(flow)acts.push('<a class="rm-open" href="'+rmFlowUrl(flow.id)+'" target="_blank" rel="noopener">↗ Open flow in Klaviyo</a>');
+  if(n.msg_id)acts.push('<a class="rm-open" href="'+rmMsgUrl(n.msg_id)+'" target="_blank" rel="noopener">↗ Open this message</a>');
+  const actions='<div class="rm-acts">'+acts.join('')+'</div>';
+  const whyHtml=why.length?'<ul class="rm-why">'+why.map(w=>
+    '<li class="'+w[0]+'"><span class="sq"></span><span><b>'+esc(w[1])+'</b>'+esc(w[2])+'</span></li>').join('')+'</ul>':'';
+
+  if(k==='trigger'){
+    el.innerHTML='<div class="rm-detail"><h4>'+esc(n.label)+'</h4>'
+      +'<div class="sub">Flow trigger</div>'
+      +'<p class="rm-what">'+esc(rmWhat(n))+'</p>'
+      +(n.filters.length?'<ul class="rm-flist plain" style="margin-top:14px">'
+        +n.filters.map(l=>'<li>'+esc(l)+'</li>').join('')+'</ul>'
+        :'<p class="rm-what">This flow has no filters, so nothing is suppressed at entry.</p>')
+      +actions+'</div>';
     return;
   }
-  const st=n.stats;
+  if(k==='delay'||k==='split'){
+    el.innerHTML='<div class="rm-detail"><h4>'+(k==='delay'?'Wait '+esc(rmDelay(n)):'Condition')+'</h4>'
+      +'<div class="sub">'+esc(k==='delay'
+        ? ((n.delay&&n.delay.tz?n.delay.tz+' timezone':'')||'\u2014')
+        : (n.cond_full||n.cond||''))+'</div>'
+      +'<p class="rm-what">'+esc(rmWhat(n))+'</p>'+actions+'</div>';
+    return;
+  }
+  const st=rmStats(n);
   const dl=st?[['Delivered',st.delivered.toLocaleString()],['Revenue',rmMoney(st.revenue)],
     ['RPR',st.rpr.toFixed(2)],['Orders',st.orders.toLocaleString()],['Open',st.open+'%'],
-    ['Click',st.click+'%'],['Unsub',st.unsub+'%']]:[['90-day data','no sends']];
+    ['Click',st.click+'%'],['Unsub',st.unsub+'%']]:[['Sends in this window','none']];
   let ab='';
   if(n.ab){
     const a=n.ab, live=a.experiment_status==='live';
@@ -3349,11 +3487,17 @@ function rmDetail(n,iss){
         +' <span class="dim">'+esc(v.status||'')+'</span>'
         +(v.subject?'<br><span class="dim">'+esc(v.subject)+'</span>':'')+'</li>').join('')+'</ul></div>';
   }
+  const stat=(n.status||'live');
   el.innerHTML='<div class="rm-detail"><h4>'+esc(n.name||'Message')+'</h4>'
     +'<div class="sub">'+esc(n.subject||n.preview||'')
-    +(n.sender?' · from '+esc(n.sender):'')+(n.status?' · '+esc(n.status):'')
-    +(n.smart_sending===false?' · smart sending off':'')+'</div>'+flag
-    +'<dl>'+dl.map(d=>'<div><dt>'+d[0]+'</dt><dd>'+d[1]+'</dd></div>').join('')+'</dl>'+ab+'</div>';
+    +(n.sender?' · from '+esc(n.sender):'')
+    +(n.smart_sending===false?' · smart sending off':'')+'</div>'
+    +'<div class="rm-tagline"><span class="rm-dflag '
+      +(stat==='draft'?'w':stat==='manual'?'w':'g')+'">'+esc(stat.toUpperCase())+'</span>'
+    +'<span class="rm-dflag" style="color:var(--muted)">'+esc(k==='sms'?'SMS':'EMAIL')+'</span></div>'
+    +'<p class="rm-what">'+esc(rmWhat(n))+'</p>'
+    +'<dl style="margin-top:16px">'+dl.map(d=>'<div><dt>'+d[0]+'</dt><dd>'+d[1]+'</dd></div>').join('')+'</dl>'
+    +whyHtml+ab+actions+'</div>';
 }
 
 function rmFilters(flow,cov){
@@ -3376,6 +3520,10 @@ function rmFilters(flow,cov){
     :'<li class="dim">This flow is not on the retention map, so there is nothing prescribed.</li>';
   const right=act.length?act.map(l=>'<li>'+esc(l)+'</li>').join('')
     :'<li class="dim">No flow filters set.</li>';
+  const srcNote=cov&&cov.filters_source==='inferred'
+    ? '<p class="rm-src"><b>Unverified:</b> the map does not name a flow in these filters, so '
+      +'which slot they belong to was matched on content. Worth confirming before acting on it.</p>'
+    : '';
   el.innerHTML='<div class="rm-fwrap">'+head
     +'<div class="rm-fcols">'
     +'<div><div class="rm-fh">Retention map prescribes</div><ul class="rm-flist">'+left+'</ul></div>'
@@ -3384,7 +3532,7 @@ function rmFilters(flow,cov){
     +(cov&&cov.slots&&cov.slots.length?'<details class="rm-slots"><summary>Prescribed messages ('
       +cov.slots.length+')</summary><ol>'+cov.slots.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ol>'
       +(cov.note?'<p class="rm-snote">'+esc(cov.note)+'</p>':'')+'</details>':'')
-    +'</div>';
+    +srcNote+'</div>';
 }
 
 function rmIssueList(flow){
@@ -3407,7 +3555,7 @@ function rmGoTo(id){
     const on=el.dataset.node===id; el.classList.toggle('sel',on);
     const h=el.querySelector('.halo'); if(h)h.setAttribute('opacity',on?1:0);});
   const M=rmData(),flow=M&&M.flows.find(f=>f.id===RM_FLOW);
-  const n=flow&&(flow.nodes||[]).find(x=>x.id===id); if(n)rmDetail(n,rmIssues(n));
+  const n=flow&&(flow.nodes||[]).find(x=>x.id===id); if(n)rmDetail(n,rmIssues(n),flow);
 }
 
 // ---- zoom / pan ----
@@ -3447,6 +3595,12 @@ function rmWire(){
   document.getElementById('map-in').addEventListener('click',()=>rmZoom(1.25));
   document.getElementById('map-out').addEventListener('click',()=>rmZoom(1/1.25));
   document.getElementById('map-fit').addEventListener('click',rmFit);
+  document.getElementById('map-range').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b)return;
+    [...e.currentTarget.children].forEach(x=>x.setAttribute('aria-selected',x===b));
+    RM_RANGE=b.dataset.r; renderMap();});
+  document.getElementById('map-openflow').addEventListener('click',()=>{
+    if(RM_FLOW)window.open(rmFlowUrl(RM_FLOW),'_blank','noopener');});
   document.getElementById('map-full').addEventListener('click',()=>rmFullscreen());
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&RM_FULL)rmFullscreen(false);});
   const sc=document.getElementById('map-scroll');
