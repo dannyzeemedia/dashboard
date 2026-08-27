@@ -704,10 +704,16 @@
   .rm-meta .dim{color:var(--muted);font-weight:400}
   .rm-meta span{font-variant-numeric:tabular-nums;font-weight:600}
 
-  .rm-scroll{position:relative;overflow:auto;flex:1;min-height:0;height:min(64vh,660px);
-    background-color:color-mix(in srgb,var(--surface-2) 60%,var(--surface));
-    background-image:radial-gradient(color-mix(in srgb,var(--axis) 70%,transparent) 1.1px,transparent 1.1px);
-    background-size:20px 20px;cursor:grab;touch-action:none}
+  /* The canvas owns its palette — it is a product surface, not a client-branded
+     one, so it does not inherit --plane / --surface-2. */
+  .rm-scroll{position:relative;overflow:auto;flex:1;min-height:0;height:min(66vh,700px);
+    --c-bg:#EDF0F6; --c-dot:#D3D9E5;
+    background-color:var(--c-bg);
+    background-image:radial-gradient(var(--c-dot) 1.15px,transparent 1.15px);
+    background-size:24px 24px;cursor:grab;touch-action:none}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .rm-scroll{
+    --c-bg:#101218; --c-dot:#242935}}
+  :root[data-theme="dark"] .rm-scroll{--c-bg:#101218; --c-dot:#242935}
   .rm-stage.full .rm-scroll{height:auto}
   .rm-scroll.drag{cursor:grabbing}
   .rm-planebox{position:relative}
@@ -974,11 +980,11 @@
       <div class="rm-meta" id="map-meta"></div>
       <div class="rm-scroll" id="map-scroll"><div class="rm-planebox"><div class="rm-plane" id="map-plane"></div></div></div>
       <div class="rm-legend">
-        <span><i class="rm-key" style="background:linear-gradient(180deg,var(--flow),color-mix(in srgb,var(--flow) 56%,#6d8dff));width:5px;height:16px;border-radius:3px"></i>Email</span>
-        <span><i class="rm-key" style="background:linear-gradient(180deg,var(--aqua),color-mix(in srgb,var(--aqua) 62%,#4fd8c4));width:5px;height:16px;border-radius:3px"></i>SMS</span>
-        <span><i class="rm-key" style="background:color-mix(in srgb,var(--surface) 78%,var(--plane));border:1px solid var(--border)"></i>Wait</span>
-        <span><i class="rm-key" style="background:var(--surface);border:2px solid var(--camp);width:12px;height:12px;border-radius:2px;transform:rotate(45deg)"></i>Split</span>
-        <span><i class="rm-key" style="background:var(--crit);width:5px;height:16px;border-radius:3px"></i>Needs attention</span>
+        <span><i class="rm-key" style="background:#3B6FF5;width:11px;height:11px;border-radius:4px"></i>Email</span>
+        <span><i class="rm-key" style="background:#0FB5AE;width:11px;height:11px;border-radius:4px"></i>SMS</span>
+        <span><i class="rm-key" style="background:#C6CDDA;width:16px;height:9px;border-radius:5px"></i>Wait</span>
+        <span><i class="rm-key" style="background:#E9F0FE;border:1px solid #3B6FF5;width:11px;height:11px;border-radius:4px"></i>Condition</span>
+        <span><i class="rm-key" style="background:var(--crit);width:9px;height:9px;border-radius:50%"></i>Needs attention</span>
         <span><i class="rm-key" style="background:var(--camp)"></i>A/B test on the message</span>
         <span>Dashed = draft or manual, not sending</span>
         <span style="margin-left:auto;opacity:.8">Drag to pan &middot; &#8984;/Ctrl + scroll to zoom</span>
@@ -3014,9 +3020,9 @@ function rmPresence(c){
 function rmPick(id){RM_FLOW=id;RM_SEL=null;document.getElementById('map-pick').value=id;rmDraw();rmFit();}
 
 // ---- layered layout: longest-path ranks + median relaxation ----
-const RM_W={msg:248,delay:176,split:262};
-const RM_HB={msg:76,delay:54,split:84};   // base heights; messages grow when stats show
-const RM_GAPX=34, RM_GAPY=58, RM_PAD=58;
+const RM_W={msg:276,delay:150,split:244};
+const RM_HB={msg:80,delay:50,split:76};   // base heights; messages grow when stats show
+const RM_GAPX=40, RM_GAPY=62, RM_PAD=64;
 
 function rmKind(n){
   if(n.type==='send-email')return 'email';
@@ -3029,7 +3035,7 @@ function rmBox(n){
   const k=rmKind(n);
   if(k==='delay')return {w:RM_W.delay,h:RM_HB.delay};
   if(k==='split')return {w:RM_W.split,h:RM_HB.split};
-  return {w:RM_W.msg,h:RM_HB.msg+(RM_PERF&&n.stats?28:0)};
+  return {w:RM_W.msg,h:RM_HB.msg+(RM_PERF&&n.stats?36:0)};
 }
 
 function rmLayout(nodes){
@@ -3082,6 +3088,26 @@ function rmLayout(nodes){
 
 // ---- drawing ----
 const RM_NS='http://www.w3.org/2000/svg';
+// The diagram's own palette. Deliberately NOT the client's: this canvas is a
+// product surface and needs a cool neutral ground with a single accent, which
+// is what every client-branded attempt kept fighting.
+function RM_PAL(){
+  const sc=document.getElementById('map-scroll');
+  const bg=sc?getComputedStyle(sc).backgroundColor:'#EEF1F6';
+  return rmIsDark(bg) ? {
+    card:'#1B1F27', chip:'#191D25', ink:'#E9ECF2', dim:'#9AA3B3', mute:'#6C7686',
+    edge:'#39404E', rule:'#2A303B', accent:'#6E9BFF', accentSoft:'#1E2A45',
+    teal:'#3FD0C9', tealSoft:'#12312F', crit:'#F2686C', warn:'#E3A544',
+    good:'#4FC98A', goodSoft:'#123227', warnSoft:'#3A2E14',
+    shadow:'#000000', shadowOp:0.5,
+  } : {
+    card:'#FFFFFF', chip:'#F5F7FB', ink:'#141821', dim:'#5B6473', mute:'#98A1B0',
+    edge:'#C6CDDA', rule:'#EDF0F5', accent:'#3B6FF5', accentSoft:'#E9F0FE',
+    teal:'#0FB5AE', tealSoft:'#E1F7F5', crit:'#E5484D', warn:'#C77700',
+    good:'#2FA36B', goodSoft:'#E4F5EC', warnSoft:'#FDF1DC',
+    shadow:'#48597A', shadowOp:0.16,
+  };
+}
 function sv(t,a){const e=document.createElementNS(RM_NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
 function rmInk(hex){
   const m=(hex||'').trim().match(/^#?([0-9a-f]{6})$/i); if(!m)return '#fff';
@@ -3161,184 +3187,113 @@ function rmDraw(){
     document.getElementById('map-issues').innerHTML='';return;}
 
   const L=rmLayout(nodes); RM_L=L;
-  const cs=getComputedStyle(document.documentElement);
-  const C=k=>cs.getPropertyValue(k).trim();
-  const cFlow=C('--flow'),cAqua=C('--aqua'),cCamp=C('--camp'),cGood=C('--good'),
-        cCrit=C('--crit'),cInk=C('--ink');
-  const cSurf=C('--surface'), cPlane=C('--plane');
-  const dark=rmIsDark(cPlane);
-  const cShadow=dark?'#000000':'#4a5b7a';
-  const EDGE=dark?'#F0B45C':'#D9922A';
-  const cAccent=dark?cFlow:'color-mix(in srgb,'+cFlow+' 78%,#6d8dff 22%)';
+  const P=RM_PAL();
 
   const svg=sv('svg',{width:L.width,height:L.height,viewBox:'0 0 '+L.width+' '+L.height,xmlns:RM_NS});
   const defs=sv('defs',{});
-  [['rm-ar',EDGE],['rm-ar-y',cGood],['rm-ar-n',cCrit]].forEach(([id,col])=>{
-    const m=sv('marker',{id:id,viewBox:'0 0 10 10',refX:'7.5',refY:'5',markerWidth:'5.5',
-      markerHeight:'5.5',orient:'auto-start-reverse'});
-    m.appendChild(sv('path',{d:'M0.5,1.5 L8.5,5 L0.5,8.5 Z',fill:col}));defs.appendChild(m);});
-  const sh=sv('filter',{id:'rm-sh',x:'-35%',y:'-35%',width:'170%',height:'190%'});
-  sh.appendChild(sv('feDropShadow',{dx:'0',dy:'7',stdDeviation:'9',
-    'flood-color':cShadow,'flood-opacity':dark?'0.55':'0.20'}));
-  defs.appendChild(sh);
-  const shs=sv('filter',{id:'rm-shs',x:'-35%',y:'-35%',width:'170%',height:'190%'});
-  shs.appendChild(sv('feDropShadow',{dx:'0',dy:'3',stdDeviation:'5',
-    'flood-color':cShadow,'flood-opacity':dark?'0.45':'0.15'}));
-  defs.appendChild(shs);
-  const lift=(c,t,amt)=>'color-mix(in srgb,'+c+' '+(100-amt)+'%,'+t+' '+amt+'%)';
-  // Accent rails / chips only — the card itself stays the surface colour.
-  [['rm-g-rail',cFlow,lift(cFlow,'#6d8dff',dark?34:44)],
-   ['rm-g-sms',cAqua,lift(cAqua,'#4fd8c4',dark?26:38)],
-   ['rm-g-split',cCamp,lift(cCamp,'#ffd98a',dark?24:34)]].forEach(([id,a,b])=>{
-    const lg=sv('linearGradient',{id:id,x1:'0',y1:'0',x2:'1',y2:'1'});
-    lg.appendChild(sv('stop',{offset:'0%','stop-color':a}));
-    lg.appendChild(sv('stop',{offset:'100%','stop-color':b}));
-    defs.appendChild(lg);});
+  [['rm-ar',P.edge]].forEach(([id,col])=>{
+    const m=sv('marker',{id:id,viewBox:'0 0 10 10',refX:'8',refY:'5',markerWidth:'5',
+      markerHeight:'5',orient:'auto-start-reverse'});
+    m.appendChild(sv('path',{d:'M1,1.6 L8.4,5 L1,8.4 Z',fill:col}));defs.appendChild(m);});
+  const mkShadow=(id,dy,blur,op)=>{
+    const f=sv('filter',{id:id,x:'-45%',y:'-45%',width:'190%',height:'210%'});
+    f.appendChild(sv('feDropShadow',{dx:'0',dy:dy,stdDeviation:blur,
+      'flood-color':P.shadow,'flood-opacity':op}));defs.appendChild(f);};
+  mkShadow('rm-sh',5,9,P.shadowOp);
+  mkShadow('rm-shs',2,4,P.shadowOp*0.8);
   svg.appendChild(defs);
 
+  // ---- connectors: quiet greyscale, so the data is the only colour ----
   const eg=sv('g',{});
   nodes.forEach(n=>{
     const a=L.pos[n.id]; if(!a)return;
-    [[n.yes,'yes'],[n.no,'no'],[n.next,'next']].filter(e=>e[0]&&L.pos[e[0]]).forEach(([kid,kind])=>{
+    [[n.yes,'Yes'],[n.no,'No'],[n.next,null]].filter(e=>e[0]&&L.pos[e[0]]).forEach(([kid,lab])=>{
       const b=L.pos[kid];
       const x1=a.x+a.w/2,y1=a.y+a.h,x2=b.x+b.w/2,y2=b.y;
-      const col=kind==='yes'?cGood:kind==='no'?cCrit:EDGE;
-      const mk=kind==='yes'?'rm-ar-y':kind==='no'?'rm-ar-n':'rm-ar';
       let d;
-      if(Math.abs(x1-x2)<2)d='M'+x1+' '+y1+' L'+x2+' '+(y2-5);
+      if(Math.abs(x1-x2)<2)d='M'+x1+' '+y1+' L'+x2+' '+(y2-6);
       else{
-        const my=y1+Math.max(18,(y2-y1)/2),r=Math.min(14,Math.abs(x2-x1)/2),dir=x2>x1?1:-1;
+        const my=y1+Math.max(22,(y2-y1)/2),r=Math.min(18,Math.abs(x2-x1)/2),dir=x2>x1?1:-1;
         d='M'+x1+' '+y1+' L'+x1+' '+(my-r)+' Q'+x1+' '+my+' '+(x1+r*dir)+' '+my
-          +' L'+(x2-r*dir)+' '+my+' Q'+x2+' '+my+' '+x2+' '+(my+r)+' L'+x2+' '+(y2-5);
+          +' L'+(x2-r*dir)+' '+my+' Q'+x2+' '+my+' '+x2+' '+(my+r)+' L'+x2+' '+(y2-6);
       }
-      eg.appendChild(sv('path',{d:d,fill:'none',stroke:col,'stroke-width':2.4,
-        'stroke-linecap':'round','stroke-linejoin':'round','marker-end':'url(#'+mk+')'}));
-      if(kind!=='next'){
-        const lx=x1+(x2-x1)*0.5,ly=y1+18;
-        const w=kind==='yes'?26:20;
-        eg.appendChild(sv('rect',{x:lx-w/2-3,y:ly-11,width:w+6,height:17,rx:8.5,fill:col,
-          filter:'url(#rm-shs)'}));
-        const t=sv('text',{x:lx,y:ly,'text-anchor':'middle','font-size':'8.5','font-weight':'800',
-          fill:'#fff','letter-spacing':'.07em'});
-        t.textContent=kind==='yes'?'YES':'NO'; eg.appendChild(t);
+      eg.appendChild(sv('path',{d:d,fill:'none',stroke:P.edge,'stroke-width':1.8,
+        'stroke-linecap':'round','stroke-linejoin':'round','marker-end':'url(#rm-ar)'}));
+      if(lab){
+        const lx=x1+(x2-x1)*0.5, ly=y1+21;
+        rmText(eg,lx,ly,lab,10,700,P.mute,1,'.1em');
       }
     });
   });
   svg.appendChild(eg);
 
+  // ---- nodes ----
   nodes.forEach(n=>{
     const p=L.pos[n.id]; if(!p)return;
     const k=rmKind(n), iss=rmIssues(n);
-    const sev=iss.some(i=>i[0]==='crit')?cCrit:iss.length?cCamp:null;
+    const sev=iss.some(i=>i[0]==='crit')?P.crit:iss.length?P.warn:null;
     const g=sv('g',{class:'rm-node'+(RM_SEL===n.id?' sel':'')}); g.dataset.node=n.id;
     const notLive=(k==='email'||k==='sms'||k==='push')&&n.status&&n.status!=='live';
-    let fill=cFlow,stroke=null,ink,shape;
+    const rx=k==='delay'?p.h/2:16;
 
-    let halo, rail=null, railFill=null;
-    if(k==='delay'){
-      fill='color-mix(in srgb,'+cSurf+' 78%,'+cPlane+')'; ink=cInk;
-      const v=11, r=13;
-      shape=sv('path',{d:'M'+(p.x+r)+' '+p.y
-        +' Q'+(p.x+p.w/2)+' '+(p.y+v)+' '+(p.x+p.w-r)+' '+p.y
-        +' Q'+(p.x+p.w)+' '+p.y+' '+(p.x+p.w)+' '+(p.y+r)
-        +' L'+(p.x+p.w)+' '+(p.y+p.h-r)
-        +' Q'+(p.x+p.w)+' '+(p.y+p.h)+' '+(p.x+p.w-r)+' '+(p.y+p.h)
-        +' Q'+(p.x+p.w/2)+' '+(p.y+p.h-v)+' '+(p.x+r)+' '+(p.y+p.h)
-        +' Q'+p.x+' '+(p.y+p.h)+' '+p.x+' '+(p.y+p.h-r)
-        +' L'+p.x+' '+(p.y+r)+' Q'+p.x+' '+p.y+' '+(p.x+r)+' '+p.y+' Z'});
-      halo=shape.cloneNode();
-      shape.setAttribute('filter','url(#rm-shs)');
-    }else if(k==='split'){
-      // a white card, diamond-cut, outlined in the accent rather than filled by it
-      fill=cSurf; ink=cInk; railFill='url(#rm-g-split)';
-      const cx=p.x+p.w/2,cy=p.y+p.h/2,r=9;
-      shape=sv('path',{d:'M'+cx+' '+(p.y+r*0.5)
-        +' L'+(p.x+p.w-r)+' '+(cy-r*0.5)+' Q'+(p.x+p.w)+' '+cy+' '+(p.x+p.w-r)+' '+(cy+r*0.5)
-        +' L'+cx+' '+(p.y+p.h-r*0.5)+' Q'+cx+' '+(p.y+p.h)+' '+(cx-r)+' '+(p.y+p.h-r*0.9)
-        +' L'+(p.x+r)+' '+(cy+r*0.5)+' Q'+p.x+' '+cy+' '+(p.x+r)+' '+(cy-r*0.5)
-        +' L'+(cx-r)+' '+(p.y+r*0.9)+' Q'+cx+' '+p.y+' '+cx+' '+(p.y+r*0.5)+' Z'});
-      halo=shape.cloneNode();
-      shape.setAttribute('filter','url(#rm-sh)');
-      shape.setAttribute('stroke','url(#rm-g-split)');
-      shape.setAttribute('stroke-width',2);
-    }else if(k==='sms'){
-      fill=cSurf; ink=cInk; railFill='url(#rm-g-sms)';
-      const tip=18,r=16;
-      shape=sv('path',{d:'M'+(p.x+r)+' '+p.y+' L'+(p.x+p.w-tip)+' '+p.y
-        +' Q'+(p.x+p.w)+' '+(p.y+p.h/2-4)+' '+(p.x+p.w)+' '+(p.y+p.h/2)
-        +' Q'+(p.x+p.w)+' '+(p.y+p.h/2+4)+' '+(p.x+p.w-tip)+' '+(p.y+p.h)
-        +' L'+(p.x+r)+' '+(p.y+p.h)
-        +' Q'+p.x+' '+(p.y+p.h)+' '+p.x+' '+(p.y+p.h-r)
-        +' L'+p.x+' '+(p.y+r)+' Q'+p.x+' '+p.y+' '+(p.x+r)+' '+p.y+' Z'});
-      halo=shape.cloneNode();
-      shape.setAttribute('filter','url(#rm-sh)');
-    }else{
-      fill=cSurf; ink=cInk; railFill='url(#rm-g-rail)';
-      shape=sv('rect',{x:p.x,y:p.y,width:p.w,height:p.h,rx:19});
-      halo=shape.cloneNode();
-      shape.setAttribute('filter','url(#rm-sh)');
-    }
-    halo.setAttribute('class','halo');
-    halo.setAttribute('fill','none');
-    halo.setAttribute('stroke',cCamp);
-    halo.setAttribute('stroke-width',3);
-    halo.setAttribute('opacity',RM_SEL===n.id?1:0);
-    halo.setAttribute('transform','translate('+(p.x+p.w/2)+' '+(p.y+p.h/2)+') scale(1.05) translate('
-      +(-(p.x+p.w/2))+' '+(-(p.y+p.h/2))+')');
+    const halo=sv('rect',{x:p.x-4,y:p.y-4,width:p.w+8,height:p.h+8,rx:rx+4,fill:'none',
+      stroke:P.accent,'stroke-width':2,class:'halo',opacity:RM_SEL===n.id?1:0});
     g.appendChild(halo);
-    shape.setAttribute('class','shape');
-    shape.setAttribute('fill',fill);
-    if(notLive){
-      shape.setAttribute('stroke',cCamp);shape.setAttribute('stroke-width',2);
-      shape.setAttribute('stroke-dasharray','8 6');
-      shape.setAttribute('fill','color-mix(in srgb,'+cSurf+' 82%,'+cPlane+')');
-      shape.setAttribute('filter','url(#rm-shs)');}
+
+    const shape=sv('rect',{x:p.x,y:p.y,width:p.w,height:p.h,rx:rx,fill:P.card,class:'shape',
+      filter:'url(#rm-'+(k==='delay'?'shs':'sh')+')'});
+    if(k==='delay')shape.setAttribute('fill',P.chip);
+    if(notLive){shape.setAttribute('stroke',P.warn);shape.setAttribute('stroke-width',1.5);
+      shape.setAttribute('stroke-dasharray','7 5');}
     g.appendChild(shape);
-    // accent rail: the one place the client's gradient appears on a message,
-    // and where a flagged message turns its severity colour
-    if(railFill&&k!=='split'){
-      g.appendChild(sv('rect',{x:p.x+9,y:p.y+15,width:5,height:p.h-30,rx:2.5,
-        fill:sev||railFill}));
-    }
 
-    // severity stripe down the left edge — replaces the old floating dot
+    const ICON={
+      email:'M2 4.6c0-.9.7-1.6 1.6-1.6h12.8c.9 0 1.6.7 1.6 1.6v10.8c0 .9-.7 1.6-1.6 1.6H3.6c-.9 0-1.6-.7-1.6-1.6z M2.6 5.2 10 10.6l7.4-5.4',
+      sms:'M3 4.6C3 3.7 3.7 3 4.6 3h10.8c.9 0 1.6.7 1.6 1.6v7.6c0 .9-.7 1.6-1.6 1.6H8.2L4 17.4V13.8h-.6c-.2 0-.4-.2-.4-.4z',
+      delay:'M10 3.2a6.8 6.8 0 1 0 0 13.6 6.8 6.8 0 0 0 0-13.6z M10 6.4V10l2.6 1.6',
+      split:'M4 4v3.2c0 1.2 1 2.2 2.2 2.2h7.6c1.2 0 2.2 1 2.2 2.2V16 M16 4v3.2c0 1.2-1 2.2-2.2 2.2 M4 16v-2',
+    };
+    const drawIcon=(x,y,sz,col,key)=>{
+      const gi=sv('g',{transform:'translate('+x+' '+y+') scale('+(sz/20)+')',
+        fill:'none',stroke:col,'stroke-width':1.7,'stroke-linecap':'round','stroke-linejoin':'round'});
+      gi.appendChild(sv('path',{d:ICON[key]})); g.appendChild(gi);
+    };
 
-
-    const cx=p.x+p.w/2+(k==='email'||k==='sms'||k==='push'?7:0), inner=p.w-46-(n.ab?18:0);
     if(k==='delay'){
-      rmText(g,p.x+p.w/2,p.y+p.h/2-5,'WAIT',9.5,800,ink,.45,'.14em');
-      rmText(g,p.x+p.w/2,p.y+p.h/2+11,rmDelay(n),13,650,ink,.85);
+      drawIcon(p.x+16,p.y+p.h/2-8,16,P.mute,'delay');
+      rmText(g,p.x+40,p.y+p.h/2+4.5,rmDelay(n),12.5,600,P.dim,1,null,'start');
     }else if(k==='split'){
-      rmText(g,p.x+p.w/2,p.y+p.h/2-6,'SPLIT',9,800,ink,.5,'.14em');
-      rmText(g,p.x+p.w/2,p.y+p.h/2+9,rmTrunc(n.cond||'condition',p.w-78,10,600),10,650,ink,1);
+      drawIcon(p.x+16,p.y+15,17,P.accent,'split');
+      rmText(g,p.x+40,p.y+27,'CONDITION',8.5,800,P.accent,1,'.13em','start');
+      rmText(g,p.x+16,p.y+50,rmTrunc(n.cond||'condition',p.w-32,11.5,600),11.5,600,P.ink,1,null,'start');
     }else{
-      const hasStats=RM_PERF&&n.stats;
-      const top=hasStats?p.y+p.h/2-19:p.y+p.h/2-8;
-      rmText(g,cx,top,rmTrunc(n.name||(k==='sms'?'SMS':'Email'),inner,12,700),12,700,ink,1,'.005em');
-      rmText(g,cx,top+16,rmTrunc(n.subject||n.preview||'',inner,11,400),11,400,ink,.86);
-      if(hasStats){
-        const yb=p.y+p.h-24;
-        g.appendChild(sv('line',{x1:p.x+20,y1:yb-3,x2:p.x+p.w-16,y2:yb-3,
-          stroke:ink,'stroke-opacity':.13,'stroke-width':1}));
-        const st=n.stats;
-        const cells=[['RPR',st.rpr.toFixed(2),1],['REV',rmMoney(st.revenue),0],
-                     ['UNSUB',st.unsub.toFixed(2)+'%',0]];
-        const x0=p.x+20, w=(p.w-34)/3;
-        cells.forEach((c2,i)=>{
-          const cxx=x0+w*i+w/2;
-          rmText(g,cxx,yb+8,c2[0],7.5,800,ink,.5,'.1em');
-          rmText(g,cxx,yb+18,c2[1],11,700,c2[2]?cAccent:ink,c2[2]?1:.95);
-        });
-      }else if(notLive){
-        rmText(g,cx,top+31,(n.status||'').toUpperCase(),8.5,800,cCamp,1,'.12em');
-      }
+      const isSms=k==='sms';
+      const tint=isSms?P.tealSoft:P.accentSoft, tcol=isSms?P.teal:P.accent;
+      g.appendChild(sv('rect',{x:p.x+16,y:p.y+16,width:26,height:26,rx:9,fill:tint}));
+      drawIcon(p.x+21,p.y+21,16,tcol,isSms?'sms':'email');
+      const tx=p.x+52, inner=p.w-52-20-(sev?14:0)-(n.ab?54:0);
+      rmText(g,tx,p.y+28,rmTrunc(n.name||(isSms?'SMS':'Email'),inner,13,650),13,650,P.ink,1,'-.005em','start');
+      rmText(g,tx,p.y+45,rmTrunc(n.subject||n.preview||'',p.w-52-20,11.5,400),11.5,400,P.dim,1,null,'start');
+      if(sev)g.appendChild(sv('circle',{cx:p.x+p.w-18,cy:p.y+22,r:4.5,fill:sev}));
       if(n.ab){
-        const live=n.ab.experiment_status==='live';
-        const lbl=live?'TEST RUNNING':'TEST PENDING';
-        const w=rmMeasure(lbl,7.5,800)+16, bx=p.x+p.w-w-9, by=p.y+8;
-        g.appendChild(sv('rect',{x:bx,y:by,width:w,height:15,rx:7.5,
-          fill:live?cGood:cCamp,'fill-opacity':.92}));
-        rmText(g,bx+w/2,by+10.5,lbl,7.5,800,rmInk(live?cGood:cCamp),1,'.09em');
+        const live=n.ab.experiment_status==='live', lbl=live?'TESTING':'TEST IDLE';
+        const w=rmMeasure(lbl,8,800)+16, bx=p.x+p.w-w-(sev?32:18);
+        g.appendChild(sv('rect',{x:bx,y:p.y+14,width:w,height:17,rx:8.5,
+          fill:live?P.goodSoft:P.warnSoft}));
+        rmText(g,bx+w/2,p.y+26,lbl,8,800,live?P.good:P.warn,1,'.09em');
+      }
+      if(RM_PERF&&n.stats){
+        const st=n.stats, yb=p.y+p.h-20;
+        g.appendChild(sv('line',{x1:p.x+16,y1:yb-20,x2:p.x+p.w-16,y2:yb-20,
+          stroke:P.rule,'stroke-width':1}));
+        const rpr=st.rpr.toFixed(2);
+        const t=rmText(g,p.x+16,yb+4,rpr,20,700,st.rpr>=1?P.accent:P.ink,1,'-.025em','start');
+        rmText(g,p.x+16+rmMeasure(rpr,20,700)+5,yb+4,'RPR',8.5,800,P.mute,1,'.11em','start');
+        rmText(g,p.x+p.w-16,yb-4,rmMoney(st.revenue),12.5,650,P.dim,1,null,'end');
+        rmText(g,p.x+p.w-16,yb+8,st.unsub.toFixed(2)+'% unsub',10,600,
+          st.unsub>=1?P.crit:P.mute,1,null,'end');
+      }else if(notLive){
+        rmText(g,p.x+52,p.y+p.h-18,(n.status||'').toUpperCase(),8.5,800,P.warn,1,'.12em','start');
       }
     }
 
@@ -3347,7 +3302,7 @@ function rmDraw(){
       n.status?('status: '+n.status):'',
       n.stats?('90d: '+n.stats.delivered.toLocaleString()+' delivered · RPR '+n.stats.rpr.toFixed(2)
         +' · open '+n.stats.open+'% · click '+n.stats.click+'% · unsub '+n.stats.unsub+'%'):'',
-      ...iss.map(i=>'! '+i[1])].filter(Boolean).join('\n');
+      ...iss.map(x=>'! '+x[1])].filter(Boolean).join('\n');
     g.appendChild(tt);
     g.addEventListener('click',e=>{e.stopPropagation();RM_SEL=n.id;rmDetail(n,iss);
       document.querySelectorAll('#map-plane .rm-node').forEach(el=>{
@@ -3360,8 +3315,8 @@ function rmDraw(){
   rmApplyZoom();
   rmIssueList(flow);
 }
-function rmText(g,x,y,txt,size,weight,fill,op,ls){
-  const t=sv('text',{x:x,y:y,'text-anchor':'middle','font-size':size,'font-weight':weight,
+function rmText(g,x,y,txt,size,weight,fill,op,ls,anchor){
+  const t=sv('text',{x:x,y:y,'text-anchor':anchor||'middle','font-size':size,'font-weight':weight,
     fill:fill,'fill-opacity':op==null?1:op});
   if(ls)t.setAttribute('letter-spacing',ls);
   t.textContent=txt; g.appendChild(t); return t;
