@@ -1061,6 +1061,7 @@
         <span><i class="rm-key" style="background:#0FB5AE;width:11px;height:11px;border-radius:4px"></i>SMS</span>
         <span><i class="rm-key" style="background:#C6CDDA;width:16px;height:9px;border-radius:5px"></i>Wait</span>
         <span><i class="rm-key" style="background:#E9F0FE;border:1px solid #3B6FF5;width:11px;height:11px;border-radius:4px"></i>Condition</span>
+        <span><i class="rm-key" style="background:#3B6FF5;width:11px;height:11px;border-radius:50%"></i>Donut under a condition = share taking Yes</span>
         <span>Health peeks out below each card: <b style="color:var(--crit)">ALERT</b>,
           <b style="color:var(--warn)">WATCH</b> or <b style="color:var(--good)">ALL GOOD</b></span>
         <span>Every message is tagged <b style="color:var(--good)">LIVE</b>,
@@ -3118,7 +3119,7 @@ function rmPick(id){RM_FLOW=id;RM_SEL=null;document.getElementById('map-pick').v
 // ---- layered layout: longest-path ranks + median relaxation ----
 const RM_W={msg:276,delay:150,split:244};
 const RM_HB={msg:80,delay:50,split:76};   // base heights; messages grow when stats show
-const RM_GAPX=40, RM_GAPY=72, RM_PAD=64;
+const RM_GAPX=40, RM_GAPY=88, RM_PAD=64;
 
 function rmKind(n){
   if(n.type==='flow-trigger')return 'trigger';
@@ -3198,14 +3199,14 @@ function RM_PAL(){
     edge:'#39404E', rule:'#2A303B', accent:'#6E9BFF', accentSoft:'#1E2A45',
     teal:'#3FD0C9', tealSoft:'#12312F', crit:'#F2686C', critSoft:'#3A2024', warn:'#E3A544',
     good:'#4FC98A', goodSoft:'#123227', warnSoft:'#3A2E14',
-    trigBg:'#242A36', trigInk:'#DCE3F2',
+    trigBg:'#242A36', trigInk:'#DCE3F2', noFill:'#333B48',
     shadow:'#000000', shadowOp:0.5,
   } : {
     card:'#FFFFFF', chip:'#F5F7FB', ink:'#141821', dim:'#5B6473', mute:'#98A1B0',
     edge:'#C6CDDA', rule:'#EDF0F5', accent:'#3B6FF5', accentSoft:'#E9F0FE',
     teal:'#0FB5AE', tealSoft:'#E1F7F5', crit:'#E5484D', critSoft:'#FDECEC', warn:'#C77700',
     good:'#2FA36B', goodSoft:'#E4F5EC', warnSoft:'#FDF1DC',
-    trigBg:'#1E2534', trigInk:'#FFFFFF',
+    trigBg:'#1E2534', trigInk:'#FFFFFF', noFill:'#DCE1EA',
     shadow:'#48597A', shadowOp:0.16,
   };
 }
@@ -3360,16 +3361,18 @@ function rmDraw(){
       const b=L.pos[kid];
       const x1=a.x+a.w/2,y1=a.y+a.h,x2=b.x+b.w/2,y2=b.y;
       let d;
+      const isSplit=!!(n.yes||n.no);
+      const myy=y1+Math.max(isSplit?64:22,(y2-y1)/2);
       if(Math.abs(x1-x2)<2)d='M'+x1+' '+y1+' L'+x2+' '+(y2-6);
       else{
-        const my=y1+Math.max(22,(y2-y1)/2),r=Math.min(18,Math.abs(x2-x1)/2),dir=x2>x1?1:-1;
+        const my=myy,r=Math.min(18,Math.abs(x2-x1)/2),dir=x2>x1?1:-1;
         d='M'+x1+' '+y1+' L'+x1+' '+(my-r)+' Q'+x1+' '+my+' '+(x1+r*dir)+' '+my
           +' L'+(x2-r*dir)+' '+my+' Q'+x2+' '+my+' '+x2+' '+(my+r)+' L'+x2+' '+(y2-6);
       }
       eg.appendChild(sv('path',{d:d,fill:'none',stroke:P.edge,'stroke-width':1.8,
         'stroke-linecap':'round','stroke-linejoin':'round','marker-end':'url(#rm-ar)'}));
       if(lab){
-        const lx=x1+(x2-x1)*0.5, ly=y1+21;
+        const lx=x1+(x2-x1)*0.5, ly=myy-9;
         const sp=rmSplit(n,L.by);
         const pct=sp&&sp.readable?(lab==='Yes'?sp.yesPct:sp.noPct):null;
         if(pct==null){
@@ -3458,6 +3461,18 @@ function rmDraw(){
          g.appendChild(sv('rect',{x:p.x+p.w-w-14,y:p.y+14,width:w,height:17,rx:8.5,
            fill:P.accentSoft}));
          rmText(g,p.x+p.w-w/2-14,p.y+26,t,8.5,800,P.accent,1,'.06em');
+         // donut on the junction: Yes as an arc of the whole, No as the remainder
+         const dcx=p.x+p.w/2, dcy=p.y+p.h+26, dr=19, C=2*Math.PI*dr;
+         g.appendChild(sv('circle',{cx:dcx,cy:dcy,r:dr+8,fill:P.card,
+           filter:'url(#rm-shs)'}));
+         g.appendChild(sv('circle',{cx:dcx,cy:dcy,r:dr,fill:'none',
+           stroke:P.noFill,'stroke-width':9}));
+         const yes=Math.max(0,Math.min(1,sp.yesPct));
+         if(yes>0)g.appendChild(sv('circle',{cx:dcx,cy:dcy,r:dr,fill:'none',
+           stroke:P.accent,'stroke-width':9,'stroke-linecap':'butt',
+           'stroke-dasharray':(yes*C).toFixed(2)+' '+C.toFixed(2),
+           transform:'rotate(-90 '+dcx+' '+dcy+')'}));
+         rmText(g,dcx,dcy+4,Math.round(yes*100)+'%',10.5,800,P.ink,1,'-.02em');
        }}
     }else{
       const isSms=k==='sms';
