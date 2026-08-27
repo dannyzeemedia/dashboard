@@ -291,6 +291,19 @@
   .vidframe iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
   .vidclose{position:absolute;top:-42px;right:-4px;background:transparent;border:none;color:#fff;font-size:32px;line-height:1;cursor:pointer;padding:4px 10px}
   .vidclose:hover{opacity:.7}
+  .todobox{position:relative;z-index:1;width:min(960px,95vw);max-height:88vh;display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.5);overflow:hidden}
+  .todohead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 20px 10px}
+  .todotitle{font-size:17px;font-weight:800;letter-spacing:-.01em;color:var(--ink)}
+  .todosub{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .todobox .vidclose{position:static;color:var(--muted);font-size:26px}
+  .todoactions{display:flex;align-items:center;gap:10px;padding:2px 20px 12px;flex-wrap:wrap}
+  .todohint{font-size:12px;color:var(--good);font-weight:600}
+  .todoscroll{overflow:auto;padding:0 20px 20px}
+  .todotbl{width:100%;border-collapse:collapse;font-size:13px}
+  .todotbl th{position:sticky;top:0;background:var(--surface);text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;padding:6px 10px;border-bottom:1px solid var(--border)}
+  .todotbl td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+  .todotbl td:first-child{font-weight:700;color:var(--ink);white-space:nowrap;width:1%}
+  .todotbl td:last-child{color:var(--ink2);line-height:1.5}
   .cmt{margin-top:12px;border-top:1px dashed var(--border);padding-top:10px}
   .cmt-btn{background:none;border:1px solid var(--border);color:var(--muted);font:inherit;font-size:12px;font-weight:600;padding:4px 10px;border-radius:8px;cursor:pointer}
   .cmt-btn.has{color:var(--flow);border-color:color-mix(in srgb,var(--flow) 40%,var(--border));background:color-mix(in srgb,var(--flow) 8%,var(--surface))}
@@ -779,10 +792,28 @@
   <section class="view wrap" id="view-audit" hidden>
     <div class="eyebrow" id="audit-eyebrow">Account audit</div>
     <div class="view-h" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><h2 id="audit-title">Account audit</h2>
-      <button class="btn ghost" id="auditBack">← All reports</button></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn ghost" id="todoBtn" type="button" style="display:none">📋 To-do list</button>
+        <button class="btn ghost" id="auditBack">← All reports</button></div></div>
     <p class="view-sub" id="audit-sub"></p>
     <div id="audit-body"></div>
   </section>
+
+  <div class="vidmodal" id="todoModal" hidden>
+    <div class="vidbackdrop" id="todoBackdrop"></div>
+    <div class="todobox">
+      <div class="todohead">
+        <div><div class="todotitle">Audit to-do list</div><div class="todosub" id="todoSub"></div></div>
+        <button class="vidclose" id="todoClose" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="todoactions">
+        <button class="btn" id="todoCopy" type="button">📋 Copy for Airtable</button>
+        <button class="btn ghost" id="todoCsv" type="button">⬇ Download CSV</button>
+        <span class="todohint" id="todoCopied"></span>
+      </div>
+      <div class="todoscroll"><table class="todotbl"><thead><tr><th>Task</th><th>Notes</th></tr></thead><tbody id="todoRows"></tbody></table></div>
+    </div>
+  </div>
 
   <div class="vidmodal" id="vidModal" hidden>
     <div class="vidbackdrop" id="vidBackdrop"></div>
@@ -1596,7 +1627,28 @@ document.addEventListener('click',function(){const m=document.getElementById('cm
   b.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
   document.body.appendChild(b);var on=false;
   window.addEventListener('scroll',function(){var s=(window.scrollY||document.documentElement.scrollTop)>420;if(s!==on){on=s;b.classList.toggle('show',s);}},{passive:true});})();
+function stripHtml(h){const d=document.createElement('div');d.innerHTML=h||'';return (d.textContent||'').replace(/\s+/g,' ').trim();}
+function buildTodos(S,A){   // every actionable item from the audit, not just wins → [{name,notes}]
+  const cl=(S.name||'Client');
+  if(Array.isArray(A.todos)&&A.todos.length)return A.todos.map(t=>({name:t.name||'',notes:t.notes||''}));
+  const out=[],seen=new Set();
+  (A.wins||[]).forEach(w=>{if(w.card!=null)seen.add(w.card);
+    out.push({name:cl+': '+(w.title||'').replace(/\s*\([^)]*\)\s*$/,''),notes:stripHtml(w.detail)+(w.impact?(' Estimated impact: '+w.impact+'.'):'')});});
+  (A.findings||[]).forEach((f,i)=>{if(seen.has(i)||f.sev==='good'||f.sev==='cta')return;
+    out.push({name:cl+': '+f.title,notes:stripHtml(f.body)});});
+  return out;}
+function openTodos(){const S=SERIES[ACTIVE],A=S&&S.audit;if(!A)return;
+  const rows=buildTodos(S,A);
+  document.getElementById('todoSub').textContent=(S.name||'')+' · '+rows.length+' tasks · paste straight into Airtable (Task + Notes columns)';
+  document.getElementById('todoRows').innerHTML=rows.map(r=>'<tr><td>'+esc(r.name)+'</td><td>'+esc(r.notes)+'</td></tr>').join('');
+  const clean=t=>(t||'').replace(/\t/g,' ').replace(/\r?\n/g,' ').trim();
+  const tsv=rows.map(r=>clean(r.name)+'\t'+clean(r.notes)).join('\n');
+  const csv='Task,Notes\n'+rows.map(r=>'"'+clean(r.name).replace(/"/g,'""')+'","'+clean(r.notes).replace(/"/g,'""')+'"').join('\n');
+  document.getElementById('todoModal').hidden=false;document.getElementById('todoCopied').textContent='';
+  document.getElementById('todoCopy').onclick=()=>{navigator.clipboard.writeText(tsv).then(()=>{document.getElementById('todoCopied').textContent='✓ Copied '+rows.length+' rows — paste into Airtable';}).catch(()=>{document.getElementById('todoCopied').textContent='Copy failed — use Download CSV';});};
+  document.getElementById('todoCsv').onclick=()=>{const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=((S.client_slug||'audit')+'-todos.csv');document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);};}
 function renderAudit(){const S=SERIES[ACTIVE],A=S&&S.audit,body=document.getElementById('audit-body');
+  {const tb=document.getElementById('todoBtn');if(tb)tb.style.display=(IS_OWNER&&A&&A.findings)?'':'none';}
   document.getElementById('audit-title').textContent=(A&&A.title)||'Account audit';
   document.getElementById('audit-eyebrow').textContent=(S.name||'')+' · audit';
   const vb=document.getElementById('vidBtn');if(vb){const vu=(A&&A.video_url)||'';vb.dataset.embed=vu;vb.style.display=vu?'':'none';}
@@ -2584,6 +2636,11 @@ function wireControls(){
     document.getElementById('vidClose').addEventListener('click',close);
     document.getElementById('vidBackdrop').addEventListener('click',close);
     document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!vm.hidden)close();});})();
+  (function(){const tm=document.getElementById('todoModal');if(!tm)return;const close=()=>{tm.hidden=true;};
+    const tb=document.getElementById('todoBtn');if(tb)tb.addEventListener('click',e=>{e.stopPropagation();openTodos();});
+    document.getElementById('todoClose').addEventListener('click',close);
+    document.getElementById('todoBackdrop').addEventListener('click',close);
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!tm.hidden)close();});})();
   document.getElementById('themeBtn').addEventListener('click',toggleTheme);
   document.getElementById('outBtn').addEventListener('click',()=>sb.auth.signOut().then(()=>location.reload()));
   matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{applyPalette();buildSwitcher();renderDash();});
