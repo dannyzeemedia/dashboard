@@ -807,7 +807,7 @@
     background:var(--surface);border-radius:15px;padding:16px 18px 18px;
     box-shadow:0 10px 34px -8px rgba(20,32,56,.32),0 2px 6px rgba(20,32,56,.12);
     border:1px solid var(--border);font-size:12.5px;color:var(--ink2);
-    max-height:min(70vh,520px);overflow:auto}
+    max-height:min(70vh,520px);overflow-x:hidden;overflow-y:auto}
   .rm-pop::after{content:"";position:absolute;top:26px;width:13px;height:13px;
     background:var(--surface);border-left:1px solid var(--border);
     border-bottom:1px solid var(--border);transform:rotate(45deg)}
@@ -826,8 +826,10 @@
   .rm-pop .ptag.w{color:var(--warn);background:color-mix(in srgb,var(--warn) 15%,transparent)}
   .rm-pop .ptag.c{color:var(--crit);background:color-mix(in srgb,var(--crit) 13%,transparent)}
   .rm-pop .pwhat{font-size:12.5px;line-height:1.55;color:var(--ink2);margin:0 0 13px}
-  .rm-pop .pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:13px}
-  .rm-pop .pgrid div{background:var(--surface-2);border-radius:9px;padding:8px 10px}
+  .rm-pop .pgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;
+    margin-bottom:13px}
+  .rm-pop .pgrid div{background:var(--surface-2);border-radius:9px;padding:8px 10px;min-width:0}
+  .rm-pop .pgrid dd{overflow-wrap:anywhere}
   .rm-pop .pgrid dt{font-size:8.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;
     color:var(--muted)}
   .rm-pop .pgrid dd{margin:3px 0 0;font-size:13.5px;font-weight:700;color:var(--ink);
@@ -1049,7 +1051,8 @@
         <span><i class="rm-key" style="background:#0FB5AE;width:11px;height:11px;border-radius:4px"></i>SMS</span>
         <span><i class="rm-key" style="background:#C6CDDA;width:16px;height:9px;border-radius:5px"></i>Wait</span>
         <span><i class="rm-key" style="background:#E9F0FE;border:1px solid #3B6FF5;width:11px;height:11px;border-radius:4px"></i>Condition</span>
-        <span><i class="rm-key" style="background:var(--crit);width:9px;height:9px;border-radius:50%"></i>Needs attention</span>
+        <span>Health peeks out below each card: <b style="color:var(--crit)">ALERT</b>,
+          <b style="color:var(--warn)">WATCH</b> or <b style="color:var(--good)">ALL GOOD</b></span>
         <span>Every message is tagged <b style="color:var(--good)">LIVE</b>,
           <b style="color:var(--warn)">DRAFT</b> or <b style="color:var(--flow)">MANUAL</b></span>
         <span>A/B state shows as <b style="color:var(--good)">TESTING</b> or
@@ -3104,7 +3107,7 @@ function rmPick(id){RM_FLOW=id;RM_SEL=null;document.getElementById('map-pick').v
 // ---- layered layout: longest-path ranks + median relaxation ----
 const RM_W={msg:276,delay:150,split:244};
 const RM_HB={msg:80,delay:50,split:76};   // base heights; messages grow when stats show
-const RM_GAPX=40, RM_GAPY=62, RM_PAD=64;
+const RM_GAPX=40, RM_GAPY=72, RM_PAD=64;
 
 function rmKind(n){
   if(n.type==='flow-trigger')return 'trigger';
@@ -3114,12 +3117,13 @@ function rmKind(n){
   if(n.type==='time-delay')return 'delay';
   return 'split';
 }
+const rmHasMeta=n=>n.smart_sending!=null||((n.msg_filters||[]).length>0);
 function rmBox(n){
   const k=rmKind(n);
   if(k==='trigger')return {w:RM_W.msg,h:74};
   if(k==='delay')return {w:RM_W.delay,h:RM_HB.delay};
   if(k==='split')return {w:RM_W.split,h:RM_HB.split};
-  return {w:RM_W.msg,h:RM_HB.msg+(RM_PERF&&n.stats?36:0)};
+  return {w:RM_W.msg,h:RM_HB.msg+(RM_PERF&&n.stats?36:0)+(rmHasMeta(n)?17:0)};
 }
 
 function rmLayout(nodes){
@@ -3181,14 +3185,14 @@ function RM_PAL(){
   return rmIsDark(bg) ? {
     card:'#1B1F27', chip:'#191D25', ink:'#E9ECF2', dim:'#9AA3B3', mute:'#6C7686',
     edge:'#39404E', rule:'#2A303B', accent:'#6E9BFF', accentSoft:'#1E2A45',
-    teal:'#3FD0C9', tealSoft:'#12312F', crit:'#F2686C', warn:'#E3A544',
+    teal:'#3FD0C9', tealSoft:'#12312F', crit:'#F2686C', critSoft:'#3A2024', warn:'#E3A544',
     good:'#4FC98A', goodSoft:'#123227', warnSoft:'#3A2E14',
     trigBg:'#242A36', trigInk:'#DCE3F2',
     shadow:'#000000', shadowOp:0.5,
   } : {
     card:'#FFFFFF', chip:'#F5F7FB', ink:'#141821', dim:'#5B6473', mute:'#98A1B0',
     edge:'#C6CDDA', rule:'#EDF0F5', accent:'#3B6FF5', accentSoft:'#E9F0FE',
-    teal:'#0FB5AE', tealSoft:'#E1F7F5', crit:'#E5484D', warn:'#C77700',
+    teal:'#0FB5AE', tealSoft:'#E1F7F5', crit:'#E5484D', critSoft:'#FDECEC', warn:'#C77700',
     good:'#2FA36B', goodSoft:'#E4F5EC', warnSoft:'#FDF1DC',
     trigBg:'#1E2534', trigInk:'#FFFFFF',
     shadow:'#48597A', shadowOp:0.16,
@@ -3332,6 +3336,19 @@ function rmDraw(){
       stroke:P.accent,'stroke-width':2,class:'halo',opacity:RM_SEL===n.id?1:0});
     g.appendChild(halo);
 
+    // Health reads as a word on a tab tucked behind the card so it peeks out
+    // below. Drawn before the card, so the card overlaps its top edge.
+    if(k==='email'||k==='sms'||k==='push'){
+      const lvl=iss.some(i=>i[0]==='crit')?'crit':iss.length?'warn':'ok';
+      const word={crit:'ALERT',warn:'WATCH',ok:'ALL GOOD'}[lvl];
+      const col={crit:P.crit,warn:P.warn,ok:P.good}[lvl];
+      const bg={crit:P.critSoft,warn:P.warnSoft,ok:P.goodSoft}[lvl];
+      const tw=rmMeasure(word,8.5,800)+26, peek=15, th=peek+18;
+      const tx0=p.x+p.w-tw-22, ty0=p.y+p.h-18;
+      g.appendChild(sv('rect',{x:tx0,y:ty0,width:tw,height:th,rx:8,fill:bg,
+        stroke:col,'stroke-opacity':.45,'stroke-width':1,filter:'url(#rm-shs)'}));
+      rmText(g,tx0+tw/2,ty0+th-5,word,8.5,800,col,1,'.1em');
+    }
     const shape=sv('rect',{x:p.x,y:p.y,width:p.w,height:p.h,rx:rx,fill:P.card,class:'shape',
       filter:'url(#rm-'+(k==='delay'?'shs':'sh')+')'});
     if(k==='delay')shape.setAttribute('fill',P.chip);
@@ -3392,12 +3409,12 @@ function rmDraw(){
        const sb=n.status==='draft'?P.warnSoft:n.status==='manual'?P.accentSoft:P.goodSoft;
        g.appendChild(sv('rect',{x:bx,y:p.y+14,width:sw,height:17,rx:8.5,fill:sb}));
        rmText(g,bx+sw/2,p.y+26,st2,8,800,sc,1,'.09em');}
-      if(sev)g.appendChild(sv('rect',{x:p.x+4,y:p.y+14,width:4,height:p.h-28,rx:2,fill:sev}));
       const tx=p.x+52, inner=Math.max(60,bx-tx-10);
       rmText(g,tx,p.y+28,rmTrunc(n.name||(isSms?'SMS':'Email'),inner,13,650),13,650,P.ink,1,'-.005em','start');
       rmText(g,tx,p.y+45,rmTrunc(n.subject||n.preview||'',p.w-52-20,11.5,400),11.5,400,P.dim,1,null,'start');
+      const metaOff=rmHasMeta(n)?17:0;
       if(RM_PERF&&rmStats(n)){
-        const st=rmStats(n), yb=p.y+p.h-20;
+        const st=rmStats(n), yb=p.y+p.h-20-metaOff;
         g.appendChild(sv('line',{x1:p.x+16,y1:yb-20,x2:p.x+p.w-16,y2:yb-20,
           stroke:P.rule,'stroke-width':1}));
         const rpr=st.rpr.toFixed(2);
@@ -3406,6 +3423,21 @@ function rmDraw(){
         rmText(g,p.x+p.w-16,yb-4,rmMoney(st.revenue),12.5,650,P.dim,1,null,'end');
         rmText(g,p.x+p.w-16,yb+8,st.unsub.toFixed(2)+'% unsub',10,600,
           st.unsub>=1?P.crit:P.mute,1,null,'end');
+      }
+      // meta line along the bottom edge: smart sending, and any filters set on
+      // this message specifically (on top of the flow's own filters)
+      if(rmHasMeta(n)){
+        const bits=[];
+        if(n.smart_sending!=null)
+          bits.push(['SMART SENDING '+(n.smart_sending?'ON':'OFF'),n.smart_sending?P.mute:P.warn]);
+        const mfn=(n.msg_filters||[]).length;
+        if(mfn)bits.push([mfn+' MESSAGE FILTER'+(mfn>1?'S':''),P.accent]);
+        let mx=p.x+16;
+        bits.forEach((b,i)=>{
+          if(i){rmText(g,mx,p.y+p.h-9,'·',8,700,P.mute,.6,null,'start');mx+=8;}
+          rmText(g,mx,p.y+p.h-9,b[0],8,800,b[1],1,'.09em','start');
+          mx+=rmMeasure(b[0],8,800)+7;
+        });
       }
     }
 
@@ -3552,7 +3584,9 @@ function rmPopHtml(n,flow){
               '<span class="ptag">'+(k==='sms'?'SMS':'EMAIL')+'</span>'];
   if(n.ab)tags.push('<span class="ptag '+(n.ab.experiment_status==='live'?'g':'w')+'">'
     +(n.ab.experiment_status==='live'?'A/B RUNNING':'A/B IDLE')+'</span>');
-  if(n.smart_sending===false)tags.push('<span class="ptag">SMART SENDING OFF</span>');
+  tags.push('<span class="ptag'+(n.smart_sending===false?' w':'')+'">SMART SENDING '
+    +(n.smart_sending===false?'OFF':'ON')+'</span>');
+  if(n.transactional)tags.push('<span class="ptag">TRANSACTIONAL</span>');
   const grid=st?[['Delivered',st.delivered.toLocaleString()],['Revenue',rmMoney(st.revenue)],
     ['RPR',st.rpr.toFixed(2)],['Open',st.open+'%'],['Click',st.click+'%'],['Unsub',st.unsub+'%']]
     :[['Sends','none']];
@@ -3567,11 +3601,19 @@ function rmPopHtml(n,flow){
         +(v.share!=null?' — '+Math.round(v.share*100)+'%':'')+', '+esc(v.status||'')+'</li>').join('')
       +'</ul>';
   }
+  const mf=n.msg_filters||[];
+  const mfHtml=mf.length
+    ? '<div class="psub" style="margin:0 0 6px"><b>Filters on this message</b> — on top of the '
+      +'flow filters, these decide who actually gets this step</div>'
+      +'<ul class="plist" style="margin-bottom:13px">'+mf.map(l=>'<li>'+esc(l)+'</li>').join('')+'</ul>'
+    : '<p class="pwhat" style="margin-bottom:13px;color:var(--muted)">No filters on this message, '
+      +'so everyone who reaches this step receives it.</p>';
   return close+'<h5>'+esc(n.name||'Message')+'</h5>'
     +'<div class="psub">'+esc(n.subject||n.preview||'')
     +(n.sender?'<br>from '+esc(n.sender):'')+'</div>'
     +'<div class="ptags">'+tags.join('')+'</div>'
     +'<p class="pwhat">'+esc(rmWhat(n))+'</p>'
+    +mfHtml
     +'<dl class="pgrid">'+grid.map(d=>'<div><dt>'+d[0]+'</dt><dd>'+d[1]+'</dd></div>').join('')+'</dl>'
     +whyHtml+ab+actions;
 }
