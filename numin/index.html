@@ -885,8 +885,19 @@
             <div class="card" id="c-por"><h3>Placed order rate by flow</h3>
               <div class="cap" id="por-cap"></div>
               <div class="rprhead"><span>Flow · POR</span><span>vs compare</span></div><div id="por-list"></div></div>
+            <div class="card wide" id="c-flowmix"><h3>Flow revenue diversity</h3>
+              <div class="cap">Each flow’s share of total flow revenue per month (100% stacked). Shows how concentrated or spread the automation layer is: one dominant band = over-reliance on a single flow.</div>
+              <div class="legend" id="flowmix-legend"></div></div>
+          </div>
+        </div></div>
+      </div>
+      <div class="asection dsection">
+        <button class="asec-head" type="button"><span class="asec-chev">▸</span><span class="asec-name">SMS program</span><span class="asec-note">Klaviyo-attributed SMS revenue &amp; volume per month</span></button>
+        <div class="asec-body"><div class="asec-inner">
+          <div class="grid">
             <div class="card wide" id="c-sms"><h3>SMS program — revenue &amp; volume</h3>
-              <div class="cap" id="sms-cap">Klaviyo-attributed SMS revenue and SMS messages delivered per month. SMS runs in flows today (no SMS campaigns yet).</div>
+              <div class="chartseg" id="smsRevSeg" style="margin-bottom:6px"><button class="csg on" data-sr="all">All SMS</button><button class="csg" data-sr="flow">Flows</button><button class="csg" data-sr="camp">Campaigns</button></div>
+              <div class="cap" id="sms-cap">Klaviyo-attributed SMS revenue and SMS messages delivered per month.</div>
               <div class="legend"><span><i style="background:var(--camp)"></i>SMS attributed revenue</span><span><i style="background:var(--flow)"></i>SMS delivered</span></div></div>
           </div>
         </div></div>
@@ -1037,7 +1048,7 @@ const sb=(window.supabase&&window.supabase.createClient)?window.supabase.createC
 // ---- data globals (filled from Supabase) ----
 let MONTHS=[],flow=[],camp=[],subs=[],csends=[],crecip=[],unsub=[],spam=[],FLOWDATA=[],MI={};
 let total=[],flowPct=[],campPct=[],roll3=[],SYM='$',store=[];
-let remail=[],rsms=[],smsDeliv=[];
+let remail=[],rsms=[],smsDeliv=[],rsmsFlow=[],rsmsCamp=[];
 let campRev=false, campSubs=false;
 let revGroup=false;
 let revChannel=false;
@@ -1055,7 +1066,8 @@ let auditUnsubBlended=false;   // audit #3 unsub chart: false = flow vs campaign
 // base (complete-month) series + the in-progress block; applyMode() derives the
 // working arrays above from these depending on the "include current" toggle.
 let BM=[],Bflow=[],Bcamp=[],Bsubs=[],Bcsends=[],Bcrecip=[],Bunsub=[],Bspam=[],BFLOW=[],Btl=[],Btc=[],Btw=[],Bucount=[],Bstore=[];
-let Bremail=[],Brsms=[],Bsmsd=[],Bsubs_sms=[];
+let Bremail=[],Brsms=[],Bsmsd=[],Bsubs_sms=[],Brsms_flow=[],Brsms_camp=[];
+var smsRevSeg='all';   // SMS program card: 'all' | 'flow' | 'camp' revenue
 let Bsubs_unsub=[],Bsubs_sms_unsub=[];   // list-consent opt-OUTs per month, by channel (net growth)
 let smsUnsub=[];           // derived SMS unsub RATE (opt-outs / delivered) for List health
 let subsChannel='email';   // New-subscribers channel: 'email' (Subscribed to List), 'sms', or 'combined' (email+sms)
@@ -1074,6 +1086,10 @@ function hydrate(series){
   BFLOW=series.flows; SYM=series.currency_symbol||'$';
   Btl=series.tlaunched||[]; Btc=series.tconcluded||[]; Btw=series.twon||[];
   Bremail=series.remail||[]; Brsms=series.rsms||[]; Bsmsd=series.sms_deliv||[];
+  Brsms_flow=series.rsms_flow||[]; Brsms_camp=series.rsms_camp||[];
+  {const seg=document.getElementById('smsRevSeg');const hasSplit=Brsms_flow.some(v=>v)||Brsms_camp.some(v=>v);
+   if(seg){seg.style.display=hasSplit?'':'none';if(!hasSplit)smsRevSeg='all';
+     seg.querySelectorAll('.csg').forEach(b=>b.classList.toggle('on',b.dataset.sr===smsRevSeg));}}
   Bsubs_sms=series.subs_sms||[];
   Bsubs_unsub=series.subs_unsub||[]; Bsubs_sms_unsub=series.subs_sms_unsub||[];
   CUR=series.current||null;
@@ -1209,6 +1225,7 @@ function applyMode(){
   crecip=cat(Bcrecip,on&&CUR.mtd.crecip); unsub=cat(Bunsub,on&&CUR.mtd.unsub);
   spam=cat(Bspam,on&&CUR.mtd.spam); store=cat(Bstore,on&&(CUR.mtd.store||0));
   remail=cat(Bremail,on&&CUR.mtd.remail); rsms=cat(Brsms,on&&CUR.mtd.rsms); smsDeliv=cat(Bsmsd,on&&CUR.mtd.sms_deliv);
+  rsmsFlow=cat(Brsms_flow,on&&(CUR.mtd.rsms_flow||0)); rsmsCamp=cat(Brsms_camp,on&&(CUR.mtd.rsms_camp||0));
   // SMS opt-outs are keyword/STOP events not attributable to a month's delivered
   // messages (opt-outs can exceed a month's sends), so List health shows the
   // absolute opt-out COUNT for SMS, not a % — the honest, bounded signal.
@@ -2718,6 +2735,7 @@ function renderDash(){clearDash();const{cur}=windows();renderTiles();renderRpr()
    lineChart('c-health',cur,hser,sms?nfmt:(v=>v.toFixed(2)+'%'),{ip:ipR});}
   lineChart('c-mix',cur,[{name:'Flow %',color:'var(--flow)',data:flowPct},{name:'Campaign %',color:'var(--camp)',data:campPct}],v=>v+'%',{yfmt:v=>v+'%',ip:ipR});
   renderCamp();
+  renderFlowMix();
   renderSms();
   renderIpNote();
   renderBoard();
@@ -2750,6 +2768,38 @@ function renderCamp(){const{cur}=windows();const cc=document.getElementById('c-c
   miniCols(ac,cur,csends,'var(--camp)',v=>Math.round(v),'Sends',areas,ipSend);
   miniCols(bc,cur,crecip,'var(--flow)',nfmt,'Recipients',areas,ipRec);}
 
+const FMIX_PAL=['var(--flow)','var(--camp)','var(--aqua)','var(--good)','#7c6cf0','#e2749b','#4bb3a6','#c9922a','#8a94a6'];
+function renderFlowMix(){const{cur}=windows();const cc=document.getElementById('c-flowmix');if(!cc)return;
+  cc.querySelectorAll('svg,.tip').forEach(n=>n.remove());
+  const mon=MONTHS.slice(cur[0],cur[1]+1);
+  const byFlow={};FLOWDATA.forEach(r=>{const m=r[0],nm=r[1],rev=r[3]||0;if(!mon.includes(m))return;const f=byFlow[nm]||(byFlow[nm]={total:0,per:{}});f.total+=rev;f.per[m]=(f.per[m]||0)+rev;});
+  const names=Object.keys(byFlow).sort((a,b)=>byFlow[b].total-byFlow[a].total);
+  const TOP=8,top=names.slice(0,TOP),rest=names.slice(TOP);
+  const series=top.map(nm=>({name:nm,vals:mon.map(m=>byFlow[nm].per[m]||0)}));
+  if(rest.length)series.push({name:'Other ('+rest.length+' flows)',vals:mon.map(m=>rest.reduce((a,nm)=>a+(byFlow[nm].per[m]||0),0))});
+  series.forEach((s,i)=>s.color=FMIX_PAL[i%FMIX_PAL.length]);
+  const lg=document.getElementById('flowmix-legend');if(lg)lg.innerHTML=series.map(s=>'<span><i style="background:'+s.color+'"></i>'+esc(s.name)+'</span>').join('');
+  const n=mon.length;if(!n||!series.length)return;
+  const tot=mon.map((_,i)=>series.reduce((a,s)=>a+(s.vals[i]||0),0)||1);
+  const share=series.map(s=>s.vals.map((v,i)=>v/tot[i]*100));
+  const W=1080,H=300,PL=40,PR=16,PT=12,PB=44,iw=W-PL-PR,ih=H-PT-PB;
+  const x=i=>PL+(n<=1?iw/2:iw*i/(n-1)),y=v=>PT+ih-(v/100)*ih,ev=lblEvery(n);
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
+  for(let g=0;g<=4;g++){svg.appendChild(el('line',{class:'gl',x1:PL,x2:W-PR,y1:y(g*25),y2:y(g*25)}));
+    const t=el('text',{class:'ax',x:PL-8,y:y(g*25)+4,'text-anchor':'end'});t.textContent=(g*25)+'%';svg.appendChild(t);}
+  const cum=mon.map(()=>0);
+  series.forEach((s,si)=>{const bot=[],top2=[];for(let i=0;i<n;i++){const b=cum[i],t=b+share[si][i];bot.push(b);top2.push(t);cum[i]=t;}
+    let d='M'+x(0)+' '+y(bot[0]);for(let i=0;i<n;i++)d+='L'+x(i)+' '+y(top2[i]);for(let i=n-1;i>=0;i--)d+='L'+x(i)+' '+y(bot[i]);d+='Z';
+    svg.appendChild(el('path',{d,fill:s.color,'fill-opacity':0.9,stroke:'var(--surface)','stroke-width':0.8}));});
+  mon.forEach((m,i)=>{if(labIdx(n).has(i)){const ly=PT+ih+16;const t=el('text',{class:'ax',x:x(i),y:ly,'text-anchor':'end',transform:`rotate(-20 ${x(i)} ${ly})`});t.textContent=mlabel(m)+(IP&&IP.idx===cur[0]+i?'*':'');svg.appendChild(t);}});
+  const cross=el('line',{class:'cross',y1:PT,y2:PT+ih,opacity:0});svg.appendChild(cross);
+  const hit=el('rect',{x:PL,y:PT,width:iw,height:ih,fill:'transparent'});
+  hit.addEventListener('mousemove',e=>{const r=svg.getBoundingClientRect();const px=(e.clientX-r.left)/r.width*W;const i=Math.max(0,Math.min(n-1,Math.round((px-PL)/iw*(n-1))));
+    cross.setAttribute('x1',x(i));cross.setAttribute('x2',x(i));cross.setAttribute('opacity',1);
+    const rows=series.map((s,si)=>[s.name,share[si][i],s.color,(function(v){const rv=s.vals[i]||0;return sh=>sh.toFixed(0)+'% ('+money(rv)+')';})()]).filter((_,si)=>series[si].vals[i]>0);
+    showTip(cc,e,mlabel(mon[i]),rows,v=>v.toFixed(0)+'%');});
+  hit.addEventListener('mouseleave',()=>{cross.setAttribute('opacity',0);hideTip(cc);});svg.appendChild(hit);
+  cc.style.position='relative';cc.appendChild(svg);}
 function renderSms(){const{cur}=windows();const cc=document.getElementById('c-sms');let sm=cc.querySelector('.sm');if(sm)sm.remove();
   const _plat=(SERIES[ACTIVE]||{}).sms_platform, _lg=cc.querySelector('.legend');
   if(_lg)_lg.style.display=_plat?'none':'';
@@ -2761,13 +2811,15 @@ function renderSms(){const{cur}=windows();const cc=document.getElementById('c-sm
     cc.appendChild(sm);
     document.getElementById('sms-cap').textContent='SMS is managed in '+M.name+' for this client (no API feed yet).';
     return;}
+  const srcArr=smsRevSeg==='flow'?rsmsFlow:smsRevSeg==='camp'?rsmsCamp:rsms;
+  const srcLab=smsRevSeg==='flow'?'Flow SMS revenue / month':smsRevSeg==='camp'?'Campaign SMS revenue / month':'SMS attributed revenue / month';
   sm=document.createElement('div');sm.className='sm';
-  const a=document.createElement('div');a.innerHTML='<div class="lab">SMS attributed revenue / month</div>';const ac=document.createElement('div');a.appendChild(ac);
+  const a=document.createElement('div');a.innerHTML='<div class="lab">'+srcLab+'</div>';const ac=document.createElement('div');a.appendChild(ac);
   const b=document.createElement('div');b.innerHTML='<div class="lab">SMS delivered / month</div>';const bc=document.createElement('div');b.appendChild(bc);
   sm.appendChild(a);sm.appendChild(b);cc.appendChild(sm);
-  const ipR=IP?{idx:IP.idx,project:IP.project,proj:IP.proj.rsms}:null;
+  const ipR=IP?{idx:IP.idx,project:IP.project,proj:(smsRevSeg==='all'?IP.proj.rsms:null)}:null;
   const ipD=IP?{idx:IP.idx,project:IP.project,proj:IP.proj.sms_deliv}:null;
-  miniCols(ac,cur,rsms,'var(--camp)',money,'SMS rev',null,ipR);
+  miniCols(ac,cur,srcArr,'var(--camp)',money,'SMS rev',null,ipR);
   miniCols(bc,cur,smsDeliv,'var(--flow)',nfmt,'Delivered',null,ipD);
   const u=CUR&&CUR.sms_usage,cap=document.getElementById('sms-cap');
   const head='Klaviyo-attributed SMS revenue &amp; messages delivered per month. SMS runs in flows today (no SMS campaigns yet). ';
@@ -2828,6 +2880,8 @@ function wireControls(){
     document.querySelectorAll('#healthSeg .csg').forEach(x=>x.classList.toggle('on',x===b));renderDash();});
   {const hcs=document.getElementById('healthChanSeg');if(hcs)hcs.addEventListener('click',e=>{const b=e.target.closest('.csg');if(!b)return;healthChannel=b.dataset.hc;
     document.querySelectorAll('#healthChanSeg .csg').forEach(x=>x.classList.toggle('on',x===b));renderDash();});}
+  {const srs=document.getElementById('smsRevSeg');if(srs)srs.addEventListener('click',e=>{const b=e.target.closest('.csg');if(!b)return;e.stopPropagation();smsRevSeg=b.dataset.sr;
+    document.querySelectorAll('#smsRevSeg .csg').forEach(x=>x.classList.toggle('on',x===b));renderSms();});}
   (function(){
     const vm=document.getElementById('vidModal'),vif=document.getElementById('vidIframe');
     const open=()=>{const u=document.getElementById('vidBtn').dataset.embed||'';if(!u)return;vif.src=u;vm.hidden=false;};
