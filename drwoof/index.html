@@ -852,6 +852,12 @@
   .rm-pop .pbark i.y{background:var(--good)}
   .rm-pop .pbark i.n{background:var(--crit)}
   .rm-pop .pnote{font-size:11px;line-height:1.5;color:var(--muted);margin:10px 0 0}
+  .rm-pop .psec{font-size:9.5px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;
+    color:var(--muted);margin:16px 0 8px;padding-top:13px;
+    border-top:1px solid var(--border)}
+  .rm-pop .preentry{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+    font-size:13px;color:var(--ink);margin-bottom:2px}
+  .rm-pop .ptag.c{color:var(--crit);background:color-mix(in srgb,var(--crit) 13%,transparent)}
   .rm-pop .pmix{list-style:none;margin:0 0 13px;padding:0;display:flex;
     flex-direction:column;gap:7px;font-size:12px;line-height:1.45}
   .rm-pop .pmix li{padding-left:22px;position:relative;color:var(--ink2)}
@@ -3098,8 +3104,8 @@ function rmRow(c,byId){
     const reBad=re&&re.match===false;
     const bits=[];
     if(bad)bits.push('<span class="rm-fbad">'+bad+' filter'+(bad>1?'s':'')+' missing</span>');
-    if(reBad)bits.push('<span class="rm-fbad">re-entry '+(re.actual_days==null?'not set':re.actual_days+'d')
-      +' vs '+re.prescribed_days+'d</span>');
+    if(reBad)bits.push('<span class="rm-fbad">re-entry: '+esc(re.actual_label||'not set')
+      +', map wants '+(re.prescribed_days===0?'none':re.prescribed_days+' days')+'</span>');
     filt=bits.length?bits.join('<br>'):'<span class="rm-fok">filters match</span>';
   }
   const rv=(c.revenue_by&&c.revenue_by[RM_RANGE]!=null)?c.revenue_by[RM_RANGE]:c.revenue;
@@ -3456,7 +3462,7 @@ function rmDraw(){
       rmText(g,p.x+40,p.y+28,'FLOW TRIGGER',8.5,800,P.trigInk,.75,'.13em','start');
       rmText(g,p.x+16,p.y+52,rmTrunc(n.label,p.w-32,13.5,650),13.5,650,P.trigInk,1,null,'start');
       if(n.filters.length){
-        const t=n.filters.length+' flow filter'+(n.filters.length>1?'s':'');
+        const t=n.filters.length+' profile filter'+(n.filters.length>1?'s':'');
         const w=rmMeasure(t,8.5,700)+16;
         g.appendChild(sv('rect',{x:p.x+p.w-w-14,y:p.y+15,width:w,height:17,rx:8.5,
           fill:P.trigInk,'fill-opacity':.16}));
@@ -3670,24 +3676,36 @@ function rmPopHtml(n,flow){
 
   if(k==='trigger'){
     const fc=flow&&flow.filter_check;
+    const re=(flow&&flow.filters&&flow.filters.reentry)||null;
+    // Re-entry criteria is its own block in Klaviyo, and its own field in the
+    // API — separate from the "has not been in this flow" profile filter.
+    let reBlock='';
+    if(re){
+      const chk=fc&&fc.reentry;
+      let verdict='';
+      if(chk&&chk.prescribed_days!=null){
+        const want=chk.prescribed_days===0?'No re-entry':chk.prescribed_days+' days';
+        verdict=chk.match===true
+          ? '<span class="ptag g">MATCHES THE MAP</span>'
+          : '<span class="ptag c">MAP WANTS '+esc(want.toUpperCase())+'</span>';
+      }
+      reBlock='<div class="psec">Re-entry criteria</div>'
+        +'<div class="preentry"><b>'+esc(re.label)+'</b>'+verdict+'</div>';
+    }
     let list='';
     if(fc){
       const rows=[];
       (fc.actual||[]).forEach(r=>rows.push(r.recommended
         ? ['has',r.line,'Recommended']
         : ['extra',r.line,'']));
-      (fc.missing||[]).forEach(l=>rows.push(['miss',l,'Recommended, not set']));
-      const re=fc.reentry;
-      // only add a re-entry row when the prescribed list does not already carry
-      // one, otherwise the same rule appears twice
-      const reListed=(fc.rows||[]).some(r=>/re-?entry|been in (the )?flow/i.test(r.prescribed));
-      if(re&&!reListed&&re.prescribed_days!=null&&re.match!==true){
-        const want=re.prescribed_days===0?'no re-entry':re.prescribed_days+' days';
-        const got=re.actual_days==null?'no re-entry rule':re.actual_days+' days';
-        rows.push(['miss','Re-entry: '+want,'flow runs '+got]);
-      }
-      const nRec=rows.filter(r=>r[0]==='has').length, nMiss=fc.missing.length;
-      list='<div class="ptags">'
+      (fc.missing||[]).forEach(l=>{
+        if(/re-?entry/i.test(l))return;      // covered by the re-entry block above
+        rows.push(['miss',l,'Recommended, not set']);
+      });
+      const nRec=rows.filter(r=>r[0]==='has').length;
+      const nMiss=rows.filter(r=>r[0]==='miss').length;
+      list='<div class="psec">Profile filters</div>'
+        +'<div class="ptags">'
         +'<span class="ptag'+(nMiss?' w':' g')+'">'+nRec+' OF '+(nRec+nMiss)+' RECOMMENDED</span>'
         +'<span class="ptag">'+(flow.filters.lines||[]).length+' SET ON THE FLOW</span></div>'
         +'<ul class="pmix">'+rows.map(r=>'<li class="'+r[0]+'">'+esc(r[1])
@@ -3696,16 +3714,15 @@ function rmPopHtml(n,flow){
           ? '<p class="pnote">Which slot these recommendations belong to was matched on the '
             +'filter wording, not read off the map directly. Worth confirming.</p>' : '');
     }else{
-      list=(n.filters.length
-        ? '<div class="ptags"><span class="ptag">'+n.filters.length
-          +' FLOW FILTER'+(n.filters.length>1?'S':'')+'</span></div>'
-          +'<ul class="plist">'+n.filters.map(l=>'<li>'+esc(l)+'</li>').join('')+'</ul>'
-        : '<p class="pwhat">No flow filters, so nothing is suppressed at entry.</p>')
+      list='<div class="psec">Profile filters</div>'
+        +(n.filters.length
+        ? '<ul class="plist">'+n.filters.map(l=>'<li>'+esc(l)+'</li>').join('')+'</ul>'
+        : '<p class="pwhat">None, so nothing is suppressed at entry.</p>')
         +'<p class="pnote">This flow is not on the retention map, so there is nothing '
         +'recommended to compare against.</p>';
     }
     return close+'<h5>'+esc(n.label)+'</h5><div class="psub">Flow trigger</div>'
-      +'<p class="pwhat">'+esc(rmWhat(n))+'</p>'+list+actions;
+      +'<p class="pwhat">'+esc(rmWhat(n))+'</p>'+reBlock+list+actions;
   }
   if(k==='delay'||k==='split'){
     let traffic='';
@@ -3783,14 +3800,17 @@ function rmFilters(flow,cov){
   const fc=flow.filter_check||(cov&&cov.filter_check);
   if(!fc&&!act.length){el.innerHTML='';return;}
   const re=fc&&fc.reentry;
+  const reLive=(flow.filters&&flow.filters.reentry)||null;
   let head='';
-  if(re){
-    const bad=re.match===false;
+  if(reLive){
+    const bad=re&&re.match===false;
     head='<div class="rm-re '+(bad?'bad':'ok')+'">'
-      +'<b>Re-entry</b> map wants '
-      +(re.prescribed_days===0?'no re-entry':re.prescribed_days+' days')
-      +' · flow runs '+(re.actual_days==null?'no re-entry rule':re.actual_days+' days')
-      +(bad?' — off spec':' — matches')+'</div>';
+      +'<b>Re-entry</b> '+esc(reLive.label)
+      +(re&&re.prescribed_days!=null
+        ? ' · map wants '+(re.prescribed_days===0?'no re-entry':re.prescribed_days+' days')
+          +(bad?' — off spec':' — matches')
+        : ' · not prescribed on the map')
+      +'</div>';
   }
   const left=fc?fc.rows.map(r=>'<li class="'+(r.present===false?'miss':r.present?'has':'')+'">'
       +esc(r.prescribed)+'</li>').join('')
