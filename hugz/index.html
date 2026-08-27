@@ -852,6 +852,18 @@
   .rm-pop .pbark i.y{background:var(--good)}
   .rm-pop .pbark i.n{background:var(--crit)}
   .rm-pop .pnote{font-size:11px;line-height:1.5;color:var(--muted);margin:10px 0 0}
+  .rm-pop .pmix{list-style:none;margin:0 0 13px;padding:0;display:flex;
+    flex-direction:column;gap:7px;font-size:12px;line-height:1.45}
+  .rm-pop .pmix li{padding-left:22px;position:relative;color:var(--ink2)}
+  .rm-pop .pmix li::before{position:absolute;left:0;top:0;font-weight:800;font-size:11px}
+  .rm-pop .pmix li.has{color:var(--ink)}
+  .rm-pop .pmix li.has::before{content:"✓";color:var(--good)}
+  .rm-pop .pmix li.miss{color:var(--ink)}
+  .rm-pop .pmix li.miss::before{content:"✕";color:var(--crit)}
+  .rm-pop .pmix li.extra::before{content:"•";color:var(--muted)}
+  .rm-pop .pmix li em{font-style:normal;font-size:11px;color:var(--muted)}
+  .rm-pop .pmix li.has em{color:var(--good)}
+  .rm-pop .pmix li.miss em{color:var(--crit)}
   .rm-pop .pacts{display:flex;gap:8px;flex-wrap:wrap}
   .rm-pop .pacts a{font-size:12px;font-weight:600;color:var(--flow);text-decoration:none;
     border:1px solid var(--border);border-radius:8px;padding:7px 11px;background:var(--surface)}
@@ -3657,13 +3669,43 @@ function rmPopHtml(n,flow){
     '<li class="'+w[0]+'"><b>'+esc(w[1])+'</b>'+esc(w[2])+'</li>').join('')+'</ul>':'';
 
   if(k==='trigger'){
+    const fc=flow&&flow.filter_check;
+    let list='';
+    if(fc){
+      const rows=[];
+      (fc.actual||[]).forEach(r=>rows.push(r.recommended
+        ? ['has',r.line,'Recommended']
+        : ['extra',r.line,'']));
+      (fc.missing||[]).forEach(l=>rows.push(['miss',l,'Recommended, not set']));
+      const re=fc.reentry;
+      // only add a re-entry row when the prescribed list does not already carry
+      // one, otherwise the same rule appears twice
+      const reListed=(fc.rows||[]).some(r=>/re-?entry|been in (the )?flow/i.test(r.prescribed));
+      if(re&&!reListed&&re.prescribed_days!=null&&re.match!==true){
+        const want=re.prescribed_days===0?'no re-entry':re.prescribed_days+' days';
+        const got=re.actual_days==null?'no re-entry rule':re.actual_days+' days';
+        rows.push(['miss','Re-entry: '+want,'flow runs '+got]);
+      }
+      const nRec=rows.filter(r=>r[0]==='has').length, nMiss=fc.missing.length;
+      list='<div class="ptags">'
+        +'<span class="ptag'+(nMiss?' w':' g')+'">'+nRec+' OF '+(nRec+nMiss)+' RECOMMENDED</span>'
+        +'<span class="ptag">'+(flow.filters.lines||[]).length+' SET ON THE FLOW</span></div>'
+        +'<ul class="pmix">'+rows.map(r=>'<li class="'+r[0]+'">'+esc(r[1])
+          +(r[2]?' <em>('+esc(r[2])+')</em>':'')+'</li>').join('')+'</ul>'
+        +(flow.filters_source==='inferred'
+          ? '<p class="pnote">Which slot these recommendations belong to was matched on the '
+            +'filter wording, not read off the map directly. Worth confirming.</p>' : '');
+    }else{
+      list=(n.filters.length
+        ? '<div class="ptags"><span class="ptag">'+n.filters.length
+          +' FLOW FILTER'+(n.filters.length>1?'S':'')+'</span></div>'
+          +'<ul class="plist">'+n.filters.map(l=>'<li>'+esc(l)+'</li>').join('')+'</ul>'
+        : '<p class="pwhat">No flow filters, so nothing is suppressed at entry.</p>')
+        +'<p class="pnote">This flow is not on the retention map, so there is nothing '
+        +'recommended to compare against.</p>';
+    }
     return close+'<h5>'+esc(n.label)+'</h5><div class="psub">Flow trigger</div>'
-      +'<p class="pwhat">'+esc(rmWhat(n))+'</p>'
-      +(n.filters.length?'<div class="ptags"><span class="ptag">'+n.filters.length
-        +' FLOW FILTER'+(n.filters.length>1?'S':'')+'</span></div>'
-        +'<ul class="plist">'+n.filters.map(l=>'<li>'+esc(l)+'</li>').join('')+'</ul>'
-        :'<p class="pwhat">No flow filters, so nothing is suppressed at entry.</p>')
-      +actions;
+      +'<p class="pwhat">'+esc(rmWhat(n))+'</p>'+list+actions;
   }
   if(k==='delay'||k==='split'){
     let traffic='';
@@ -3738,7 +3780,7 @@ function rmPopHtml(n,flow){
 function rmFilters(flow,cov){
   const el=document.getElementById('map-filters');
   const act=(flow.filters&&flow.filters.lines)||[];
-  const fc=cov&&cov.filter_check;
+  const fc=flow.filter_check||(cov&&cov.filter_check);
   if(!fc&&!act.length){el.innerHTML='';return;}
   const re=fc&&fc.reentry;
   let head='';
@@ -3755,7 +3797,7 @@ function rmFilters(flow,cov){
     :'<li class="dim">This flow is not on the retention map, so there is nothing prescribed.</li>';
   const right=act.length?act.map(l=>'<li>'+esc(l)+'</li>').join('')
     :'<li class="dim">No flow filters set.</li>';
-  const srcNote=cov&&cov.filters_source==='inferred'
+  const srcNote=(flow.filters_source||(cov&&cov.filters_source))==='inferred'
     ? '<p class="rm-src"><b>Unverified:</b> the map does not name a flow in these filters, so '
       +'which slot they belong to was matched on content. Worth confirming before acting on it.</p>'
     : '';
