@@ -695,6 +695,10 @@
     background:var(--surface);border:1px solid var(--border);border-radius:9px;
     padding:8px 13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
   .rm-open:hover{border-color:var(--flow);color:var(--ink)}
+  .rm-open[disabled]{opacity:.55;cursor:default}
+  .rm-synced{font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .rm-synced b{color:var(--ink2);font-weight:600}
+  .rm-synced.stale b{color:var(--warn)}
   .rm-tagline{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
   .rm-what{font-size:13px;color:var(--ink2);line-height:1.6;margin:14px 0 0;max-width:74ch}
   .rm-why{list-style:none;margin:16px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
@@ -1056,6 +1060,9 @@
       <div class="rm-bar">
         <select id="map-pick" aria-label="Flow to draw"></select>
         <button class="rm-open" id="map-openflow" type="button" title="Open this flow in Klaviyo">↗ Open flow</button>
+        <button class="rm-open" id="map-resync" type="button"
+          title="Re-read the flows from Klaviyo">⟳ <span id="map-resync-t">Resync</span></button>
+        <span class="rm-synced" id="map-synced"></span>
         <div class="chips" id="map-range" role="group" aria-label="Time period">
           <button data-r="30d">30 days</button>
           <button data-r="90d" aria-selected="true">90 days</button>
@@ -3027,6 +3034,27 @@ const rmData=()=>(SERIES[ACTIVE]||{}).retention_map||null;
 const RM_STATE={ok:['rm-ok','built'],thin:['rm-thin','under-built'],crit:['rm-crit','stub'],
                 draft:['rm-draft','draft only'],none:['rm-nonec','not built']};
 
+// how long ago, in the units a person actually thinks in
+function rmAgo(iso){
+  if(!iso)return null;
+  const then=Date.parse(iso); if(isNaN(then))return null;
+  const mins=Math.max(0,Math.round((Date.now()-then)/60000));
+  if(mins<1)return {txt:'just now',mins:mins};
+  if(mins<60)return {txt:mins+' minute'+(mins===1?'':'s')+' ago',mins:mins};
+  const hrs=Math.round(mins/60);
+  if(hrs<24)return {txt:hrs+' hour'+(hrs===1?'':'s')+' ago',mins:mins};
+  const days=Math.round(hrs/24);
+  return {txt:days+' day'+(days===1?'':'s')+' ago',mins:mins};
+}
+function rmSyncedLabel(){
+  const M=rmData(), el=document.getElementById('map-synced'); if(!el)return;
+  const a=rmAgo(M&&M.generated_at);
+  if(!a){el.textContent='';return;}
+  const scope=(M.synced&&M.synced.scope)||'';
+  el.innerHTML='Synced <b>'+esc(a.txt)+'</b>'
+    +(scope&&scope!=='full'?' <span title="numbers carried over from the last full sync">('+esc(scope)+')</span>':'');
+  el.classList.toggle('stale',a.mins>60*26);
+}
 function rmMoney(v){try{return money(v);}catch(e){return '$'+Math.round(v||0).toLocaleString();}}
 
 function renderMap(){
@@ -3086,7 +3114,7 @@ function renderMap(){
     const w=M.coverage.find(c=>c.key==='welcome');
     RM_FLOW=(w&&w.lead)||(on[0]&&on[0].id)||(M.flows[0]&&M.flows[0].id);
   }
-  sel.value=RM_FLOW; RM_SEL=null; rmDraw(); rmFit();
+  sel.value=RM_FLOW; RM_SEL=null; rmSyncedLabel(); rmDraw(); rmFit();
 }
 
 function rmRow(c,byId){
@@ -3905,6 +3933,50 @@ function rmFullscreen(on){
   document.getElementById('map-full').textContent=RM_FULL?'✕ Close':'⤢ Expand';
   setTimeout(rmFit,60);
 }
+let RM_SYNCING=false;
+async function rmResync(){
+  if(RM_SYNCING)return;
+  const btn=document.getElementById('map-resync'), lbl=document.getElementById('map-resync-t');
+  const M=rmData(); if(!M)return;
+  const before=M.generated_at;
+  RM_SYNCING=true; btn.disabled=true; lbl.textContent='Syncing…';
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session)throw new Error('signed out');
+    // structure costs no Klaviyo report calls; the window in view costs one
+    const r=await fetch(SB_URL+'/functions/v1/retention-resync',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',
+               'Authorization':'Bearer '+session.access_token},
+      body:JSON.stringify({client:ACTIVE,scope:'window',window:RM_RANGE})});
+    if(!r.ok){
+      const e=await r.json().catch(()=>({}));
+      throw new Error(e.error||('sync could not start ('+r.status+')'));
+    }
+    // poll the row until the map's timestamp moves, then re-render in place
+    for(let i=0;i<80;i++){
+      await new Promise(res=>setTimeout(res,4000));
+      const {data}=await sb.from('client_series').select('data')
+        .eq('client_slug',ACTIVE).limit(1);
+      const fresh=data&&data[0]&&data[0].data;
+      if(fresh&&fresh.retention_map&&fresh.retention_map.generated_at!==before){
+        SERIES[ACTIVE]=fresh;
+        lbl.textContent='Updated';
+        renderMap();
+        setTimeout(()=>{lbl.textContent='Resync';},2500);
+        return;
+      }
+      lbl.textContent='Syncing… '+((i+1)*4)+'s';
+    }
+    lbl.textContent='Still running';
+    setTimeout(()=>{lbl.textContent='Resync';},4000);
+  }catch(err){
+    lbl.textContent=String(err.message||err).slice(0,40);
+    setTimeout(()=>{lbl.textContent='Resync';},5000);
+  }finally{
+    RM_SYNCING=false; btn.disabled=false;
+  }
+}
 function rmWire(){
   const p=document.getElementById('map-pick'); if(!p)return;
   p.addEventListener('change',e=>rmPick(e.target.value));
@@ -3919,6 +3991,8 @@ function rmWire(){
     RM_RANGE=b.dataset.r; renderMap();});
   document.getElementById('map-openflow').addEventListener('click',()=>{
     if(RM_FLOW)window.open(rmFlowUrl(RM_FLOW),'_blank','noopener');});
+  document.getElementById('map-resync').addEventListener('click',rmResync);
+  setInterval(rmSyncedLabel,60000);   // keep "3 minutes ago" honest
   document.getElementById('map-full').addEventListener('click',()=>rmFullscreen());
   document.addEventListener('keydown',e=>{
     if(e.key!=='Escape')return;
