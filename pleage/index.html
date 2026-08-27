@@ -625,17 +625,102 @@
   .rep-method.open .rep-method-b{grid-template-rows:1fr}
   .rep-method-in{overflow:hidden;min-height:0}
   @media print{
-    #view-dash,#view-board,#view-audit,#reports-ctl,.rep-card-go{display:none!important}
+    #view-dash,#view-board,#view-audit,#view-map,#reports-ctl,.rep-card-go{display:none!important}
     .rep-detail{border:0;box-shadow:none;padding:0;max-width:none}
     .rep-fig,table.rtbl,.rep-callout,.rep-callouts,.rep-sm{break-inside:avoid}
     .rep-method-b{grid-template-rows:1fr!important}
   }
   .dsection .grid{margin-top:6px}
 
-  @media print{ header.top,.toolbar,.banner,.note,#view-dash,#view-audit,.eyebrow,.view-h,.view-sub,.totop,.cmt-fab{display:none!important}
+  @media print{ header.top,.toolbar,.banner,.note,#view-dash,#view-audit,#view-map,.eyebrow,.view-h,.view-sub,.totop,.cmt-fab{display:none!important}
     body{background:#fff}.paper{box-shadow:none;border:0;border-radius:0;width:auto;padding:0}
     .wrap{padding:0}section.view{padding:0}}
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+  /* ---------- retention map ---------- */
+  .rm-band{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1px;
+    background:var(--border);border:1px solid var(--border);border-radius:var(--radius);
+    overflow:hidden;margin:18px 0 22px}
+  .rm-band>div{background:var(--surface);padding:14px 16px}
+  .rm-band .k{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .rm-band .v{font-size:25px;font-weight:700;letter-spacing:-.02em;margin-top:4px;font-variant-numeric:tabular-nums}
+  .rm-band .n{font-size:12px;color:var(--ink2);margin-top:2px}
+
+  .rm-group{margin-bottom:20px}
+  .rm-glab{display:flex;align-items:center;gap:12px;font-size:11px;font-weight:700;
+    letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+  .rm-glab::after{content:"";flex:1;height:1px;background:var(--border)}
+  .rm-rows{display:flex;flex-direction:column;gap:5px}
+  .rm-row{display:grid;grid-template-columns:minmax(160px,1fr) 88px minmax(210px,1.1fr) minmax(96px,.6fr);
+    gap:14px;align-items:center;background:var(--surface);border:1px solid var(--border);
+    border-radius:10px;padding:9px 13px;text-align:left;font:inherit;color:inherit;width:100%}
+  button.rm-row{cursor:pointer}
+  button.rm-row:hover{border-color:var(--flow)}
+  button.rm-row:focus-visible{outline:2px solid var(--flow);outline-offset:2px}
+  .rm-row.none{background:transparent;border-style:dashed;opacity:.66}
+  .rm-nm{font-size:13.5px;font-weight:600}
+  .rm-nm span{display:block;font-size:11px;font-weight:400;color:var(--muted);margin-top:2px}
+  .rm-chip{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;
+    text-transform:uppercase;padding:3px 8px;border-radius:999px;border:1px solid currentColor}
+  .rm-ok{color:var(--good)} .rm-thin{color:var(--warn)} .rm-crit{color:var(--crit)}
+  .rm-draft{color:var(--camp)} .rm-nonec{color:var(--muted)}
+  .rm-meters{display:flex;flex-direction:column;gap:4px}
+  .rm-meter{display:flex;align-items:center;gap:7px}
+  .rm-mlab{font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--muted);width:28px;flex:none}
+  .rm-steps{display:flex;gap:3px;flex-wrap:wrap}
+  .rm-step{width:12px;height:15px;border-radius:3px;border:1px solid var(--border);
+    background:color-mix(in srgb,var(--ink) 5%,transparent)}
+  .rm-step.on{background:var(--flow);border-color:var(--flow)}
+  .rm-mnum{font-size:11px;color:var(--ink2);font-variant-numeric:tabular-nums}
+  .rm-mnum b{color:var(--ink)}
+  .rm-note{font-size:11.5px;color:var(--ink2);text-align:right;font-variant-numeric:tabular-nums}
+
+  .rm-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px}
+  .rm-bar select{font:inherit;font-size:13px;font-weight:600;color:var(--ink);background:var(--surface);
+    border:1px solid var(--border);border-radius:9px;padding:8px 11px;max-width:100%}
+  .rm-bar .sp{flex:1}
+  .rm-zoom{display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:3px}
+  .rm-zoom button{font:inherit;font-size:12.5px;font-weight:700;color:var(--ink2);background:none;
+    border:0;border-radius:6px;padding:5px 10px;cursor:pointer}
+  .rm-zoom button:hover{background:var(--surface-2);color:var(--ink)}
+
+  .rm-meta{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink2);margin:0 0 12px}
+  .rm-meta b{color:var(--ink);font-variant-numeric:tabular-nums}
+
+  .rm-canvas{position:relative;border:1px solid var(--border);border-radius:var(--radius);
+    background-color:var(--surface);
+    background-image:radial-gradient(color-mix(in srgb,var(--axis) 65%,transparent) 1px,transparent 1px);
+    background-size:19px 19px;overflow:auto;height:min(72vh,780px);cursor:grab;touch-action:none}
+  .rm-canvas.drag{cursor:grabbing}
+  .rm-canvas svg{display:block}
+  .rm-node{cursor:pointer}
+  .rm-node text{pointer-events:none;font-family:inherit}
+  .rm-node .hit:hover{filter:brightness(1.06)}
+  .rm-node.sel .shape{stroke:var(--camp);stroke-width:3}
+
+  .rm-legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:11.5px;color:var(--muted)}
+  .rm-legend span{display:flex;align-items:center;gap:6px}
+  .rm-key{width:22px;height:12px;border-radius:3px;flex:none}
+
+  .rm-detail{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:16px 18px;margin-top:14px}
+  .rm-detail h4{font-size:14px;margin:0 0 4px}
+  .rm-detail .sub{font-size:12px;color:var(--muted);margin-bottom:10px}
+  .rm-detail dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin:0}
+  .rm-detail dt{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .rm-detail dd{margin:3px 0 0;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+
+  .rm-flags{display:flex;flex-direction:column;gap:6px;margin-top:14px}
+  .rm-flag{display:flex;gap:10px;align-items:flex-start;background:var(--surface);
+    border:1px solid var(--border);border-left:3px solid var(--sev,var(--warn));
+    border-radius:9px;padding:9px 13px;font-size:12.5px;color:var(--ink2)}
+  .rm-flag b{color:var(--ink)}
+  .rm-empty{color:var(--muted);font-size:13px;padding:26px 2px}
+  @media (max-width:760px){
+    .rm-row{grid-template-columns:1fr;gap:9px}
+    .rm-note{text-align:left}
+  }
+
 </style>
 </head>
 <body>
@@ -663,6 +748,7 @@
     <div class="seg" id="viewSeg" role="tablist" aria-label="View" hidden>
       <button role="tab" aria-selected="true" data-view="dash">Dashboard</button>
       <button role="tab" aria-selected="false" data-view="reports">Reports</button>
+      <button role="tab" aria-selected="false" data-view="map">Retention map</button>
     </div>
     <button class="vidbtn" id="vidBtn" type="button" style="display:none">▶ Video walk-thru</button>
     <button class="themeBtn" id="themeBtn">◑ Theme</button>
@@ -787,6 +873,45 @@
       <div id="reports-ctl"></div>
     </div>
     <div id="reports-body"></div>
+  </section>
+
+
+  <section class="view wrap" id="view-map" hidden>
+    <div class="eyebrow">Lifecycle architecture</div>
+    <div class="view-h"><h2 id="map-title">Retention map</h2></div>
+    <p class="view-sub" id="map-sub"></p>
+    <div class="rm-band" id="map-band"></div>
+    <div id="map-coverage"></div>
+
+    <div class="asection dsection open" style="margin-top:8px">
+      <button class="asec-head" type="button"><span class="asec-chev">&#9656;</span><span class="asec-name">Flow diagram</span></button>
+      <div class="asec-body"><div class="asec-inner">
+        <div class="rm-bar">
+          <select id="map-pick" aria-label="Flow to draw"></select>
+          <button class="togBtn" id="map-perf" aria-pressed="true" type="button"
+            title="Show 90-day performance inside each message"><span class="dot"></span>Show performance</button>
+          <span class="sp"></span>
+          <div class="rm-zoom">
+            <button id="map-out" type="button" aria-label="Zoom out">&minus;</button>
+            <button id="map-fit" type="button">Fit</button>
+            <button id="map-in" type="button" aria-label="Zoom in">+</button>
+          </div>
+        </div>
+        <div class="rm-meta" id="map-meta"></div>
+        <div class="rm-canvas" id="map-canvas"></div>
+        <div class="rm-legend">
+          <span><i class="rm-key" style="background:var(--flow)"></i>Email</span>
+          <span><i class="rm-key" style="background:var(--aqua)"></i>SMS</span>
+          <span><i class="rm-key" style="background:color-mix(in srgb,var(--flow) 18%,var(--surface));border:1px solid var(--border)"></i>Wait</span>
+          <span><i class="rm-key" style="background:var(--camp);transform:rotate(45deg);width:12px;height:12px;border-radius:2px"></i>Split</span>
+          <span><i class="rm-key" style="background:var(--good);height:3px;border-radius:2px"></i>Yes branch</span>
+          <span><i class="rm-key" style="background:var(--crit);height:3px;border-radius:2px"></i>No branch</span>
+          <span>Dashed outline = draft or manual, not sending</span>
+        </div>
+        <div id="map-detail"></div>
+        <div id="map-flags"></div>
+      </div></div>
+    </div>
   </section>
 
   <section class="view wrap" id="view-audit" hidden>
@@ -976,8 +1101,11 @@ function switchTo(slug){ACTIVE=slug;
   const A=SERIES[slug]&&SERIES[slug].audit;
   // Reports tab houses the recurring monthly report, any one-off reports, AND the account audit.
   const hasReports=reps.length>0 || !!(SERIES[slug]&&(SERIES[slug].reports||[]).length) || !!A;
-  seg.hidden=!hasReports;
-  [...seg.children].forEach(x=>{const v=x.dataset.view;x.hidden=(v==='reports'&&!hasReports);});
+  // Retention map: only for clients we have actually mapped (client_series.data.retention_map).
+  const hasMap=!!(SERIES[slug]&&SERIES[slug].retention_map&&(SERIES[slug].retention_map.flows||[]).length);
+  seg.hidden=!(hasReports||hasMap);
+  [...seg.children].forEach(x=>{const v=x.dataset.view;
+    x.hidden=(v==='reports'&&!hasReports)||(v==='map'&&!hasMap);});
   {const vb=document.getElementById('vidBtn');if(vb){const vu=(A&&A.video_url)||'';vb.dataset.embed=vu;vb.style.display=vu?'':'none';}}
   const msel=document.getElementById('boardMonth');
   if(msel){msel.innerHTML=reps.map((rr,i)=>'<option value="'+i+'">'+esc(rr.month_label||rr.month||'')+'</option>').join('');msel.value='0';}
@@ -988,6 +1116,9 @@ function switchTo(slug){ACTIVE=slug;
   document.getElementById('view-board').hidden=true;
   document.getElementById('view-reports').hidden=true;   // shown by openAudit / tab click
   document.getElementById('view-audit').hidden=!startAudit;
+  document.getElementById('view-map').hidden=true;
+  RM_FLOW=null;RM_SEL=null;RM_Z=1;
+  if(hasMap)renderMap();
   REPORT_OPEN=null;
   renderDash();renderBoard();renderReports();
   if(startAudit)renderAudit(); else document.getElementById('view-reports').hidden=true;
@@ -2606,6 +2737,7 @@ function wireControls(){
     document.querySelectorAll('#c-rev svg,#c-rev .tip').forEach(n=>n.remove());stackedCols('c-rev',windows().cur);});
   document.getElementById('revChanTog').addEventListener('click',e=>{revChannel=!revChannel;e.currentTarget.setAttribute('aria-pressed',revChannel);
     document.querySelectorAll('#c-rev svg,#c-rev .tip').forEach(n=>n.remove());stackedCols('c-rev',windows().cur);});
+  rmWire();
   {const bb=document.getElementById('boardBack');if(bb)bb.addEventListener('click',backToReports);}
   {const ab=document.getElementById('auditBack');if(ab)ab.addEventListener('click',backToReports);}
   document.getElementById('viewSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
@@ -2614,7 +2746,9 @@ function wireControls(){
     document.getElementById('view-board').hidden=true;    // board + audit are reached only from within Reports
     document.getElementById('view-audit').hidden=true;
     document.getElementById('view-reports').hidden=v!=='reports';
-    if(v==='reports'){REPORT_OPEN=null;renderReports();}});
+    document.getElementById('view-map').hidden=v!=='map';
+    if(v==='reports'){REPORT_OPEN=null;renderReports();}
+    if(v==='map'){renderMap();rmFit();}});
   document.getElementById('boardMonth').addEventListener('change',e=>{const reps=REPORTS[ACTIVE]||[];REPORT=reps[+e.target.value]||reps[0]||null;renderBoard();});
   document.getElementById('curTog').addEventListener('click',e=>{inProgress=!inProgress;e.currentTarget.setAttribute('aria-pressed',inProgress);applyMode();renderDash();});
   document.getElementById('subsChanSeg').addEventListener('click',e=>{const b=e.target.closest('.csg');if(!b)return;
@@ -2645,6 +2779,419 @@ function wireControls(){
   document.getElementById('outBtn').addEventListener('click',()=>sb.auth.signOut().then(()=>location.reload()));
   matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{applyPalette();buildSwitcher();renderDash();});
   document.addEventListener('click',()=>{const p=document.querySelector('.cmenu-panel');if(p)p.hidden=true;});
+}
+
+
+// ================= Retention map =================
+// Draws the client's REAL Klaviyo flow graph (node types, delays, split
+// conditions, message status) against Danny's retention-map framework. Data is
+// client_series.data.retention_map, written by retention_map.py in the
+// client-kpi-reports repo; the tab only exists for clients we have mapped.
+let RM_FLOW=null, RM_PERF=true, RM_Z=1, RM_SEL=null;
+const rmData=()=>(SERIES[ACTIVE]||{}).retention_map||null;
+
+const RM_STATE={ok:['rm-ok','built'],thin:['rm-thin','under-built'],crit:['rm-crit','stub'],
+                draft:['rm-draft','draft only'],none:['rm-nonec','not built']};
+const RM_GROUPS=[['core','Core flows'],['advanced','Advanced flows'],
+                 ['subscription','Subscription flows'],['referral','Referral']];
+
+function rmMoney(v){try{return money(v);}catch(e){return '$'+Math.round(v||0).toLocaleString();}}
+
+function renderMap(){
+  const M=rmData(); if(!M)return;
+  const sub=document.getElementById('map-sub');
+  sub.textContent='Every flow live in the account, drawn against the retention map. '
+    +'Depth counts the longest single path a profile can travel, so branch copies of a '
+    +'sequence never inflate it. Performance is the last 90 days.';
+
+  const core=M.coverage.filter(c=>c.group==='core');
+  const eBuilt=core.reduce((a,c)=>a+c.built.email,0), ePre=core.reduce((a,c)=>a+(c.prescribed.email||0),0);
+  const sBuilt=core.reduce((a,c)=>a+c.built.sms,0),   sPre=core.reduce((a,c)=>a+(c.prescribed.sms||0),0);
+  const adv=M.coverage.filter(c=>c.group==='advanced');
+  const advOk=adv.filter(c=>c.state==='ok').length, advDraft=adv.filter(c=>c.state==='draft').length;
+  const dups=M.flows.filter(f=>f.duplicate&&f.status==='live').length;
+  const band=[
+    ['Core coverage', eBuilt+'<small style="font-size:16px;color:var(--muted)">/'+ePre+'</small>',
+     'email steps built of prescribed'],
+    ['SMS coverage', '<span style="color:'+(sBuilt?'inherit':'var(--crit)')+'">'+sBuilt
+     +'<small style="font-size:16px;color:var(--muted)">/'+sPre+'</small></span>', 'prescribed SMS steps in place'],
+    ['Advanced flows', advOk+'<small style="font-size:16px;color:var(--muted)">/'+adv.length+'</small>',
+     advDraft?('live; '+advDraft+' more sitting in draft'):'live'],
+    ['Live duplicates', '<span style="color:'+(dups?'var(--warn)':'inherit')+'">'+dups+'</span>',
+     dups?'test copies sending alongside originals':'no shadow copies sending'],
+  ];
+  document.getElementById('map-band').innerHTML=band.map(b=>
+    '<div><div class="k">'+b[0]+'</div><div class="v">'+b[1]+'</div><div class="n">'+b[2]+'</div></div>').join('');
+
+  const byId={}; M.flows.forEach(f=>byId[f.id]=f);
+  document.getElementById('map-coverage').innerHTML=RM_GROUPS.map(([g,label])=>{
+    const rows=M.coverage.filter(c=>c.group===g); if(!rows.length)return '';
+    return '<div class="rm-group"><div class="rm-glab">'+label+'</div><div class="rm-rows">'
+      + rows.map(c=>rmRow(c,byId)).join('') + '</div></div>';
+  }).join('');
+  document.querySelectorAll('#map-coverage button.rm-row').forEach(b=>
+    b.addEventListener('click',()=>{rmPick(b.dataset.flow);
+      document.getElementById('map-canvas').scrollIntoView({behavior:'smooth',block:'center'});}));
+
+  // flow picker: framework slots first, then everything else in the account
+  const sel=document.getElementById('map-pick');
+  const slotted=new Set(); M.coverage.forEach(c=>c.flows.forEach(id=>slotted.add(id)));
+  const opt=f=>'<option value="'+f.id+'">'+esc(f.name)+(f.status!=='live'?'  • '+f.status:'')+'</option>';
+  const onMap=M.flows.filter(f=>slotted.has(f.id)).sort((a,b)=>b.revenue-a.revenue);
+  const off  =M.flows.filter(f=>!slotted.has(f.id)).sort((a,b)=>b.revenue-a.revenue);
+  sel.innerHTML='<optgroup label="On the retention map">'+onMap.map(opt).join('')+'</optgroup>'
+    +(off.length?'<optgroup label="In the account, not on the map">'+off.map(opt).join('')+'</optgroup>':'');
+
+  if(!RM_FLOW||!byId[RM_FLOW]){
+    const w=M.coverage.find(c=>c.key==='welcome');
+    RM_FLOW=(w&&w.flows[0])||(onMap[0]&&onMap[0].id)||(M.flows[0]&&M.flows[0].id);
+  }
+  sel.value=RM_FLOW; RM_SEL=null; rmDraw();
+}
+
+function rmRow(c,byId){
+  const [cls,txt]=RM_STATE[c.state];
+  const flows=c.flows.map(id=>byId[id]).filter(Boolean);
+  const first=flows[0];
+  const meters=c.prescribed.email
+    ? '<div class="rm-meters">'+rmMeter('EMAIL',c.built.email,c.prescribed.email)
+      +(c.prescribed.sms?rmMeter('SMS',c.built.sms,c.prescribed.sms):'')+'</div>'
+    : '<div class="rm-meters"><span class="rm-mnum" style="color:var(--muted)">'
+      +rmPresence(c)+'</span></div>';
+  const note=c.revenue?('<b>'+rmMoney(c.revenue)+'</b><br><span style="color:var(--muted)">90 days</span>'
+    +(c.duplicate_revenue?'<br><span style="color:var(--warn)">+'+rmMoney(c.duplicate_revenue)+' in copies</span>':'')):'';
+  const tag=first?'<span>'+esc(first.name)+(flows.length>1?' +'+(flows.length-1)+' more':'')+'</span>':'';
+  const inner='<div class="rm-nm">'+esc(c.label)+tag+'</div>'
+    +'<div><span class="rm-chip '+cls+'">'+txt+'</span></div>'+meters
+    +'<div class="rm-note">'+note+'</div>';
+  return first
+    ? '<button class="rm-row" type="button" data-flow="'+first.id+'">'+inner+'</button>'
+    : '<div class="rm-row none">'+inner+'</div>';
+}
+function rmMeter(lab,built,pre){
+  let cells='';
+  for(let i=0;i<pre;i++)cells+='<span class="rm-step'+(i<built?' on':'')+'"></span>';
+  return '<div class="rm-meter"><span class="rm-mlab">'+lab+'</span>'
+    +'<span class="rm-steps">'+cells+'</span>'
+    +'<span class="rm-mnum"><b>'+built+'</b>/'+pre+'</span></div>';
+}
+function rmPresence(c){
+  const live=c.built.email+c.built.sms;
+  const any=((c.drafted||c.built).email)+((c.drafted||c.built).sms);
+  if(!c.flows.length)return '\u2014';
+  if(live)return live+' message'+(live===1?'':'s')+' deep';
+  if(any)return any+' built, none live';
+  return 'flow exists, no messages';
+}
+function rmPick(id){RM_FLOW=id;RM_SEL=null;document.getElementById('map-pick').value=id;rmDraw();}
+
+// ---- graph layout: layered, longest-path ranks + median relaxation ----
+const RM_W={msg:198,delay:150,split:214,trigger:198};
+const RM_H={msg:60,delay:44,split:70,trigger:60};
+const RM_GAPX=26, RM_GAPY=42, RM_PAD=44;
+
+function rmKind(n){
+  if(n.type==='send-email')return 'email';
+  if(n.type==='send-sms')return 'sms';
+  if(n.type==='send-push')return 'push';
+  if(n.type==='time-delay')return 'delay';
+  return 'split';
+}
+function rmBox(n){const k=rmKind(n);
+  if(k==='delay')return {w:RM_W.delay,h:RM_H.delay};
+  if(k==='split')return {w:RM_W.split,h:RM_H.split};
+  return {w:RM_W.msg,h:RM_H.msg};}
+
+function rmLayout(nodes){
+  const by={}; nodes.forEach(n=>by[n.id]=n);
+  const kids=n=>[n.yes,n.no,n.next].filter(x=>x&&by[x]);
+  const refd=new Set(); nodes.forEach(n=>kids(n).forEach(k=>refd.add(k)));
+  let roots=nodes.filter(n=>!refd.has(n.id)).map(n=>n.id);
+  if(!roots.length&&nodes.length)roots=[nodes[0].id];
+
+  const rank={}; roots.forEach(r=>rank[r]=0);
+  for(let guard=0;guard<nodes.length+4;guard++){
+    let moved=false;
+    nodes.forEach(n=>{ if(rank[n.id]==null)return;
+      kids(n).forEach(k=>{const v=rank[n.id]+1; if(rank[k]==null||v>rank[k]){rank[k]=v;moved=true;}});});
+    if(!moved)break;
+  }
+  nodes.forEach(n=>{if(rank[n.id]==null)rank[n.id]=0;});
+
+  const ord={}; let c=0; const seen=new Set();
+  const dfs=id=>{ if(!id||seen.has(id)||!by[id])return; seen.add(id); ord[id]=c++;
+    kids(by[id]).forEach(dfs); };
+  roots.forEach(dfs); nodes.forEach(n=>{if(ord[n.id]==null)ord[n.id]=c++;});
+
+  const rows={}; nodes.forEach(n=>{(rows[rank[n.id]]=rows[rank[n.id]]||[]).push(n.id);});
+  const rks=Object.keys(rows).map(Number).sort((a,b)=>a-b);
+  rks.forEach(r=>rows[r].sort((a,b)=>ord[a]-ord[b]));
+  const x={}; rks.forEach(r=>rows[r].forEach((id,i)=>x[id]=i));
+
+  const par={}; nodes.forEach(n=>kids(n).forEach(k=>{(par[k]=par[k]||[]).push(n.id);}));
+  for(let it=0;it<8;it++){
+    const order=it%2===0?rks:rks.slice().reverse();
+    order.forEach(r=>{
+      rows[r].forEach(id=>{
+        const rel=it%2===0?(par[id]||[]):kids(by[id]);
+        if(rel.length)x[id]=rel.reduce((a,k)=>a+x[k],0)/rel.length;
+      });
+      const arr=rows[r].slice().sort((a,b)=>x[a]-x[b]);
+      for(let i=1;i<arr.length;i++)if(x[arr[i]]<x[arr[i-1]]+1)x[arr[i]]=x[arr[i-1]]+1;
+    });
+  }
+  const minx=Math.min(...nodes.map(n=>x[n.id]));
+  const pitch=RM_W.msg+RM_GAPX;
+  let y=RM_PAD; const pos={};
+  rks.forEach(r=>{
+    const hh=Math.max(...rows[r].map(id=>rmBox(by[id]).h));
+    rows[r].forEach(id=>{const b=rmBox(by[id]);
+      pos[id]={x:RM_PAD+(x[id]-minx)*pitch+(RM_W.msg-b.w)/2, y:y+(hh-b.h)/2, w:b.w, h:b.h};});
+    y+=hh+RM_GAPY;
+  });
+  const maxx=Math.max(...nodes.map(n=>pos[n.id].x+pos[n.id].w));
+  return {pos,width:maxx+RM_PAD,height:y-RM_GAPY+RM_PAD,kids,by};
+}
+
+// ---- drawing ----
+const RM_NS='http://www.w3.org/2000/svg';
+function sv(t,a){const e=document.createElementNS(RM_NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function rmInk(hex){ // readable label colour on a filled node
+  const m=(hex||'').trim().match(/^#?([0-9a-f]{6})$/i); if(!m)return '#fff';
+  const v=parseInt(m[1],16), r=(v>>16)&255, g=(v>>8)&255, b=v&255;
+  return (0.2126*r+0.7152*g+0.0722*b)>150?'#131722':'#ffffff';
+}
+function rmDelay(n){const d=n.delay||{};if(d.value==null)return '\u2014';
+  let u=(d.unit||'').replace(/s$/,''); if(d.value!=1)u+='s'; return d.value+' '+u;}
+function rmTrunc(t,px,size){const max=Math.floor(px/(size*0.55));
+  t=t||''; return t.length>max?t.slice(0,max-1)+'…':t;}
+
+function rmFlags(n){
+  const f=[], st=n.stats||null, k=rmKind(n);
+  if(k==='email'||k==='sms'||k==='push'){
+    if(n.status==='draft')f.push(['crit','Draft — this message is not sending']);
+    else if(n.status==='manual')f.push(['warn','Manual — held for manual send']);
+    if(st&&st.delivered>=500&&st.unsub>=1)f.push(['crit','Unsubscribes '+st.unsub.toFixed(2)+'% on '+st.delivered.toLocaleString()+' sends']);
+    if(st&&st.delivered>=1000&&st.rpr<0.1)f.push(['warn','RPR '+st.rpr.toFixed(2)+' on '+st.delivered.toLocaleString()+' sends']);
+    if(st&&st.delivered===0&&n.status==='live')f.push(['warn','Live but no sends in 90 days']);
+  }
+  return f;
+}
+
+function rmDraw(){
+  const M=rmData(), host=document.getElementById('map-canvas'); if(!M||!host)return;
+  const flow=M.flows.find(f=>f.id===RM_FLOW);
+  host.innerHTML='';
+  document.getElementById('map-detail').innerHTML='';
+  if(!flow){host.innerHTML='<div class="rm-empty" style="padding:26px">No flow selected.</div>';return;}
+  const nodes=flow.nodes||[];
+  const cov=M.coverage.find(c=>(c.flows||[]).indexOf(flow.id)>=0);
+
+  const meta=[];
+  meta.push('Status <b>'+esc(flow.status)+'</b>');
+  meta.push('Trigger <b>'+esc(flow.trigger||'—')+'</b>');
+  meta.push('Depth <b>'+flow.depth.email+' email'+(flow.depth.sms?' + '+flow.depth.sms+' SMS':'')+'</b>'
+    +(cov&&cov.prescribed.email?' <span style="color:var(--muted)">of '+cov.prescribed.email
+      +(cov.prescribed.sms?' + '+cov.prescribed.sms+' SMS':'')+' prescribed</span>':''));
+  meta.push('90-day revenue <b>'+rmMoney(flow.revenue)+'</b>');
+  meta.push('Delivered <b>'+flow.delivered.toLocaleString()+'</b>');
+  if(flow.duplicate)meta.push('<span style="color:var(--warn)">Duplicate / test copy</span>');
+  document.getElementById('map-meta').innerHTML=meta.map(m=>'<span>'+m+'</span>').join('');
+
+  if(!nodes.length){host.innerHTML='<div class="rm-empty" style="padding:26px">This flow has no actions in it yet.</div>';
+    document.getElementById('map-flags').innerHTML='';return;}
+
+  const L=rmLayout(nodes);
+  const cs=getComputedStyle(document.documentElement);
+  const cFlow=cs.getPropertyValue('--flow').trim(), cAqua=cs.getPropertyValue('--aqua').trim();
+  const cCamp=cs.getPropertyValue('--camp').trim(), cGood=cs.getPropertyValue('--good').trim();
+  const cCrit=cs.getPropertyValue('--crit').trim(), cSurf=cs.getPropertyValue('--surface').trim();
+  const cInk=cs.getPropertyValue('--ink').trim(), cBord=cs.getPropertyValue('--axis').trim();
+  const EDGE='#E8A33D';
+
+  const svg=sv('svg',{width:L.width*RM_Z,height:L.height*RM_Z,
+    viewBox:'0 0 '+L.width+' '+L.height,xmlns:RM_NS});
+  const defs=sv('defs',{});
+  [['rm-ar',EDGE],['rm-ar-y',cGood],['rm-ar-n',cCrit]].forEach(([id,col])=>{
+    const m=sv('marker',{id:id,viewBox:'0 0 10 10',refX:'8',refY:'5',markerWidth:'6',
+      markerHeight:'6',orient:'auto-start-reverse'});
+    m.appendChild(sv('path',{d:'M0,1 L9,5 L0,9 z',fill:col}));defs.appendChild(m);});
+  svg.appendChild(defs);
+
+  // edges first, so nodes sit on top
+  const eg=sv('g',{});
+  nodes.forEach(n=>{
+    const a=L.pos[n.id]; if(!a)return;
+    const out=[[n.yes,'yes'],[n.no,'no'],[n.next,'next']].filter(e=>e[0]&&L.pos[e[0]]);
+    out.forEach(([kid,kind])=>{
+      const b=L.pos[kid];
+      const x1=a.x+a.w/2, y1=a.y+a.h, x2=b.x+b.w/2, y2=b.y;
+      const col=kind==='yes'?cGood:kind==='no'?cCrit:EDGE;
+      const mk=kind==='yes'?'rm-ar-y':kind==='no'?'rm-ar-n':'rm-ar';
+      let d;
+      if(Math.abs(x1-x2)<2){ d='M'+x1+' '+y1+' L'+x2+' '+(y2-6); }
+      else{
+        const my=y1+Math.max(14,(y2-y1)/2), r=Math.min(12,Math.abs(x2-x1)/2), dir=x2>x1?1:-1;
+        d='M'+x1+' '+y1+' L'+x1+' '+(my-r)
+          +' Q'+x1+' '+my+' '+(x1+r*dir)+' '+my
+          +' L'+(x2-r*dir)+' '+my
+          +' Q'+x2+' '+my+' '+x2+' '+(my+r)
+          +' L'+x2+' '+(y2-6);
+      }
+      eg.appendChild(sv('path',{d:d,fill:'none',stroke:col,'stroke-width':2.2,
+        'stroke-linecap':'round','marker-end':'url(#'+mk+')'}));
+      if(kind!=='next'){
+        const lx=x1+(x2-x1)*0.5, ly=y1+16;
+        const t=sv('text',{x:lx,y:ly,'text-anchor':'middle','font-size':'10','font-weight':'700',
+          fill:col,'letter-spacing':'.06em'});
+        t.textContent=kind==='yes'?'YES':'NO'; eg.appendChild(t);
+      }
+    });
+  });
+  svg.appendChild(eg);
+
+  nodes.forEach(n=>{
+    const p=L.pos[n.id]; if(!p)return;
+    const k=rmKind(n), g=sv('g',{class:'rm-node'+(RM_SEL===n.id?' sel':'')});
+    g.dataset.node=n.id;
+    const notLive=(k==='email'||k==='sms'||k==='push')&&n.status&&n.status!=='live';
+    let fill=cFlow, stroke='none', ink;
+    let shape;
+    if(k==='delay'){
+      fill='color-mix(in srgb,'+cFlow+' 14%,'+cSurf+')'; stroke=cBord; ink=cInk;
+      const cvx=9;
+      shape=sv('path',{d:'M'+p.x+' '+p.y+' Q'+(p.x+p.w/2)+' '+(p.y+cvx)+' '+(p.x+p.w)+' '+p.y
+        +' L'+(p.x+p.w)+' '+(p.y+p.h)+' Q'+(p.x+p.w/2)+' '+(p.y+p.h-cvx)+' '+p.x+' '+(p.y+p.h)+' Z'});
+    }else if(k==='split'){
+      fill=cCamp; ink=rmInk(cCamp);
+      const cx=p.x+p.w/2, cy=p.y+p.h/2;
+      shape=sv('polygon',{points:[cx+','+p.y,(p.x+p.w)+','+cy,cx+','+(p.y+p.h),p.x+','+cy].join(' ')});
+    }else if(k==='sms'){
+      fill=cAqua; ink=rmInk(cAqua);
+      const tip=16;
+      shape=sv('path',{d:'M'+p.x+' '+p.y+' L'+(p.x+p.w-tip)+' '+p.y+' L'+(p.x+p.w)+' '+(p.y+p.h/2)
+        +' L'+(p.x+p.w-tip)+' '+(p.y+p.h)+' L'+p.x+' '+(p.y+p.h)+' Z'});
+    }else{
+      ink=rmInk(cFlow);
+      shape=sv('rect',{x:p.x,y:p.y,width:p.w,height:p.h,rx:9});
+    }
+    shape.setAttribute('class','shape');
+    shape.setAttribute('fill',fill);
+    if(stroke!=='none'){shape.setAttribute('stroke',stroke);shape.setAttribute('stroke-width',1.5);}
+    if(notLive){shape.setAttribute('stroke',cCamp);shape.setAttribute('stroke-width',2);
+      shape.setAttribute('stroke-dasharray','6 4');shape.setAttribute('fill-opacity','.45');
+      if(k!=='delay')ink=cInk;}
+    g.appendChild(shape);
+
+    const cx=p.x+p.w/2;
+    const fl=rmFlags(n), pad=fl.length?52:34;
+    let l1='',l2='',l3='';
+    if(k==='delay'){l1='WAIT';l2=rmDelay(n);}
+    else if(k==='split'){l1='SPLIT';l2=rmTrunc(n.cond||'condition',p.w-52,9.5);}
+    else{
+      l1=rmTrunc(n.name||(k==='sms'?'SMS':'Email'),p.w-pad,11);
+      l2=rmTrunc(n.subject||n.preview||'',p.w-34,10.5);
+      if(RM_PERF&&n.stats)l3='RPR '+n.stats.rpr.toFixed(2)+'  ·  '+rmMoney(n.stats.revenue)
+        +'  ·  unsub '+n.stats.unsub.toFixed(2)+'%';
+      else if(notLive)l3=(n.status||'').toUpperCase();
+    }
+    const rows=[[l1,11,700,1],[l2,10.5,500,.92],[l3,9.5,600,.78]].filter(r=>r[0]);
+    const lh=rows.length===3?13.5:14.5;
+    let ty=p.y+p.h/2-((rows.length-1)*lh)/2+3.5;
+    rows.forEach(([txt,size,weight,op])=>{
+      const t=sv('text',{x:cx,y:ty,'text-anchor':'middle','font-size':size,'font-weight':weight,
+        fill:ink,'fill-opacity':op});
+      if(size===11)t.setAttribute('letter-spacing','.03em');
+      t.textContent=txt; g.appendChild(t); ty+=lh;
+    });
+
+    if(fl.length){
+      const sev=fl.some(f=>f[0]==='crit')?cCrit:cCamp;
+      g.appendChild(sv('circle',{cx:p.x+p.w-11,cy:p.y+11,r:5.5,fill:sev,
+        stroke:cSurf,'stroke-width':1.5}));
+    }
+    const tt=sv('title',{});
+    tt.textContent=[n.name,n.subject,n.cond_full||n.cond,
+      k==='delay'?('wait '+rmDelay(n)):'',
+      n.status?('status: '+n.status):'',
+      n.stats?('90d: '+n.stats.delivered.toLocaleString()+' delivered, RPR '+n.stats.rpr.toFixed(2)
+        +', open '+n.stats.open+'%, click '+n.stats.click+'%, unsub '+n.stats.unsub+'%'):'',
+      ...fl.map(f=>'⚠ '+f[1])].filter(Boolean).join('\n');
+    g.appendChild(tt);
+    g.addEventListener('click',()=>{RM_SEL=n.id;rmDetail(n);
+      document.querySelectorAll('#map-canvas .rm-node').forEach(e=>
+        e.classList.toggle('sel',e.dataset.node===n.id));});
+    svg.appendChild(g);
+  });
+
+  host.appendChild(svg);
+  rmPan(host);
+  rmFlagList(flow);
+}
+
+function rmDetail(n){
+  const el=document.getElementById('map-detail'), k=rmKind(n);
+  if(k==='delay'||k==='split'){
+    el.innerHTML='<div class="rm-detail"><h4>'+(k==='delay'?'Wait step':'Conditional split')+'</h4>'
+      +'<div class="sub">'+esc(k==='delay'
+        ? (rmDelay(n)+(n.delay&&n.delay.tz?' · '+n.delay.tz+' timezone':''))
+        : (n.cond_full||n.cond||''))+'</div></div>';
+    return;
+  }
+  const st=n.stats;
+  const dl=st?[['Delivered',st.delivered.toLocaleString()],['Revenue',rmMoney(st.revenue)],
+    ['RPR',st.rpr.toFixed(2)],['Orders',st.orders.toLocaleString()],['Open',st.open+'%'],
+    ['Click',st.click+'%'],['Unsub',st.unsub+'%']]
+    :[['90-day data','none']];
+  el.innerHTML='<div class="rm-detail"><h4>'+esc(n.name||'Message')+'</h4>'
+    +'<div class="sub">'+esc(n.subject||n.preview||'')
+    +(n.sender?' · from '+esc(n.sender):'')
+    +(n.status?' · '+esc(n.status):'')
+    +(n.smart_sending===false?' · smart sending off':'')+'</div>'
+    +'<dl>'+dl.map(d=>'<dt>'+d[0]+'</dt><dd>'+d[1]+'</dd>').join('')+'</dl></div>';
+}
+
+function rmFlagList(flow){
+  const out=[];
+  (flow.nodes||[]).forEach(n=>rmFlags(n).forEach(f=>out.push([f[0],n,f[1]])));
+  const el=document.getElementById('map-flags');
+  if(!out.length){el.innerHTML='<div class="rm-flags"><div class="rm-flag" style="--sev:var(--good)">'
+    +'Nothing flagged in this flow.</div></div>';return;}
+  out.sort((a,b)=>(a[0]==='crit'?0:1)-(b[0]==='crit'?0:1));
+  el.innerHTML='<div class="rm-flags">'+out.map(([sev,n,txt])=>
+    '<div class="rm-flag" style="--sev:var(--'+(sev==='crit'?'crit':'warn')+')">'
+    +'<b>'+esc(n.name||rmKind(n))+'</b><span>'+esc(txt)+'</span></div>').join('')+'</div>';
+}
+
+function rmPan(host){
+  let down=false,sx=0,sy=0,l=0,t=0;
+  host.addEventListener('pointerdown',e=>{if(e.target.closest('.rm-node'))return;
+    down=true;sx=e.clientX;sy=e.clientY;l=host.scrollLeft;t=host.scrollTop;
+    host.classList.add('drag');host.setPointerCapture(e.pointerId);});
+  host.addEventListener('pointermove',e=>{if(!down)return;
+    host.scrollLeft=l-(e.clientX-sx);host.scrollTop=t-(e.clientY-sy);});
+  const up=e=>{down=false;host.classList.remove('drag');
+    try{host.releasePointerCapture(e.pointerId);}catch(_){}};
+  host.addEventListener('pointerup',up);host.addEventListener('pointercancel',up);
+}
+
+function rmFit(){
+  const M=rmData(); if(!M)return;
+  const flow=M.flows.find(f=>f.id===RM_FLOW); if(!flow||!(flow.nodes||[]).length)return;
+  const L=rmLayout(flow.nodes), host=document.getElementById('map-canvas');
+  RM_Z=Math.min(1.6,Math.max(0.25,(host.clientWidth-24)/L.width));
+  rmDraw();
+}
+function rmWire(){
+  const p=document.getElementById('map-pick'); if(!p)return;
+  p.addEventListener('change',e=>rmPick(e.target.value));
+  document.getElementById('map-perf').addEventListener('click',e=>{
+    RM_PERF=!RM_PERF;e.currentTarget.setAttribute('aria-pressed',RM_PERF);rmDraw();});
+  document.getElementById('map-in').addEventListener('click',()=>{RM_Z=Math.min(2,RM_Z*1.2);rmDraw();});
+  document.getElementById('map-out').addEventListener('click',()=>{RM_Z=Math.max(0.2,RM_Z/1.2);rmDraw();});
+  document.getElementById('map-fit').addEventListener('click',rmFit);
+  document.getElementById('view-map').addEventListener('click',e=>{
+    const h=e.target.closest('.asec-head'); if(h)h.closest('.asection').classList.toggle('open');});
 }
 
 // ---- boot ----
