@@ -1947,7 +1947,13 @@ async function loadOwnerComments(){try{const {data}=await sb.auth.getUser();cons
   IS_OWNER=!!(u&&u.email&&CMT_OWNERS.includes(u.email.toLowerCase()));
   COMMENTS=(u&&u.user_metadata&&Array.isArray(u.user_metadata.dash_comments))?u.user_metadata.dash_comments:[];
 }catch(e){IS_OWNER=false;COMMENTS=[];}}
-async function saveComments(){try{await sb.auth.updateUser({data:{dash_comments:COMMENTS}});}catch(e){console.warn('note save failed',e);}}
+// Pins live in auth user_metadata, which Supabase EMBEDS IN THE JWT — an
+// oversized pin list makes every request's auth header too big and login-loops
+// the owner (hit 2026-08-28 at ~43KB). So only OPEN pins are persisted;
+// resolved ones are archived to git by the agent when it actions them.
+async function saveComments(){try{
+  await sb.auth.updateUser({data:{dash_comments:COMMENTS.filter(c=>c.status!=='resolved')}});
+}catch(e){console.warn('note save failed',e);}}
 function delComment(id){COMMENTS=COMMENTS.filter(c=>c.id!==id);saveComments();}
 function curView(){const a=document.getElementById('view-audit');return (a&&!a.hidden)?'audit':'dash';}
 function nearestAnchor(el){const root=document.getElementById('app');let n=el;
