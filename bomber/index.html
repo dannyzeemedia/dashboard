@@ -3238,7 +3238,7 @@ function rmRow(c,byId){
   const rv=(c.revenue_by&&c.revenue_by[RM_RANGE]!=null)?c.revenue_by[RM_RANGE]:c.revenue;
   const dv=(c.duplicate_revenue_by&&c.duplicate_revenue_by[RM_RANGE]!=null)?c.duplicate_revenue_by[RM_RANGE]:c.duplicate_revenue;
   const note=rv?('<b>'+rmMoney(rv)+'</b> <span style="color:var(--muted)">'+RM_RLABEL[RM_RANGE]+'</span>'
-    +(dv?'<br><span class="rm-fbad">+'+rmMoney(dv)+' in copies</span>':'')):'';
+    +(dv?'<br><span class="rm-fbad" title="Revenue earned by duplicate/test copies of this flow that are still live and sending alongside the original">+'+rmMoney(dv)+' via live duplicate copies</span>':'')):'';
   const sub=lead?'<span>'+esc(lead.name)+(flows.length>1?' +'+(flows.length-1)+' more':'')+'</span>':'';
   const inner='<div class="rm-nm">'+esc(c.label)+sub+'</div>'
     +'<div><span class="rm-chip '+cls+'">'+txt+'</span></div>'+meters
