@@ -728,6 +728,7 @@
   /* The canvas owns its palette — it is a product surface, not a client-branded
      one, so it does not inherit --plane / --surface-2. */
   .rm-scroll{position:relative;overflow:auto;flex:1;min-height:0;height:min(66vh,700px);
+    display:flex;
     --c-bg:#EDF0F6; --c-dot:#D3D9E5;
     background-color:var(--c-bg);
     background-image:radial-gradient(var(--c-dot) 1.15px,transparent 1.15px);
@@ -737,7 +738,7 @@
   :root[data-theme="dark"] .rm-scroll{--c-bg:#101218; --c-dot:#242935}
   .rm-stage.full .rm-scroll{height:auto}
   .rm-scroll.drag{cursor:grabbing}
-  .rm-planebox{position:relative}
+  .rm-planebox{position:relative;margin:auto;flex:none}
   .rm-plane{transform-origin:0 0;width:max-content}
   .rm-plane svg{display:block}
   .rm-node{cursor:pointer}
@@ -1064,6 +1065,7 @@
           title="Re-read the flows from Klaviyo">⟳ <span id="map-resync-t">Resync</span></button>
         <span class="rm-synced" id="map-synced"></span>
         <div class="chips" id="map-range" role="group" aria-label="Time period">
+          <button data-r="7d">7 days</button>
           <button data-r="30d">30 days</button>
           <button data-r="90d" aria-selected="true">90 days</button>
           <button data-r="12m">12 months</button>
@@ -1087,10 +1089,10 @@
         <span><i class="rm-key" style="background:#C6CDDA;width:16px;height:9px;border-radius:5px"></i>Wait</span>
         <span><i class="rm-key" style="background:#E9F0FE;border:1px solid #3B6FF5;width:11px;height:11px;border-radius:4px"></i>Condition</span>
         <span><i class="rm-key" style="background:linear-gradient(90deg,#2FA36B 50%,#E5484D 50%);width:11px;height:11px;border-radius:50%"></i>Donut on a condition: green = Yes, red = No</span>
-        <span>Health peeks out below each card: <b style="color:var(--crit)">ALERT</b>,
-          <b style="color:var(--warn)">WATCH</b> or <b style="color:var(--good)">ALL GOOD</b></span>
-        <span>Every message is tagged <b style="color:var(--good)">LIVE</b>,
-          <b style="color:var(--warn)">DRAFT</b> or <b style="color:var(--flow)">MANUAL</b></span>
+        <span>A bar along the bottom of each card flags health: <b style="color:var(--crit)">ALERT</b>,
+          <b style="color:var(--warn)">WATCH</b>, or <b style="color:var(--good)">ALL GOOD</b></span>
+        <span>Each message shows its status: <b style="color:var(--good)">LIVE</b>,
+          <b style="color:var(--muted)">DRAFT</b> or <b style="color:#3B6FF5">MANUAL</b></span>
         <span>A/B state shows as <b style="color:var(--good)">TESTING</b> or
           <b style="color:var(--warn)">TEST IDLE</b></span>
         <span style="margin-left:auto;opacity:.8">Drag to pan &middot; &#8984;/Ctrl + scroll to zoom</span>
@@ -3070,7 +3072,7 @@ function wireControls(){
 let RM_FLOW=null, RM_PERF=true, RM_Z=1, RM_SEL=null, RM_FULL=false, RM_L=null;
 let RM_RANGE='90d';
 let _rmSplitMemo={};
-const RM_RLABEL={'30d':'last 30 days','90d':'last 90 days','12m':'last 12 months'};
+const RM_RLABEL={'7d':'last 7 days','30d':'last 30 days','90d':'last 90 days','12m':'last 12 months'};
 // stats are stored per window so the time shifter needs no round trip
 const rmStats=n=>(n&&n.stats&&n.stats[RM_RANGE])||null;
 const rmTotals=f=>(f&&f.totals&&f.totals[RM_RANGE])||{revenue:f&&f.revenue||0,delivered:f&&f.delivered||0};
@@ -3231,7 +3233,7 @@ function rmBox(n){
   if(k==='trigger')return {w:RM_W.msg,h:74};
   if(k==='delay')return {w:RM_W.delay,h:RM_HB.delay};
   if(k==='split')return {w:RM_W.split,h:RM_HB.split};
-  return {w:RM_W.msg,h:RM_HB.msg+(RM_PERF&&n.stats?70:0)+(rmHasMeta(n)?17:0)};
+  return {w:RM_W.msg,h:(RM_PERF?216:90)};   // tile card (perf) or header+alert bar only
 }
 
 function rmLayout(nodes){
@@ -3503,19 +3505,6 @@ function rmDraw(){
       stroke:P.accent,'stroke-width':2,class:'halo',opacity:RM_SEL===n.id?1:0});
     g.appendChild(halo);
 
-    // Health reads as a word on a tab tucked behind the card so it peeks out
-    // below. Drawn before the card, so the card overlaps its top edge.
-    if(k==='email'||k==='sms'||k==='push'){
-      const lvl=iss.some(i=>i[0]==='crit')?'crit':iss.length?'warn':'ok';
-      const word={crit:'ALERT',warn:'WATCH',ok:'ALL GOOD'}[lvl];
-      const col={crit:P.crit,warn:P.warn,ok:P.good}[lvl];
-      const bg={crit:P.critSoft,warn:P.warnSoft,ok:P.goodSoft}[lvl];
-      const tw=rmMeasure(word,8.5,800)+26, peek=15, th=peek+18;
-      const tx0=p.x+p.w-tw-22, ty0=p.y+p.h-18;
-      g.appendChild(sv('rect',{x:tx0,y:ty0,width:tw,height:th,rx:8,fill:bg,
-        stroke:col,'stroke-opacity':.45,'stroke-width':1,filter:'url(#rm-shs)'}));
-      rmText(g,tx0+tw/2,ty0+th-5,word,8.5,800,col,1,'.1em');
-    }
     const shape=sv('rect',{x:p.x,y:p.y,width:p.w,height:p.h,rx:rx,fill:P.card,class:'shape',
       filter:'url(#rm-'+(k==='delay'?'shs':'sh')+')'});
     if(k==='delay')shape.setAttribute('fill',P.chip);
@@ -3580,72 +3569,77 @@ function rmDraw(){
          rmText(g,dcx,dcy+4,Math.round(domPct*100)+'%',10.5,800,domCol,1,'-.02em');
        }}
     }else{
+      // ---- message card: tile layout + status pill + footer alert bar ----
       const isSms=k==='sms';
       const tint=isSms?P.tealSoft:P.accentSoft, tcol=isSms?P.teal:P.accent;
-      g.appendChild(sv('rect',{x:p.x+16,y:p.y+16,width:26,height:26,rx:9,fill:tint}));
-      drawIcon(p.x+21,p.y+21,16,tcol,isSms?'sms':'email');
-      // state badges group top-right; health is the left stripe, never adjacent
-      let bx=p.x+p.w-16;
-      if(n.ab){
-        const alive=n.ab.experiment_status==='live', albl=alive?'TESTING':'TEST IDLE';
-        const aw=rmMeasure(albl,8,800)+16; bx-=aw;
-        g.appendChild(sv('rect',{x:bx,y:p.y+14,width:aw,height:17,rx:8.5,
-          fill:alive?P.goodSoft:P.warnSoft}));
-        rmText(g,bx+aw/2,p.y+26,albl,8,800,alive?P.good:P.warn,1,'.09em');
-        bx-=8;
+      const L0=p.x+16, R0=p.x+p.w-16, IW=p.w-32;
+      g.appendChild(sv('rect',{x:p.x+15,y:p.y+13,width:28,height:28,rx:8,fill:tint}));
+      drawIcon(p.x+21,p.y+19,16,tcol,isSms?'sms':'email');
+      // status pill — Live (green) / Draft (grey) / Manual (blue)
+      const stt=(n.status||'live'), stl=stt.toUpperCase();
+      const spc=stt==='draft'?P.mute:stt==='manual'?P.accent:P.good;
+      const spb=stt==='draft'?P.chip:stt==='manual'?P.accentSoft:P.goodSoft;
+      const pw=rmMeasureLS(stl,8.5,800,.06)+27, px0=R0-pw, py0=p.y+15;
+      g.appendChild(sv('rect',{x:px0,y:py0,width:pw,height:19,rx:9.5,fill:spb}));
+      g.appendChild(sv('circle',{cx:px0+11,cy:py0+9.5,r:3,fill:spc}));
+      rmText(g,px0+18,py0+13,stl,8.5,800,spc,1,'.06em','start');
+      // name + subject
+      const tx=p.x+52, nmR=px0-8;
+      rmText(g,tx,p.y+26,rmTrunc(n.name||(isSms?'SMS':'Email'),Math.max(50,nmR-tx),13,650),13,650,P.ink,1,'-.005em','start');
+      rmText(g,tx,p.y+41,rmTrunc(n.subject||n.preview||'',R0-tx,11,400),11,400,P.dim,1,null,'start');
+      g.appendChild(sv('line',{x1:p.x,y1:p.y+52,x2:p.x+p.w,y2:p.y+52,stroke:P.rule,'stroke-width':1}));
+
+      if(RM_PERF){
+        const st=rmStats(n);
+        const tileR=(x,y,w,h,fill)=>g.appendChild(sv('rect',{x:x,y:y,width:w,height:h,rx:10,
+          fill:fill||P.chip,stroke:P.rule,'stroke-width':1}));
+        // two equal-weight hero tiles: RPR + Revenue
+        const hy=p.y+62, hh=50, gp=8, hw=(IW-gp)/2;
+        tileR(L0,hy,hw,hh); tileR(L0+hw+gp,hy,hw,hh);
+        rmText(g,L0+12,hy+18,'RPR',8,800,P.mute,1,'.1em','start');
+        rmText(g,L0+12,hy+40,st?st.rpr.toFixed(2):'—',21,750,P.ink,1,'-.03em','start');
+        rmText(g,L0+hw+gp+12,hy+18,'REVENUE',8,800,P.mute,1,'.1em','start');
+        rmText(g,L0+hw+gp+12,hy+40,st?rmMoney(st.revenue):'—',21,750,P.ink,1,'-.03em','start');
+        // three stat tiles: OPEN / CLICK / ORDER
+        const sy=hy+hh+8, sh=40, sgp=7, sw=(IW-2*sgp)/3;
+        const por=st&&st.delivered?(st.orders/st.delivered*100):0;
+        [['OPEN',st?st.open.toFixed(1)+'%':'—'],['CLICK',st?st.click.toFixed(1)+'%':'—'],
+         ['ORDER',st?por.toFixed(2)+'%':'—']].forEach((c2,i)=>{
+          const cx=L0+i*(sw+sgp); tileR(cx,sy,sw,sh,P.card);
+          rmText(g,cx+sw/2,sy+16,c2[0],7.5,800,P.mute,1,'.09em');
+          rmText(g,cx+sw/2,sy+32,c2[1],13,750,P.ink,1,'-.01em');});
+        // sent · unsub (left) + smart / A-B chips (right)
+        const ry=sy+sh+19, unsubHi=st&&st.delivered>=500&&st.unsub>=1;
+        let mx=L0;
+        rmText(g,mx,ry,'Sent',8,800,P.mute,1,'.05em','start'); mx+=rmMeasureLS('Sent',8,800,.05)+5;
+        const sV=st?st.delivered.toLocaleString():'—'; rmText(g,mx,ry,sV,11,700,P.ink,1,null,'start'); mx+=rmMeasure(sV,11,700)+9;
+        rmText(g,mx,ry,'·',9,700,P.mute,.6,null,'start'); mx+=9;
+        rmText(g,mx,ry,'Unsub',8,800,P.mute,1,'.05em','start'); mx+=rmMeasureLS('Unsub',8,800,.05)+5;
+        const uV=st?st.unsub.toFixed(2)+'%':'—'; rmText(g,mx,ry,uV,11,700,unsubHi?P.crit:P.ink,1,null,'start');
+        let rxp=R0;
+        const chip=(txt,col,bg)=>{const w=rmMeasureLS(txt,8,800,.05)+16;rxp-=w;
+          g.appendChild(sv('rect',{x:rxp,y:ry-11,width:w,height:16,rx:8,fill:bg}));
+          rmText(g,rxp+w/2,ry+1,txt,8,800,col,1,'.05em');rxp-=6;};
+        if(n.ab){const alive=n.ab.experiment_status==='live';chip(alive?'TESTING':'TEST IDLE',alive?P.good:P.warn,alive?P.goodSoft:P.warnSoft);}
+        if(n.smart_sending===false)chip('SMART OFF',P.mute,P.chip);
       }
-      {const st2=(n.status||'live').toUpperCase();
-       const sw=rmMeasure(st2,8,800)+16; bx-=sw;
-       const sc=n.status==='draft'?P.warn:n.status==='manual'?P.accent:P.good;
-       const sb=n.status==='draft'?P.warnSoft:n.status==='manual'?P.accentSoft:P.goodSoft;
-       g.appendChild(sv('rect',{x:bx,y:p.y+14,width:sw,height:17,rx:8.5,fill:sb}));
-       rmText(g,bx+sw/2,p.y+26,st2,8,800,sc,1,'.09em');}
-      const tx=p.x+52, inner=Math.max(60,bx-tx-10);
-      rmText(g,tx,p.y+28,rmTrunc(n.name||(isSms?'SMS':'Email'),inner,13,650),13,650,P.ink,1,'-.005em','start');
-      rmText(g,tx,p.y+45,rmTrunc(n.subject||n.preview||'',p.w-52-20,11.5,400),11.5,400,P.dim,1,null,'start');
-      const metaOff=rmHasMeta(n)?17:0;
-      if(RM_PERF&&rmStats(n)){
-        const st=rmStats(n), fb=p.y+p.h-metaOff;
-        g.appendChild(sv('line',{x1:p.x+16,y1:fb-70,x2:p.x+p.w-16,y2:fb-70,
-          stroke:P.rule,'stroke-width':1}));
-        // two equal headline figures: what a send earns, and what it earned
-        rmText(g,p.x+16,fb-54,'RPR',8.5,800,P.mute,1,'.11em','start');
-        rmText(g,p.x+16,fb-35,st.rpr.toFixed(2),18,700,P.ink,1,'-.025em','start');
-        rmText(g,p.x+p.w-16,fb-54,'REVENUE',8.5,800,P.mute,1,'.11em','end');
-        rmText(g,p.x+p.w-16,fb-35,rmMoney(st.revenue),18,700,P.ink,1,'-.025em','end');
-        // the rates, on one line
-        const por=st.delivered?(st.orders/st.delivered*100):0;
-        const cells=[['OR',st.open.toFixed(1)+'%',P.dim],
-                   ['CR',st.click.toFixed(1)+'%',P.dim],
-                   ['POR',por.toFixed(2)+'%',P.dim],
-                   ['SENT',st.delivered.toLocaleString(),P.dim],
-                   ['UNSUB',st.unsub.toFixed(2)+'%',st.unsub>=1?P.crit:P.dim]];
-        // two lines: the rates, then the volumes — all five fit without a wider card
-        [[cells.slice(0,3),fb-18],[cells.slice(3),fb-3]].forEach(([row,ry])=>{
-          let mx=p.x+16;
-          row.forEach((c2,i)=>{
-            if(i){rmText(g,mx+2,ry,'·',8.5,700,P.mute,.5,null,'start');mx+=13;}
-            rmText(g,mx,ry,c2[0],8,800,P.mute,1,'.09em','start');
-            mx+=rmMeasureLS(c2[0],8,800,.09)+5;
-            rmText(g,mx,ry,c2[1],9.5,700,c2[2],1,null,'start');
-            mx+=rmMeasure(c2[1],9.5,700);
-          });
-        });
-      }
-      // meta line along the bottom edge: smart sending, and any filters set on
-      // this message specifically (on top of the flow's own filters)
-      if(rmHasMeta(n)){
-        const bits=[];
-        if(n.smart_sending!=null)
-          bits.push(['SMART SENDING '+(n.smart_sending?'ON':'OFF'),n.smart_sending?P.mute:P.warn]);
-        const mfn=(n.msg_filters||[]).length;
-        if(mfn)bits.push([mfn+' MESSAGE FILTER'+(mfn>1?'S':''),P.accent]);
-        let mx=p.x+16;
-        bits.forEach((b,i)=>{
-          if(i){rmText(g,mx,p.y+p.h-9,'·',8,700,P.mute,.6,null,'start');mx+=8;}
-          rmText(g,mx,p.y+p.h-9,b[0],8,800,b[1],1,'.09em','start');
-          mx+=rmMeasureLS(b[0],8,800,.09)+7;
-        });
+
+      // ---- footer alert bar (health only; publish status is the pill) ----
+      {const health=iss.filter(x=>!/^Draft|^Manual/.test(x[1]));
+       const lvl=health.some(i=>i[0]==='crit')?'crit':health.length?'warn':'ok';
+       const fcol={crit:P.crit,warn:P.warn,ok:P.good}[lvl];
+       const fbg={crit:P.critSoft,warn:P.warnSoft,ok:P.chip}[lvl];
+       const short=t=>t.replace(/^Unsubscribes /,'Unsub ').replace(/ on [\d,]+ sends/,'')
+         .replace(/^Live but no sends.*/,'Live, no recent sends').replace(/^A\/B test built.*/,'A/B test idle');
+       const ftxt=health.length?health.map(h=>short(h[1])).join('  ·  '):'All good';
+       const r0=16, fh=30, fy=p.y+p.h-fh;
+       const bp='M'+p.x+' '+fy+' H'+(p.x+p.w)+' V'+(p.y+p.h-r0)+' Q'+(p.x+p.w)+' '+(p.y+p.h)+' '+(p.x+p.w-r0)+' '+(p.y+p.h)
+         +' H'+(p.x+r0)+' Q'+p.x+' '+(p.y+p.h)+' '+p.x+' '+(p.y+p.h-r0)+' Z';
+       g.appendChild(sv('path',{d:bp,fill:fbg}));
+       g.appendChild(sv('line',{x1:p.x,y1:fy,x2:p.x+p.w,y2:fy,stroke:lvl==='ok'?P.rule:fcol,
+         'stroke-opacity':lvl==='ok'?1:.4,'stroke-width':1}));
+       g.appendChild(sv('circle',{cx:p.x+18,cy:fy+15,r:3,fill:fcol}));
+       rmText(g,p.x+27,fy+19,rmTrunc(ftxt,IW-20,11,650),11,650,lvl==='ok'?P.good:fcol,1,null,'start');
       }
     }
 
@@ -3909,7 +3903,11 @@ function rmFilters(flow,cov){
         : ' · not prescribed on the map')
       +'</div>';
   }
-  const left=fc?fc.rows.map(r=>'<li class="'+(r.present===false?'miss':r.present?'has':'')+'">'
+  // Re-entry is its own thing (shown in the head strip above), never a profile
+  // filter — exclude it here so it can't show a contradictory ✗ while the strip
+  // says it matches. Mirrors the trigger pop-up, which does the same.
+  const left=fc?fc.rows.filter(r=>!/re-?entry/i.test(r.prescribed||'')).map(r=>
+      '<li class="'+(r.present===false?'miss':r.present?'has':'')+'">'
       +esc(r.prescribed)+'</li>').join('')
     :'<li class="dim">This flow is not on the retention map, so there is nothing prescribed.</li>';
   const right=act.length?act.map(l=>'<li>'+esc(l)+'</li>').join('')
