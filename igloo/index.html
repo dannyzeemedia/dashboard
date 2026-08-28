@@ -1301,7 +1301,6 @@ function switchTo(slug){ACTIVE=slug;
   seg.hidden=!(hasReports||hasMap);
   [...seg.children].forEach(x=>{const v=x.dataset.view;
     x.hidden=(v==='reports'&&!hasReports)||(v==='map'&&!hasMap);});
-  {const vb=document.getElementById('vidBtn');if(vb){const vu=(A&&A.video_url)||'';vb.dataset.embed=vu;vb.style.display=vu?'':'none';}}
   const msel=document.getElementById('boardMonth');
   if(msel){msel.innerHTML=reps.map((rr,i)=>'<option value="'+i+'">'+esc(rr.month_label||rr.month||'')+'</option>').join('');msel.value='0';}
   // Audit prospects open straight on their audit, which now lives inside Reports.
@@ -1312,6 +1311,7 @@ function switchTo(slug){ACTIVE=slug;
   document.getElementById('view-reports').hidden=true;   // shown by openAudit / tab click
   document.getElementById('view-audit').hidden=!startAudit;
   document.getElementById('view-map').hidden=true;
+  updateVidBtn();
   RM_FLOW=null;RM_SEL=null;RM_Z=1;RM_L=null;if(RM_FULL)rmFullscreen(false);
   if(hasMap)renderMap();
   REPORT_OPEN=null;
@@ -1768,22 +1768,31 @@ function renderReports(){
   });
   const back=document.getElementById('repBack');if(back)back.addEventListener('click',()=>{REPORT_OPEN=null;renderReports();window.scrollTo({top:0});});
 }
+// The video walk-thru button belongs to the account audit, so it only shows
+// while the Audit view is open (and only when that audit has a video).
+function updateVidBtn(){
+  const vb=document.getElementById('vidBtn'); if(!vb)return;
+  const A=(SERIES[ACTIVE]||{}).audit, vu=(A&&A.video_url)||'';
+  vb.dataset.embed=vu;
+  const inAudit=!document.getElementById('view-audit').hidden;
+  vb.style.display=(vu&&inAudit)?'':'none';
+}
 // Monthly report (Recurring) opens the board view; back returns to the Reports list.
 function openMonthlyReport(){
   document.getElementById('view-reports').hidden=true;
   document.getElementById('view-board').hidden=false;
-  renderBoard();window.scrollTo({top:0});
+  renderBoard();updateVidBtn();window.scrollTo({top:0});
 }
 function openAudit(){
   document.getElementById('view-reports').hidden=true;
   document.getElementById('view-audit').hidden=false;
-  renderAudit();window.scrollTo({top:0});
+  renderAudit();updateVidBtn();window.scrollTo({top:0});
 }
 function backToReports(){
   document.getElementById('view-board').hidden=true;
   document.getElementById('view-audit').hidden=true;
   document.getElementById('view-reports').hidden=false;
-  REPORT_OPEN=null;renderReports();window.scrollTo({top:0});
+  REPORT_OPEN=null;renderReports();updateVidBtn();window.scrollTo({top:0});
 }
 function repChart(host,name,data){
   if(!host||!data)return;host.style.position='relative';
@@ -2026,7 +2035,7 @@ function renderAudit(){const S=SERIES[ACTIVE],A=S&&S.audit,body=document.getElem
   {const tb=document.getElementById('todoBtn');if(tb)tb.style.display=(IS_OWNER&&A&&A.findings)?'':'none';}
   document.getElementById('audit-title').textContent=(A&&A.title)||'Account audit';
   document.getElementById('audit-eyebrow').textContent=(S.name||'')+' · audit';
-  const vb=document.getElementById('vidBtn');if(vb){const vu=(A&&A.video_url)||'';vb.dataset.embed=vu;vb.style.display=vu?'':'none';}
+  updateVidBtn();
   document.getElementById('audit-sub').textContent=(A&&A.sub)||'';
   body.innerHTML=''; if(!A||!A.findings)return;
   if(A.wins&&A.wins.length)auditWins(body,A.wins);
@@ -3028,7 +3037,8 @@ function wireControls(){
     document.getElementById('view-map').hidden=v!=='map';
     if(v!=='map'&&RM_FULL)rmFullscreen(false);
     if(v==='reports'){REPORT_OPEN=null;renderReports();}
-    if(v==='map'){renderMap();}});
+    if(v==='map'){renderMap();}
+    updateVidBtn();});
   document.getElementById('boardMonth').addEventListener('change',e=>{const reps=REPORTS[ACTIVE]||[];REPORT=reps[+e.target.value]||reps[0]||null;renderBoard();});
   document.getElementById('curTog').addEventListener('click',e=>{inProgress=!inProgress;e.currentTarget.setAttribute('aria-pressed',inProgress);applyMode();renderDash();});
   document.getElementById('subsChanSeg').addEventListener('click',e=>{const b=e.target.closest('.csg');if(!b)return;
