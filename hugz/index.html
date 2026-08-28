@@ -1303,20 +1303,19 @@ function switchTo(slug){ACTIVE=slug;
     x.hidden=(v==='reports'&&!hasReports)||(v==='map'&&!hasMap);});
   const msel=document.getElementById('boardMonth');
   if(msel){msel.innerHTML=reps.map((rr,i)=>'<option value="'+i+'">'+esc(rr.month_label||rr.month||'')+'</option>').join('');msel.value='0';}
-  // Audit prospects open straight on their audit, which now lives inside Reports.
-  const startAudit=!!(A&&A.default);
-  [...seg.children].forEach(x=>x.setAttribute('aria-selected',x.dataset.view===(startAudit?'reports':'dash')));
-  document.getElementById('view-dash').hidden=startAudit;
+  // Every client opens on the Dashboard; the audit lives one click away in
+  // Reports (audit.default is deliberately ignored — ?v=audit still deep-links).
+  [...seg.children].forEach(x=>x.setAttribute('aria-selected',x.dataset.view==='dash'));
+  document.getElementById('view-dash').hidden=false;
   document.getElementById('view-board').hidden=true;
   document.getElementById('view-reports').hidden=true;   // shown by openAudit / tab click
-  document.getElementById('view-audit').hidden=!startAudit;
+  document.getElementById('view-audit').hidden=true;
   document.getElementById('view-map').hidden=true;
   updateVidBtn();
   RM_FLOW=null;RM_SEL=null;RM_Z=1;RM_L=null;if(RM_FULL)rmFullscreen(false);
   if(hasMap)renderMap();
   REPORT_OPEN=null;
   renderDash();renderBoard();renderReports();
-  if(startAudit)renderAudit(); else document.getElementById('view-reports').hidden=true;
   if(IS_OWNER)updateFab();}
 
 // Build the working arrays from base + (optionally) the in-progress month.
