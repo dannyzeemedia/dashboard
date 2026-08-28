@@ -914,6 +914,7 @@
       <button role="tab" aria-selected="false" data-view="map">Retention Map</button>
     </div>
     <button class="vidbtn" id="vidBtn" type="button" style="display:none">▶ Video walk-thru</button>
+    <button class="themeBtn" id="refreshBtn" style="display:none" title="Reload for the latest version, staying on this client and tab">⟳ Refresh</button>
     <button class="themeBtn" id="themeBtn">◑ Theme</button>
     <button class="outBtn" id="outBtn">Log out</button>
   </div></header>
@@ -3056,6 +3057,17 @@ function wireControls(){
     document.getElementById('todoClose').addEventListener('click',close);
     document.getElementById('todoBackdrop').addEventListener('click',close);
     document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!tm.hidden)close();});})();
+  // Owner-only "Refresh" — reloads for the latest deploy but stays on the
+  // current client + tab (a plain Ctrl+R re-boots to the favourite's default view).
+  {const rb=document.getElementById('refreshBtn');
+   if(rb&&IS_OWNER){rb.style.display='';
+     rb.addEventListener('click',function(){
+       let v='dash';for(const x of ['map','audit','board','reports']){
+         const el=document.getElementById('view-'+x); if(el&&!el.hidden){v=x;break;}}
+       const parts=location.pathname.replace(/\/index\.html?$/i,'').replace(/\/+$/,'').split('/');
+       if(ACTIVE)parts[parts.length-1]=ACTIVE;
+       location.href=parts.join('/')+'/?v='+encodeURIComponent(v)+'&r='+Date.now();
+     });}}
   document.getElementById('themeBtn').addEventListener('click',toggleTheme);
   document.getElementById('outBtn').addEventListener('click',()=>sb.auth.signOut().then(()=>location.reload()));
   matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{applyPalette();buildSwitcher();renderDash();});
