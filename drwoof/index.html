@@ -1857,8 +1857,8 @@ function repChart(host,name,data){
     host.appendChild(cont);
   }
   else if(name==='catbars'||name.indexOf('catbars')===0){   // horizontal bars: one category per row, value labelled, top bar highlighted
-    const sym=data.sym||'$';const rows=data.rows.slice().sort((a,b)=>b[1]-a[1]);
-    const fmtm=v=>sym+Math.round(v).toLocaleString();
+    const sym=data.sym||'$',suf=data.suffix||'';const rows=data.rows.slice().sort((a,b)=>b[1]-a[1]);
+    const fmtm=v=>sym+Math.round(v).toLocaleString()+suf;
     const W=680,rh=56,H=rows.length*rh+18,L=158,R=96,iw=W-L-R,mx=Math.max.apply(null,rows.map(r=>r[1]))*1.05;
     const s=svg(W,H);
     rows.forEach((r,i)=>{const y=12+i*rh,bw=Math.max(3,iw*r[1]/mx),top=(i===0);
@@ -1903,6 +1903,34 @@ function repChart(host,name,data){
     const lg=document.createElement('div');lg.className='rep-lg';
     lg.innerHTML='<span><i style="background:var(--camp)"></i>'+esc(d.barLabel||'Campaigns sent')+'</span><span><i style="background:var(--flow)"></i>'+esc(d.lineLabel||'Net subscribers (cumulative)')+'</span>';
     host.appendChild(lg);
+  }
+  else if(name==='pcttrend'||name.indexOf('pcttrend')===0){   // one or more % series over time
+    const d=data,n=d.x.length,cols=[ON,OFF,ACC];
+    const dp=d.decimals==null?2:d.decimals,fp=v=>v.toFixed(dp)+'%';
+    const W=760,H=300,L=56,R=18,PT=20,PB=40,iw=W-L-R,ih=H-PT-PB;
+    const mx=Math.max.apply(null,d.series.map(s2=>Math.max.apply(null,s2.vals)))*1.15;
+    const x=i=>L+iw*(n===1?0.5:i/(n-1)), y=v=>PT+ih-ih*Math.min(v,mx)/mx;
+    const s=svg(W,H);
+    for(let g2=0;g2<=4;g2++){const f=g2/4,yy=PT+ih-ih*f;
+      s.appendChild(el('line',{x1:L,x2:W-R,y1:yy,y2:yy,stroke:'var(--border)','stroke-width':1}));
+      const t=el('text',{x:L-8,y:yy+3,'text-anchor':'end',fill:'var(--muted)','font-size':10.5,'font-family':'system-ui'});t.textContent=fp(mx*f);s.appendChild(t);}
+    d.series.forEach((s2,si)=>{const col=s2.col||cols[si%cols.length];
+      let p='';s2.vals.forEach((v,i)=>p+=(i?'L':'M')+x(i)+' '+y(v));
+      s.appendChild(el('path',{d:p,fill:'none',stroke:col,'stroke-width':2.5,'stroke-linejoin':'round'}));
+      s2.vals.forEach((v,i)=>s.appendChild(el('circle',{cx:x(i),cy:y(v),r:3,fill:col,stroke:'var(--card)','stroke-width':1.5})));});
+    d.x.forEach((lb,i)=>{if(n>8&&i%2)return;
+      const t=el('text',{x:x(i),y:H-14,'text-anchor':'middle',fill:'var(--muted)','font-size':10,'font-family':'system-ui'});t.textContent=lb;s.appendChild(t);});
+    const guide=el('line',{x1:L,x2:L,y1:PT,y2:PT+ih,stroke:'var(--ink)','stroke-width':1,'stroke-dasharray':'3 3','stroke-opacity':0});s.appendChild(guide);
+    const hit=el('rect',{x:L,y:PT,width:iw,height:ih,fill:'transparent'});hit.style.cursor='crosshair';s.appendChild(hit);
+    hit.addEventListener('mousemove',e=>{const rct=s.getBoundingClientRect();const px=(e.clientX-rct.left)/rct.width*W;
+      let i=Math.round((px-L)/iw*(n-1));i=Math.max(0,Math.min(n-1,i));
+      guide.setAttribute('x1',x(i));guide.setAttribute('x2',x(i));guide.setAttribute('stroke-opacity',0.35);
+      showTip(host,e,d.x[i],d.series.map((s2,si)=>[s2.name,s2.vals[i],s2.col||cols[si%cols.length],fp]),fp);});
+    hit.addEventListener('mouseleave',()=>{hideTip(host);guide.setAttribute('stroke-opacity',0);});
+    host.appendChild(s);
+    if(d.series.length>1){const lg=document.createElement('div');lg.className='rep-lg';
+      lg.innerHTML=d.series.map((s2,si)=>'<span><i style="background:'+(s2.col||cols[si%cols.length])+'"></i>'+esc(s2.name)+'</span>').join('');
+      host.appendChild(lg);}
   }
 }
 
