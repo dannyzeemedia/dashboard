@@ -1448,25 +1448,34 @@ function renderTiles(){
 
 function renderRpr(){const{cur,cmp,valid}=windows();const A=flowAgg(cur),B=valid?flowAgg(cmp):{};
   const totDeliv=Object.values(A).reduce((s,v)=>s+v.d,0);
-  const list=Object.entries(A).map(([n,v])=>({n,rpr:v.r/v.d,d:v.d}))
-    .filter(f=>f.d>=Math.max(500,totDeliv*0.01)).sort((x,y)=>y.rpr-x.rpr).slice(0,9);
+  const eligible=Object.entries(A).map(([n,v])=>({n,rpr:v.r/v.d,d:v.d}))
+    .filter(f=>f.d>=Math.max(500,totDeliv*0.01)).sort((x,y)=>y.rpr-x.rpr);
+  const list=eligible.slice(0,9);
+  // a flow that is NEW this range (nothing in the compare window) always earns a
+  // row even below the top nine — otherwise a fresh launch is invisible here
+  // while Flow revenue diversity shows it
+  {const shown=new Set(list.map(f=>f.n));
+   eligible.filter(f=>!shown.has(f.n)&&(!B[f.n]||!B[f.n].d)).slice(0,3).forEach(f=>list.push(f));}
   const max=Math.max(...list.map(f=>f.rpr),0.01);
   document.getElementById('rpr-list').innerHTML=list.map(f=>{let dchip='<span class="rd flat">—</span>';
     if(B[f.n]&&B[f.n].d>0){const dl=delta(f.rpr,B[f.n].r/B[f.n].d);dchip=`<span class="rd ${dl.c}">${dl.t}</span>`;}
     else if(valid)dchip='<span class="rd flat">new</span>';
     return `<div class="rprrow"><span class="rn" title="${f.n}">${f.n}</span><div class="rbar"><i style="width:${Math.max(2,f.rpr/max*100)}%"></i></div><span class="rv">${SYM}${f.rpr.toFixed(2)}</span>${dchip}</div>`;}).join('');
-  document.getElementById('rpr-cap').textContent=`Attributed revenue ÷ delivered over the range · Δ vs ${CMP==='yoy'?'same period last year':'previous period'} (flows <1% of volume hidden).`;}
+  document.getElementById('rpr-cap').textContent=`Attributed revenue ÷ delivered over the range · Δ vs ${CMP==='yoy'?'same period last year':'previous period'} (flows <1% of volume hidden; newly launched flows always shown).`;}
 
 function renderPor(){const{cur,cmp,valid}=windows();const A=flowAgg(cur),B=valid?flowAgg(cmp):{};
   const totDeliv=Object.values(A).reduce((s,v)=>s+v.d,0);
-  const list=Object.entries(A).map(([n,v])=>({n,por:v.d?v.p/v.d*100:0,d:v.d}))
-    .filter(f=>f.d>=Math.max(500,totDeliv*0.01)).sort((x,y)=>y.por-x.por).slice(0,9);
+  const eligible=Object.entries(A).map(([n,v])=>({n,por:v.d?v.p/v.d*100:0,d:v.d}))
+    .filter(f=>f.d>=Math.max(500,totDeliv*0.01)).sort((x,y)=>y.por-x.por);
+  const list=eligible.slice(0,9);
+  {const shown=new Set(list.map(f=>f.n));
+   eligible.filter(f=>!shown.has(f.n)&&(!B[f.n]||!B[f.n].d)).slice(0,3).forEach(f=>list.push(f));}
   const max=Math.max(...list.map(f=>f.por),0.01);
   document.getElementById('por-list').innerHTML=list.map(f=>{let dchip='<span class="rd flat">—</span>';
     if(B[f.n]&&B[f.n].d>0){const dl=delta(f.por,B[f.n].p/B[f.n].d*100);dchip=`<span class="rd ${dl.c}">${dl.t}</span>`;}
     else if(valid)dchip='<span class="rd flat">new</span>';
     return `<div class="rprrow"><span class="rn" title="${f.n}">${f.n}</span><div class="rbar"><i style="width:${Math.max(2,f.por/max*100)}%"></i></div><span class="rv">${f.por.toFixed(2)}%</span>${dchip}</div>`;}).join('');
-  document.getElementById('por-cap').textContent=`Placed orders ÷ delivered over the range · Δ vs ${CMP==='yoy'?'same period last year':'previous period'} (flows <1% of volume hidden).`;}
+  document.getElementById('por-cap').textContent=`Placed orders ÷ delivered over the range · Δ vs ${CMP==='yoy'?'same period last year':'previous period'} (flows <1% of volume hidden; newly launched flows always shown).`;}
 
 function miniLine(card,win,vals0,color,fmt,dash0,lab,ip){const[i0,i1]=win;const L=MONTHS.slice(i0,i1+1),vals=vals0.slice(i0,i1+1);
   const dash=dash0?dash0.slice(i0,i1+1):null;
