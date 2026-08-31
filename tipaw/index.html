@@ -3109,7 +3109,7 @@ function wireControls(){
          const el=document.getElementById('view-'+x); if(el&&!el.hidden){v=x;break;}}
        const parts=location.pathname.replace(/\/index\.html?$/i,'').replace(/\/+$/,'').split('/');
        if(ACTIVE)parts[parts.length-1]=ACTIVE;
-       location.href=parts.join('/')+'/?v='+encodeURIComponent(v)+'&r='+Date.now();
+       location.href=parts.join('/')+'/?v='+encodeURIComponent(v)+'&c='+encodeURIComponent(ACTIVE||'')+'&r='+Date.now();
      });}}
   document.getElementById('themeBtn').addEventListener('click',toggleTheme);
   document.getElementById('outBtn').addEventListener('click',()=>sb.auth.signOut().then(()=>location.reload()));
@@ -4159,6 +4159,10 @@ async function loadAndRender(){ try{
   let start=folderIsClient?folder:folderIsGroup?groupClients[0]:ORDER[0];   // folder's client, or first client of the folder's group
   const multiAcct=[...new Set(ORDER.map(s=>SERIES[s].group||s))].length>1;
   if(multiAcct){const def=getDefaultClient();if(def&&ORDER.includes(def))start=def;}   // owner's chosen default wins
+  // …except when the URL names a client explicitly (?c=, set by the Refresh
+  // button) — that intent beats the favourite, or Refresh boomerangs you home.
+  try{const cp=new URLSearchParams(location.search).get('c');
+      if(cp&&ORDER.includes(cp))start=cp;}catch(e){}
   switchTo(start);
   try{const vp=new URLSearchParams(location.search).get('v');   // deep-link to a view: ?v=reports|audit|dash (board → Reports > Monthly report)
     if(vp==='board'||vp==='audit'){const rt=[...document.querySelectorAll('#viewSeg button')].find(b=>b.dataset.view==='reports'&&!b.hidden);if(rt){rt.click();if(vp==='board')openMonthlyReport();else openAudit();}}
