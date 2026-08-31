@@ -3215,8 +3215,17 @@ function renderMap(){
     return '<div class="rm-group"><div class="rm-glab">'+g[1]+'</div><div class="rm-rows">'
       +rows.map(c=>rmRow(c,byId)).join('')+'</div></div>';
   }).join('');
+  // A slot with a nest expands on click; only single-flow rows (and the nested
+  // sub-rows) jump to the map stage.
   document.querySelectorAll('#map-coverage .rm-row[data-flow]').forEach(b=>
-    b.addEventListener('click',()=>{rmPick(b.dataset.flow);
+    b.addEventListener('click',()=>{
+      const slot=b.closest('.rm-slot');
+      if(slot&&slot.querySelector('.rm-sub')){
+        const on=slot.classList.toggle('open');
+        const x=slot.querySelector('.rm-exp'); if(x)x.setAttribute('aria-expanded',on);
+        return;
+      }
+      rmPick(b.dataset.flow);
       document.getElementById('map-stage').scrollIntoView({behavior:'smooth',block:'start'});}));
   document.querySelectorAll('#map-coverage .rm-exp').forEach(b=>
     b.addEventListener('click',e=>{e.stopPropagation();
