@@ -782,12 +782,14 @@
   .rm-fh{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
     color:var(--muted);margin-bottom:8px}
   .rm-flist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
-  .rm-flist li{font-size:12.5px;line-height:1.45;color:var(--ink2);padding-left:22px;position:relative}
-  .rm-flist li::before{position:absolute;left:0;top:0;font-weight:800;font-size:11px}
+  .rm-flist li{font-size:12.5px;line-height:1.45;color:var(--ink2);padding:3px 8px 3px 26px;position:relative;border-radius:7px}
+  .rm-flist li::before{position:absolute;left:8px;top:3px;font-weight:800;font-size:11px}
+  .rm-flist li.has{color:var(--ink);background:color-mix(in srgb,var(--good) 9%,transparent)}
   .rm-flist li.has::before{content:"✓";color:var(--good)}
+  .rm-flist li.miss{color:var(--ink);background:color-mix(in srgb,var(--crit) 9%,transparent)}
   .rm-flist li.miss::before{content:"✕";color:var(--crit)}
-  .rm-flist li.miss{color:var(--ink)}
-  .rm-flist.plain li{padding-left:14px}
+  .rm-flist li.extra{color:var(--ink);background:color-mix(in srgb,var(--warn) 12%,transparent)}
+  .rm-flist li.extra::before{content:"?";color:var(--warn)}
   .rm-flist.plain li::before{content:"•";color:var(--muted)}
   .rm-flist li.dim{color:var(--muted)}
   .rm-slots{margin-top:16px;font-size:12.5px}
@@ -883,16 +885,18 @@
   .rm-pop .ptag.c{color:var(--crit);background:color-mix(in srgb,var(--crit) 13%,transparent)}
   .rm-pop .pmix{list-style:none;margin:0 0 13px;padding:0;display:flex;
     flex-direction:column;gap:7px;font-size:12px;line-height:1.45}
-  .rm-pop .pmix li{padding-left:22px;position:relative;color:var(--ink2)}
-  .rm-pop .pmix li::before{position:absolute;left:0;top:0;font-weight:800;font-size:11px}
-  .rm-pop .pmix li.has{color:var(--ink)}
+  .rm-pop .pmix li{padding:3px 8px 3px 26px;position:relative;color:var(--ink2);border-radius:7px}
+  .rm-pop .pmix li::before{position:absolute;left:8px;top:3px;font-weight:800;font-size:11px}
+  .rm-pop .pmix li.has{color:var(--ink);background:color-mix(in srgb,var(--good) 9%,transparent)}
   .rm-pop .pmix li.has::before{content:"✓";color:var(--good)}
-  .rm-pop .pmix li.miss{color:var(--ink)}
+  .rm-pop .pmix li.miss{color:var(--ink);background:color-mix(in srgb,var(--crit) 9%,transparent)}
   .rm-pop .pmix li.miss::before{content:"✕";color:var(--crit)}
-  .rm-pop .pmix li.extra::before{content:"•";color:var(--muted)}
+  .rm-pop .pmix li.extra{color:var(--ink);background:color-mix(in srgb,var(--warn) 12%,transparent)}
+  .rm-pop .pmix li.extra::before{content:"?";color:var(--warn)}
   .rm-pop .pmix li em{font-style:normal;font-size:11px;color:var(--muted)}
   .rm-pop .pmix li.has em{color:var(--good)}
   .rm-pop .pmix li.miss em{color:var(--crit)}
+  .rm-pop .pmix li.extra em{color:var(--warn)}
   .rm-pop .pacts{display:flex;gap:8px;flex-wrap:wrap}
   .rm-pop .pacts a{font-size:12px;font-weight:600;color:var(--flow);text-decoration:none;
     border:1px solid var(--border);border-radius:8px;padding:7px 11px;background:var(--surface)}
@@ -3921,17 +3925,18 @@ function rmPopHtml(n,flow){
     if(fc){
       const rows=[];
       (fc.actual||[]).forEach(r=>rows.push(r.recommended
-        ? ['has',r.line,'Recommended']
-        : ['extra',r.line,'']));
+        ? ['has',r.line,'Prescribed']
+        : ['extra',r.line,'Not on the map']));
       (fc.missing||[]).forEach(l=>{
         if(/re-?entry/i.test(l))return;      // covered by the re-entry block above
-        rows.push(['miss',l,'Recommended, not set']);
+        rows.push(['miss',l,'Prescribed, not set']);
       });
-      const nRec=rows.filter(r=>r[0]==='has').length;
-      const nMiss=rows.filter(r=>r[0]==='miss').length;
+      // same denominator as the panel below: prescribed rows present vs total
+      const pRows=(fc.rows||[]).filter(r=>r.present!==null);
+      const nOk=pRows.filter(r=>r.present===true).length;
       list='<div class="psec">Profile filters</div>'
         +'<div class="ptags">'
-        +'<span class="ptag'+(nMiss?' w':' g')+'">'+nRec+' OF '+(nRec+nMiss)+' RECOMMENDED</span>'
+        +'<span class="ptag'+(nOk<pRows.length?' w':' g')+'">'+nOk+' OF '+pRows.length+' PRESCRIBED</span>'
         +'<span class="ptag">'+(flow.filters.lines||[]).length+' SET ON THE FLOW</span></div>'
         +'<ul class="pmix">'+rows.map(r=>'<li class="'+r[0]+'">'+esc(r[1])
           +(r[2]?' <em>('+esc(r[2])+')</em>':'')+'</li>').join('')+'</ul>'
@@ -4044,8 +4049,10 @@ function rmFilters(flow,cov){
       '<li class="'+(r.present===false?'miss':r.present?'has':'')+'">'
       +esc(r.prescribed)+'</li>').join('')
     :'<li class="dim">This flow is not on the retention map, so there is nothing prescribed.</li>';
-  const right=act.length?act.map(l=>'<li>'+esc(l)+'</li>').join('')
-    :'<li class="dim">No flow filters set.</li>';
+  const right=(fc&&fc.actual&&fc.actual.length)
+    ? fc.actual.map(r=>'<li class="'+(r.recommended?'has':'extra')+'">'+esc(r.line)+'</li>').join('')
+    : (act.length?act.map(l=>'<li>'+esc(l)+'</li>').join('')
+      :'<li class="dim">No flow filters set.</li>');
   const srcNote=(flow.filters_source||(cov&&cov.filters_source))==='inferred'
     ? '<p class="rm-src"><b>Unverified:</b> the map does not name a flow in these filters, so '
       +'which slot they belong to was matched on content. Worth confirming before acting on it.</p>'
@@ -4053,7 +4060,7 @@ function rmFilters(flow,cov){
   el.innerHTML='<div class="rm-fwrap">'+head
     +'<div class="rm-fcols">'
     +'<div><div class="rm-fh">Retention map prescribes</div><ul class="rm-flist">'+left+'</ul></div>'
-    +'<div><div class="rm-fh">This flow actually runs</div><ul class="rm-flist plain">'+right+'</ul></div>'
+    +'<div><div class="rm-fh">This flow actually runs</div><ul class="rm-flist'+((fc&&fc.actual&&fc.actual.length)?'':' plain')+'">'+right+'</ul></div>'
     +'</div>'
     +(cov&&cov.slots&&cov.slots.length?'<details class="rm-slots"><summary>Prescribed messages ('
       +cov.slots.length+')</summary><ol>'+cov.slots.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ol>'
