@@ -804,6 +804,17 @@
   .rm-flist li.miss::before{content:"✕";color:var(--crit)}
   .rm-flist li.extra{color:var(--ink);background:color-mix(in srgb,var(--warn) 12%,transparent)}
   .rm-flist li.extra::before{content:"?";color:var(--warn)}
+  .rm-flist li.hold{color:var(--ink2);background:color-mix(in srgb,var(--flow) 9%,transparent)}
+  .rm-flist li.hold::before{content:"✕";color:var(--flow)}
+  .rm-flist li.hold em{font-style:normal;font-size:11px;color:var(--flow)}
+  .rm-flist li.andor{color:var(--ink);background:color-mix(in srgb,var(--warn) 12%,transparent)}
+  .rm-flist li.andor::before{content:"!";color:var(--warn)}
+  .rm-flist li.andor em{font-style:normal;font-size:11px;color:var(--warn)}
+  /* OR alternatives inside one requirement, AND between requirements */
+  .rm-join{display:block;font-size:9.5px;font-weight:800;letter-spacing:.11em;
+    color:var(--muted);margin:2px 0 1px}
+  .rm-join.or{color:var(--flow)}
+  .rm-flist li.grp{padding-top:5px;padding-bottom:5px}
   .rm-flist.plain li::before{content:"•";color:var(--muted)}
   .rm-flist li.dim{color:var(--muted)}
   .rm-slots{margin-top:16px;font-size:12.5px}
@@ -908,10 +919,17 @@
   .rm-pop .pmix li.miss::before{content:"✕";color:var(--crit)}
   .rm-pop .pmix li.extra{color:var(--ink);background:color-mix(in srgb,var(--warn) 12%,transparent)}
   .rm-pop .pmix li.extra::before{content:"?";color:var(--warn)}
+  .rm-pop .pmix li.hold{color:var(--ink2);background:color-mix(in srgb,var(--flow) 9%,transparent)}
+  .rm-pop .pmix li.hold::before{content:"✕";color:var(--flow)}
   .rm-pop .pmix li em{font-style:normal;font-size:11px;color:var(--muted)}
   .rm-pop .pmix li.has em{color:var(--good)}
   .rm-pop .pmix li.miss em{color:var(--crit)}
   .rm-pop .pmix li.extra em{color:var(--warn)}
+  .rm-pop .pmix li.hold em{color:var(--flow)}
+  .rm-pop .pmix li.andor{color:var(--ink);background:color-mix(in srgb,var(--warn) 12%,transparent)}
+  .rm-pop .pmix li.andor::before{content:"!";color:var(--warn)}
+  .rm-pop .pmix li.andor em{color:var(--warn)}
+  .rm-pop .ptag.b{color:var(--flow);background:color-mix(in srgb,var(--flow) 13%,transparent)}
   .rm-pop .pacts{display:flex;gap:8px;flex-wrap:wrap}
   .rm-pop .pacts a{font-size:12px;font-weight:600;color:var(--flow);text-decoration:none;
     border:1px solid var(--border);border-radius:8px;padding:7px 11px;background:var(--surface)}
@@ -3562,6 +3580,21 @@ const RM_BANDS=[[60,'Minutes','same session'],[360,'Hours','same session, later'
   [1440,'Same day','later today'],[2880,'A day','tomorrow'],
   [10080,'Days','this week'],[43200,'A week or more','next week or later'],
   [Infinity,'A month or more','a season later']];
+// blend two hexes, for the delay ramp
+function rmMix(a,b,f){
+  const p=h=>{h=String(h||'').trim().replace('#','');
+    if(h.length===3)h=h.split('').map(c=>c+c).join('');
+    return [0,2,4].map(i=>parseInt(h.slice(i,i+2),16)||0);};
+  const x=p(a),y=p(b);
+  return '#'+[0,1,2].map(i=>Math.round(Math.max(0,Math.min(255,x[i]+(y[i]-x[i])*f))))
+    .map(v=>v.toString(16).padStart(2,'0')).join('');
+}
+// green for a wait inside the session, red for one that parks the profile for
+// weeks — the same reading as everything else on the map
+function rmDelayCol(i,P){
+  const t=i/(RM_BANDS.length-1);
+  return t<0.5?rmMix(P.good,P.warn,t*2):rmMix(P.warn,P.crit,(t-0.5)*2);
+}
 function rmDelayBand(n){
   const m=rmDelayMins(n); if(m==null)return null;
   for(let i=0;i<RM_BANDS.length;i++)if(m<RM_BANDS[i][0])
@@ -3823,10 +3856,13 @@ function rmDraw(){
       const bd=rmDelayBand(n);
       drawIcon(p.x+16,p.y+p.h/2-8,16,P.mute,'delay');
       rmText(g,p.x+40,p.y+(bd?p.h/2-1:p.h/2+4.5),rmDelay(n),12.5,600,P.dim,1,null,'start');
-      if(bd)for(let i=0;i<RM_BANDS.length;i++){
-        const on=i<=bd.i;
-        g.appendChild(sv('rect',{x:p.x+40+i*11,y:p.y+30,width:7,height:7,rx:1.6,
-          fill:on?P.accent:P.edge,'fill-opacity':on?(0.6+0.08*i):0.4}));
+      if(bd){
+        const dcol=rmDelayCol(bd.i,P);
+        for(let i=0;i<RM_BANDS.length;i++){
+          const on=i<=bd.i;
+          g.appendChild(sv('rect',{x:p.x+40+i*11,y:p.y+30,width:7,height:7,rx:1.6,
+            fill:on?dcol:P.edge,'fill-opacity':on?(0.62+0.063*i):0.4}));
+        }
       }
     }else if(k==='split'){
       drawIcon(p.x+16,p.y+15,17,P.accent,'split');
@@ -4090,21 +4126,44 @@ function rmPopHtml(n,flow){
     let list='';
     if(fc){
       const rows=[];
-      (fc.actual||[]).forEach(r=>rows.push(r.recommended
-        ? ['has',r.line,'Prescribed']
-        : ['extra',r.line,'Not on the map']));
+      // one row per Klaviyo condition group: the conditions inside a group are
+      // ORed, and the groups are ANDed with each other
+      const gseen={};
+      (fc.actual||[]).forEach(r=>{
+        const gi=(r.group==null?rows.length:r.group);
+        if(gseen[gi]!=null){const at=gseen[gi];
+          rows[at][1]+=' <span class="rm-join or">OR</span> '+esc(r.line);
+          rows[at][3]=true;
+          if(!r.recommended&&rows[at][0]==='has')rows[at][2]='Prescribed in part';
+          return;}
+        gseen[gi]=rows.length;
+        rows.push(r.recommended?['has',esc(r.line),'Prescribed',false]
+                               :['extra',esc(r.line),'Not on the map',false]);
+      });
       (fc.missing||[]).forEach(l=>{
         if(/re-?entry/i.test(l))return;      // covered by the re-entry block above
-        rows.push(['miss',l,'Prescribed, not set']);
+        rows.push(['miss',esc(l),'Prescribed, not set',false]);
       });
-      // same denominator as the panel below: prescribed rows present vs total
-      const pRows=(fc.rows||[]).filter(r=>r.present!==null);
+      // present, but the flow ANDs what the map wants ORed — a stricter filter
+      // than intended, which quietly shrinks the audience
+      (fc.logic_off||[]).forEach(x=>rows.push(['andor',esc(x.line),
+        'Set, but as AND where the map wants OR',false]));
+      // on hold: still not set, still shown, but last and out of the count —
+      // this account has a standing reason it cannot or should not be set
+      (fc.held||[]).forEach(h=>rows.push(['hold',h.line,
+        'On hold'+(h.reason?' — '+h.reason:'')]));
+      // same denominator as the panel below: prescribed rows present vs total,
+      // held rows excluded from both halves
+      const pRows=(fc.rows||[]).filter(r=>r.present!==null&&!r.hold);
       const nOk=pRows.filter(r=>r.present===true).length;
+      const nHold=(fc.held||[]).length;
       list='<div class="psec">Profile filters</div>'
         +'<div class="ptags">'
         +'<span class="ptag'+(nOk<pRows.length?' w':' g')+'">'+nOk+' OF '+pRows.length+' PRESCRIBED</span>'
-        +'<span class="ptag">'+(flow.filters.lines||[]).length+' SET ON THE FLOW</span></div>'
-        +'<ul class="pmix">'+rows.map(r=>'<li class="'+r[0]+'">'+esc(r[1])
+        +(nHold?'<span class="ptag b">'+nHold+' ON HOLD</span>':'')
+        +'<span class="ptag">'+((flow.filters.groups||flow.filters.lines||[]).length)
+        +' SET ON THE FLOW</span></div>'
+        +'<ul class="pmix">'+rows.map(r=>'<li class="'+r[0]+'">'+r[1]
           +(r[2]?' <em>('+esc(r[2])+')</em>':'')+'</li>').join('')+'</ul>'
         +(flow.filters_source==='inferred'
           ? '<p class="pnote">Which slot these recommendations belong to was matched on the '
@@ -4200,7 +4259,10 @@ function rmPopHtml(n,flow){
   const mfHtml=mf.length
     ? '<div class="psub" style="margin:0 0 6px"><b>Filters on this message</b> — on top of the '
       +'flow filters, these decide who actually gets this step</div>'
-      +'<ul class="plist" style="margin-bottom:13px">'+mf.map(l=>'<li>'+esc(l)+'</li>').join('')+'</ul>'
+      +'<ul class="plist" style="margin-bottom:13px">'
+      +(n.msg_filter_groups||mf.map(l=>[l])).map(g=>'<li>'
+        +g.map(l=>esc(l)).join(' <span class="rm-join or">OR</span> ')+'</li>').join('')
+      +'</ul>'
     : '<p class="pwhat" style="margin-bottom:13px;color:var(--muted)">No filters on this message, '
       +'so everyone who reaches this step receives it.</p>';
   return close+'<h5>'+esc(n.name||'Message')+'</h5>'
@@ -4234,14 +4296,31 @@ function rmFilters(flow,cov){
   // Re-entry is its own thing (shown in the head strip above), never a profile
   // filter — exclude it here so it can't show a contradictory ✗ while the strip
   // says it matches. Mirrors the trigger pop-up, which does the same.
-  const left=fc?fc.rows.filter(r=>!/re-?entry/i.test(r.prescribed||'')).map(r=>
-      '<li class="'+(r.present===false?'miss':r.present?'has':'')+'">'
-      +esc(r.prescribed)+'</li>').join('')
+  const lrows=fc?fc.rows.filter(r=>!/re-?entry/i.test(r.prescribed||'')):null;
+  const orMark=t=>esc(t).replace(/ OR /g,' <span class="rm-join or">OR</span> ');
+  const left=lrows
+    ? lrows.slice().sort((a,b)=>(a.hold?1:0)-(b.hold?1:0)).map(r=>
+      '<li class="'+(r.hold?'hold':r.logic==='and'?'andor':r.present===false?'miss'
+        :r.present?'has':'')+'">'
+      +orMark(r.prescribed)
+      +(r.hold?' <em>(on hold'+(r.hold===true?'':' — '+esc(r.hold))+')</em>'
+        :r.logic==='and'?' <em>(set, but ANDed — the map wants OR)</em>'
+        :r.logic==='or'?' <em>(OR, as prescribed)</em>':'')
+      +'</li>').join('')
     :'<li class="dim">This flow is not on the retention map, so there is nothing prescribed.</li>';
-  const right=(fc&&fc.actual&&fc.actual.length)
-    ? fc.actual.map(r=>'<li class="'+(r.recommended?'has':'extra')+'">'+esc(r.line)+'</li>').join('')
-    : (act.length?act.map(l=>'<li>'+esc(l)+'</li>').join('')
+  let right;
+  if(fc&&fc.actual&&fc.actual.length){
+    const gs={},ord=[];
+    fc.actual.forEach((r,i)=>{const gi=(r.group==null?'l'+i:r.group);
+      if(!gs[gi]){gs[gi]=[];ord.push(gi);} gs[gi].push(r);});
+    right=ord.map(gi=>{const grp=gs[gi];
+      const cls=grp.some(r=>r.recommended)?'has':'extra';
+      return '<li class="'+cls+' grp">'
+        +grp.map(r=>esc(r.line)).join(' <span class="rm-join or">OR</span> ')+'</li>';}).join('');
+  }else{
+    right=(act.length?act.map(l=>'<li>'+esc(l)+'</li>').join('')
       :'<li class="dim">No flow filters set.</li>');
+  }
   const srcNote=(flow.filters_source||(cov&&cov.filters_source))==='inferred'
     ? '<p class="rm-src"><b>Unverified:</b> the map does not name a flow in these filters, so '
       +'which slot they belong to was matched on content. Worth confirming before acting on it.</p>'
@@ -4249,7 +4328,10 @@ function rmFilters(flow,cov){
   el.innerHTML='<div class="rm-fwrap">'+head
     +'<div class="rm-fcols">'
     +'<div><div class="rm-fh">Retention map prescribes</div><ul class="rm-flist">'+left+'</ul></div>'
-    +'<div><div class="rm-fh">This flow actually runs</div><ul class="rm-flist'+((fc&&fc.actual&&fc.actual.length)?'':' plain')+'">'+right+'</ul></div>'
+    +'<div><div class="rm-fh">This flow actually runs'
+      +((fc&&fc.groups&&fc.groups.some(g=>g.length>1))
+        ? ' <span class="rm-join">— ALL OF THESE (AND), ORs SHOWN INLINE</span>':'')
+      +'</div><ul class="rm-flist'+((fc&&fc.actual&&fc.actual.length)?'':' plain')+'">'+right+'</ul></div>'
     +'</div>'
     +(cov&&cov.slots&&cov.slots.length?'<details class="rm-slots"><summary>Prescribed messages ('
       +cov.slots.length+')</summary><ol>'+cov.slots.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ol>'
