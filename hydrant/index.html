@@ -3549,6 +3549,25 @@ function rmIsDark(col){
 }
 function rmDelay(n){const d=n.delay||{};if(d.value==null)return '—';
   let u=(d.unit||'').replace(/s$/,'');if(d.value!=1)u+='s';return d.value+' '+u;}
+// A wait in minutes, so waits written in different units can be compared.
+const RM_MIN={minute:1,min:1,hour:60,day:1440,week:10080,month:43200};
+function rmDelayMins(n){
+  const d=n.delay||{}; if(d.value==null)return null;
+  const u=String(d.unit||'day').toLowerCase().replace(/s$/,'');
+  const per=RM_MIN[u]; return per?d.value*per:null;
+}
+// Six bands, coarse on purpose: what changes how a flow reads is whether the
+// next message lands in this session, later today, tomorrow, or next week.
+const RM_BANDS=[[60,'Minutes','same session'],[360,'Hours','same session, later'],
+  [1440,'Same day','later today'],[2880,'A day','tomorrow'],
+  [10080,'Days','this week'],[43200,'A week or more','next week or later'],
+  [Infinity,'A month or more','a season later']];
+function rmDelayBand(n){
+  const m=rmDelayMins(n); if(m==null)return null;
+  for(let i=0;i<RM_BANDS.length;i++)if(m<RM_BANDS[i][0])
+    return {i:i, name:RM_BANDS[i][1], reads:RM_BANDS[i][2], mins:m};
+  return {i:6, name:RM_BANDS[6][1], reads:RM_BANDS[6][2], mins:m};
+}
 // Real text measurement — a character-count guess overflows narrow nodes on
 // bold labels, which is what made the blocks look broken.
 let RM_MC=null;
@@ -3736,9 +3755,20 @@ function rmDraw(){
             fill:P.card,stroke:bcol,'stroke-opacity':.5,'stroke-width':1}));
           rmText(eg,lx,ly,txt,10,700,bcol,1,'.04em');
         }
-        if(br&&!br.is_else&&br.cond)
-          rmText(eg,lx,ly+13,rmTrunc(br.cond,Math.max(90,Math.abs(x2-x1)-14),9.5,500),
-                 9.5,500,P.mute,.95);
+        // the branch's test sits just above the node it leads into, where there is
+        // node-width room for it — at the label's midpoint it collides with the
+        // neighbouring branch's label
+        if(br&&!br.is_else&&br.cond){
+          // as wide as the open canvas allows before it would reach a sibling path
+          let room=260;
+          n.branches.forEach((o,j)=>{const q=j!==bi&&o.next&&L.pos[o.next];
+            if(q)room=Math.min(room,2*Math.abs((q.x+q.w/2)-x2)-24);});
+          const ct=rmTrunc(br.cond,Math.max(b.w-10,room),9.5,500);
+          const cw=rmMeasure(ct,9.5,500)+12;
+          eg.appendChild(sv('rect',{x:x2-cw/2,y:y2-26,width:cw,height:16,rx:5,
+            fill:P.card,'fill-opacity':.92}));   // the elbow passes behind the text
+          rmText(eg,x2,y2-15,ct,9.5,500,P.mute,.95);
+        }
       }
     });
   });
@@ -3790,8 +3820,14 @@ function rmDraw(){
         rmText(g,p.x+p.w-w/2-14,p.y+27,t,8.5,700,P.trigInk,.9);
       }
     }else if(k==='delay'){
+      const bd=rmDelayBand(n);
       drawIcon(p.x+16,p.y+p.h/2-8,16,P.mute,'delay');
-      rmText(g,p.x+40,p.y+p.h/2+4.5,rmDelay(n),12.5,600,P.dim,1,null,'start');
+      rmText(g,p.x+40,p.y+(bd?p.h/2-1:p.h/2+4.5),rmDelay(n),12.5,600,P.dim,1,null,'start');
+      if(bd)for(let i=0;i<RM_BANDS.length;i++){
+        const on=i<=bd.i;
+        g.appendChild(sv('rect',{x:p.x+40+i*11,y:p.y+30,width:7,height:7,rx:1.6,
+          fill:on?P.accent:P.edge,'fill-opacity':on?(0.6+0.08*i):0.4}));
+      }
     }else if(k==='split'){
       drawIcon(p.x+16,p.y+15,17,P.accent,'split');
       rmText(g,p.x+40,p.y+27,n.branches?('SPLIT · '+n.branches.length+' PATHS'):'CONDITION',
@@ -3906,7 +3942,8 @@ function rmDraw(){
     }
 
     const tt=sv('title',{});
-    tt.textContent=[k==='trigger'?('Trigger: '+n.label):'',n.name,n.subject,n.cond_full||n.cond,k==='delay'?('wait '+rmDelay(n)):'',
+    const _bd=k==='delay'?rmDelayBand(n):null;
+    tt.textContent=[k==='trigger'?('Trigger: '+n.label):'',n.name,n.subject,n.cond_full||n.cond,k==='delay'?('wait '+rmDelay(n)+(_bd?' — '+_bd.reads:'')):'',
       n.status?('status: '+n.status):'',
       (()=>{const q=rmStats(n);return q?(RM_RLABEL[RM_RANGE]+': '+q.delivered.toLocaleString()
         +' delivered · RPR '+q.rpr.toFixed(2)+' · open '+q.open+'% · click '+q.click
@@ -4084,7 +4121,7 @@ function rmPopHtml(n,flow){
       +'<p class="pwhat">'+esc(rmWhat(n))+'</p>'+reBlock+list+actions;
   }
   if(k==='delay'||k==='split'){
-    let traffic='';
+    let traffic='', bd0=null;
     if(k==='split'&&RM_L&&n.branches){
       const spn=rmSplitN(n,RM_L.by);
       traffic='<div class="psub" style="margin:13px 0 7px"><b>The paths</b></div><ul class="plist">'
@@ -4131,7 +4168,8 @@ function rmPopHtml(n,flow){
     return close+'<h5>'+(k==='delay'?'Wait '+esc(rmDelay(n))
         :(n.branches?esc(n.cond||'Split'):'Condition'))+'</h5>'
       +'<div class="psub">'+esc(k==='delay'
-        ? ((n.delay&&n.delay.tz?'Evaluated in the '+n.delay.tz+' timezone':'')||'')
+        ? (((bd0=rmDelayBand(n))?bd0.name+' — '+bd0.reads:'')
+           +(n.delay&&n.delay.tz?(bd0?' · ':'')+'Evaluated in the '+n.delay.tz+' timezone':''))
         : (n.branches?(n.branches.length+' paths, taken in order — the first one a profile '
              +'matches is the one it travels'):(n.cond_full||n.cond||'')))+'</div>'
       +'<p class="pwhat">'+esc(rmWhat(n))+'</p>'+traffic+actions;
