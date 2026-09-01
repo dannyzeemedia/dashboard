@@ -445,10 +445,12 @@
 
   .tiles{margin:18px 0}
   .trow-hero{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
-  .trow-rest{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:14px}
+  .trow-rest{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:stretch}
+  @media(max-width:1040px){.trow-rest{grid-template-columns:repeat(2,minmax(0,1fr))}}
   .tile .ticon{width:13px;height:13px;vertical-align:-2px;margin-right:5px;opacity:.55;flex:none}
   .tile.splittile{grid-column:span 2}
-  @media(max-width:620px){.tile.splittile{grid-column:span 1}}
+  @media(max-width:620px){.trow-rest{grid-template-columns:1fr}.tile.splittile{grid-column:span 1}}
+  .tile.splittile{display:flex;flex-direction:column;justify-content:center}
   .srow{display:grid;grid-template-columns:62px 1fr auto auto;gap:8px;align-items:center;margin-top:7px}
   .srow .sname{font-size:10.5px;color:var(--muted);font-weight:600}
   .srow .sbar{height:6px;border-radius:4px;background:color-mix(in srgb,var(--ink) 7%,transparent);overflow:hidden}
@@ -467,6 +469,7 @@
   .tile.hero .lab{font-size:12px}
   .tile.sparktile{display:flex;align-items:stretch;overflow:hidden}
   .tile.sparktile>.tile-body{flex:0 0 auto;min-width:0;padding-right:18px}
+  .tile.sparktile>.tile-body{flex:0 0 44%;min-width:0}
   .tile.sparktile>.spark-box{flex:1;align-self:stretch;min-height:104px;margin:-18px -20px -18px 0;padding:12px 12px 6px;border-left:1px solid var(--border);display:flex;align-items:stretch}
   .tile.sparktile>.spark-box>svg{width:100%;height:100%}
   @media(max-width:520px){.tile.sparktile{flex-direction:column;overflow:visible}.tile.sparktile>.tile-body{padding-right:0}.tile.sparktile>.spark-box{flex:none;width:auto;margin:10px -20px -18px;border-left:0;border-top:1px solid var(--border);min-height:96px}}
@@ -1505,6 +1508,7 @@ function renderTiles(){
     {pie:true,l:'Attributed mix',i:'pie',flow:sum(flow,cur),camp:sum(camp,cur)},
     {l:`Flow revenue · ${len}mo`,i:'flow',v:kfmt(sum(flow,cur)),d:cD?delta(sum(flow,cur),sum(flow,cD)):null,sub:(atC?Math.round(sum(flow,cur)/atC*100)+'% of attributed':null)},
     {l:`Campaign revenue · ${len}mo`,i:'camp',v:kfmt(sum(camp,cur)),d:cD?delta(sum(camp,cur),sum(camp,cD)):null,sub:(atC?Math.round(sum(camp,cur)/atC*100)+'% of attributed':null)},
+    {l:`New subscribers · ${len}mo`,i:'userplus',v:nfmt(sum(subs,cur)),d:cD?delta(sum(subs,cur),sum(subs,cD)):null},
     {l:'Revenue per recipient',i:'coin',split:[
        {n:'Flow',    v:rC.f||0,t:money2(rC.f),col:'var(--flow)',d:(rC.f!=null&&rP.f!=null)?delta(rC.f,rP.f):null},
        {n:'Campaign',v:rC.c||0,t:money2(rC.c),col:'var(--camp)',d:(rC.c!=null&&rP.c!=null)?delta(rC.c,rP.c):null},
@@ -1513,7 +1517,6 @@ function renderTiles(){
        {n:'Flow',    v:avg(uF,cur),   t:pct2(avg(uF,cur)),   col:'var(--flow)',d:cD?delta(avg(uF,cur),avg(uF,cD)):null},
        {n:'Campaign',v:avg(uC,cur),   t:pct2(avg(uC,cur)),   col:'var(--camp)',d:cD?delta(avg(uC,cur),avg(uC,cD)):null},
        {n:'Blended', v:avg(unsub,cur),t:pct2(avg(unsub,cur)),col:'var(--aqua)',d:cD?delta(avg(unsub,cur),avg(unsub,cD)):null,blend:true}]},
-    {l:`New subscribers · ${len}mo`,i:'userplus',v:nfmt(sum(subs,cur)),d:cD?delta(sum(subs,cur),sum(subs,cD)):null},
   ];
   const tileHTML=t=>{let dd;
     if(t.pie){const tot=(t.flow||0)+(t.camp||0);if(!tot)return'';
