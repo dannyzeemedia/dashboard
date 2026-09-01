@@ -446,6 +446,17 @@
   .tiles{margin:18px 0}
   .trow-hero{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
   .trow-rest{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:14px}
+  .tile .ticon{width:13px;height:13px;vertical-align:-2px;margin-right:5px;opacity:.55;flex:none}
+  .tile.splittile{grid-column:span 2}
+  @media(max-width:620px){.tile.splittile{grid-column:span 1}}
+  .srow{display:grid;grid-template-columns:62px 1fr auto auto;gap:8px;align-items:center;margin-top:7px}
+  .srow .sname{font-size:10.5px;color:var(--muted);font-weight:600}
+  .srow .sbar{height:6px;border-radius:4px;background:color-mix(in srgb,var(--ink) 7%,transparent);overflow:hidden}
+  .srow .sbar i{display:block;height:100%;border-radius:4px}
+  .srow .sval{font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums}
+  .srow .sdelta{font-size:9.5px;font-weight:700;min-width:44px;text-align:right;font-variant-numeric:tabular-nums}
+  .srow .sdelta.up{color:var(--good)} .srow .sdelta.down{color:var(--crit)} .srow .sdelta.flat{color:var(--muted)}
+  .srow.blend .sname{color:var(--ink2)} .srow.blend .sval{font-size:15px}
   @media(max-width:620px){.trow-hero{grid-template-columns:1fr}}
   .tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
     padding:15px 16px;box-shadow:var(--shadow);min-width:0}
@@ -1426,6 +1437,48 @@ function drawAttrShare(host,months,vals){
     showTip(host,e,mlabel(months[i]),[['Attributed % of store',vals[i]*100,'var(--flow)',v=>v.toFixed(1)+'%'],['Rest of store',(1-vals[i])*100,'var(--camp)',v=>v.toFixed(1)+'%']]);});
   hit.addEventListener('mouseleave',()=>{hideTip(host);guide.setAttribute('stroke-opacity',0);});
 }
+// Small line icons for the tile labels. Stroke-only so they inherit colour.
+const TICON={
+ store:'M3 7h18l-1.6 3H4.6z M5 10v9h14v-9 M9.5 19v-5h5v5',
+ bolt:'M13 2 4.5 14H10l-1 8 9-12h-5.5z',
+ pie:'M12 12V3a9 9 0 1 0 9 9z M12 12h9',
+ flow:'M4 7h11a4 4 0 0 1 0 8H9 M7 4 4 7l3 3 M12 12l-3 3 3 3',
+ camp:'M3 11v2l14 5V6z M17.5 9a3 3 0 0 1 0 6 M6 13v5h3',
+ coin:'M12 5c3.9 0 7 1.3 7 3s-3.1 3-7 3-7-1.3-7-3 3.1-3 7-3z M5 8v8c0 1.7 3.1 3 7 3s7-1.3 7-3V8',
+ userminus:'M15 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M8.5 3a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7 M17 11h5',
+ userplus:'M15 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M8.5 3a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7 M19 8v6 M16 11h6',
+};
+const ticon=k=>(k&&TICON[k])?'<svg class="ticon" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+  +'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="'+TICON[k]+'"/></svg>':'';
+
+// Plain line+area chart for a money series over the range (Total store revenue
+// tile), styled to match drawAttrShare so the two heroes read as a pair.
+function drawMoneyLine(host,months,vals){
+  host.innerHTML='';host.style.position='relative';
+  const idx=[];vals.forEach((v,i)=>{if(v!=null&&isFinite(v))idx.push(i);});
+  if(idx.length<2){host.style.display='none';return;} host.style.display='';
+  const n=vals.length,W=300,H=118,PT=8,PB=15,ih=H-PT-PB;
+  const mx=Math.max.apply(null,idx.map(i=>vals[i]))*1.08||1;
+  const x=i=>n<=1?0:W*i/(n-1),y=v=>PT+ih*(1-Math.max(0,Math.min(1,v/mx))),base=PT+ih;
+  const pts=idx.map(i=>x(i).toFixed(1)+' '+y(vals[i]).toFixed(1));
+  const first=x(idx[0]).toFixed(1),last=x(idx[idx.length-1]).toFixed(1);
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,width:'100%'});svg.style.display='block';svg.style.height='100%';
+  svg.appendChild(el('path',{d:'M'+first+' '+base+' L'+pts.join(' L')+' L'+last+' '+base+' Z',
+    fill:'var(--camp)','fill-opacity':0.14}));
+  svg.appendChild(el('path',{d:'M'+pts.join(' L'),fill:'none',stroke:'var(--camp)','stroke-width':2,'stroke-linejoin':'round'}));
+  const pk=idx.reduce((a,i)=>vals[i]>vals[a]?i:a,idx[0]);
+  svg.appendChild(el('circle',{cx:x(pk),cy:y(vals[pk]),r:3,fill:'var(--camp)'}));
+  [idx[0],idx[idx.length-1]].forEach((i,k)=>{const t=el('text',{x:x(i),y:H-3,'text-anchor':k?'end':'start',
+    fill:'var(--muted)','font-size':9.5,'font-family':'system-ui'});t.textContent=mlabel(months[i]);svg.appendChild(t);});
+  const guide=el('line',{x1:0,x2:0,y1:PT,y2:base,stroke:'var(--camp)','stroke-width':1,'stroke-dasharray':'3 3','stroke-opacity':0});svg.appendChild(guide);
+  const hit=el('rect',{x:0,y:0,width:W,height:H,fill:'transparent'});hit.style.cursor='crosshair';svg.appendChild(hit);
+  host.appendChild(svg);
+  hit.addEventListener('mousemove',e=>{const r=svg.getBoundingClientRect();let i=Math.round((e.clientX-r.left)/r.width*(n-1));
+    i=Math.max(0,Math.min(n-1,i));if(vals[i]==null)return;
+    guide.setAttribute('x1',x(i));guide.setAttribute('x2',x(i));guide.setAttribute('stroke-opacity',0.4);
+    showTip(host,e,mlabel(months[i]),[['Store revenue',vals[i],'var(--camp)',kfmt]]);});
+  hit.addEventListener('mouseleave',()=>{hideTip(host);guide.setAttribute('stroke-opacity',0);});
+}
 function renderTiles(){
   // tiles always summarise COMPLETE months (never the partial in-progress one)
   const n=IP?MONTHS.length-1:MONTHS.length,len=RANGE===0?n:Math.min(RANGE,n),cur=[n-len,n-1];
@@ -1433,38 +1486,65 @@ function renderTiles(){
   const valid=RANGE!==0&&cmp[0]>=0,cD=valid?cmp:null;
   const rprCur=flowRevTotal(cur)/(flowDelivTotal(cur)||1),rprCmp=cD?flowRevTotal(cD)/(flowDelivTotal(cD)||1):null;
   const stC=sum(store,cur), atC=sum(total,cur);
+  // RPR per source: flows divide by flow deliveries, campaigns by campaign
+  // recipients, blended by the sum — so the three are directly comparable.
+  const _S=SERIES[ACTIVE]||{}, uF=_S.unsub_flow||[], uC=_S.unsub_camp||[];
+  const rprOf=(w)=>{const fr=sum(flow,w),fd=flowDelivTotal(w),cr=sum(camp,w),cd=sum(crecip,w);
+    return {f:fd?fr/fd:null, c:cd?cr/cd:null, b:(fd+cd)?(fr+cr)/(fd+cd):null};};
+  const rC=rprOf(cur), rP=cD?rprOf(cD):{f:null,c:null,b:null};
+  const money2=v=>v==null?'—':SYM+v.toFixed(2);
+  const pct2=v=>v==null?'—':v.toFixed(2)+'%';
   // Order (Danny): store revenue first, then attributed, then flow & campaign, then the rest.
   // First two are emphasised "hero" tiles; the remainder flow into a responsive row.
   const tShare=[];for(let k=cur[0];k<=cur[1];k++)tShare.push(store[k]?total[k]/store[k]:null);   // attributed share of store, per month, for the tile overlay
   const rows=[
-    {l:`Total store revenue · ${len}mo`,v:kfmt(stC),d:cD?delta(stC,sum(store,cD)):null,hero:true},
-    {l:`Total attributed · ${len}mo`,v:kfmt(atC),d:cD?delta(atC,sum(total,cD)):null,sub:(stC?Math.round(atC/stC*100)+'% of store revenue':null),hero:true,spark:tShare},
-    {pie:true,l:'Attributed mix',flow:sum(flow,cur),camp:sum(camp,cur)},
-    {l:`Flow revenue · ${len}mo`,v:kfmt(sum(flow,cur)),d:cD?delta(sum(flow,cur),sum(flow,cD)):null,sub:(atC?Math.round(sum(flow,cur)/atC*100)+'% of attributed':null)},
-    {l:`Campaign revenue · ${len}mo`,v:kfmt(sum(camp,cur)),d:cD?delta(sum(camp,cur),sum(camp,cD)):null,sub:(atC?Math.round(sum(camp,cur)/atC*100)+'% of attributed':null)},
-    {l:'Blended flow RPR',v:SYM+rprCur.toFixed(2),d:rprCmp?delta(rprCur,rprCmp):null},
-    {l:'Avg unsub rate',v:avg(unsub,cur).toFixed(2)+'%',d:cD?delta(avg(unsub,cur),avg(unsub,cD)):null,inv:true},
-    {l:`New subscribers · ${len}mo`,v:nfmt(sum(subs,cur)),d:cD?delta(sum(subs,cur),sum(subs,cD)):null},
+    {l:`Total store revenue · ${len}mo`,i:'store',v:kfmt(stC),d:cD?delta(stC,sum(store,cD)):null,hero:true,
+      spark:MONTHS.slice(cur[0],cur[1]+1).map((_,k)=>store[cur[0]+k]),sparkId:'tile-storeline',draw:drawMoneyLine},
+    {l:`Total attributed · ${len}mo`,i:'bolt',v:kfmt(atC),d:cD?delta(atC,sum(total,cD)):null,sub:(stC?Math.round(atC/stC*100)+'% of store revenue':null),hero:true,
+      spark:tShare,sparkId:'tile-attrshare',draw:drawAttrShare},
+    {pie:true,l:'Attributed mix',i:'pie',flow:sum(flow,cur),camp:sum(camp,cur)},
+    {l:`Flow revenue · ${len}mo`,i:'flow',v:kfmt(sum(flow,cur)),d:cD?delta(sum(flow,cur),sum(flow,cD)):null,sub:(atC?Math.round(sum(flow,cur)/atC*100)+'% of attributed':null)},
+    {l:`Campaign revenue · ${len}mo`,i:'camp',v:kfmt(sum(camp,cur)),d:cD?delta(sum(camp,cur),sum(camp,cD)):null,sub:(atC?Math.round(sum(camp,cur)/atC*100)+'% of attributed':null)},
+    {l:'Revenue per recipient',i:'coin',split:[
+       {n:'Flow',    v:rC.f||0,t:money2(rC.f),col:'var(--flow)',d:(rC.f!=null&&rP.f!=null)?delta(rC.f,rP.f):null},
+       {n:'Campaign',v:rC.c||0,t:money2(rC.c),col:'var(--camp)',d:(rC.c!=null&&rP.c!=null)?delta(rC.c,rP.c):null},
+       {n:'Blended', v:rC.b||0,t:money2(rC.b),col:'var(--aqua)',d:(rC.b!=null&&rP.b!=null)?delta(rC.b,rP.b):null,blend:true}]},
+    {l:'Avg unsub rate',i:'userminus',inv:true,split:[
+       {n:'Flow',    v:avg(uF,cur),   t:pct2(avg(uF,cur)),   col:'var(--flow)',d:cD?delta(avg(uF,cur),avg(uF,cD)):null},
+       {n:'Campaign',v:avg(uC,cur),   t:pct2(avg(uC,cur)),   col:'var(--camp)',d:cD?delta(avg(uC,cur),avg(uC,cD)):null},
+       {n:'Blended', v:avg(unsub,cur),t:pct2(avg(unsub,cur)),col:'var(--aqua)',d:cD?delta(avg(unsub,cur),avg(unsub,cD)):null,blend:true}]},
+    {l:`New subscribers · ${len}mo`,i:'userplus',v:nfmt(sum(subs,cur)),d:cD?delta(sum(subs,cur),sum(subs,cD)):null},
   ];
   const tileHTML=t=>{let dd;
     if(t.pie){const tot=(t.flow||0)+(t.camp||0);if(!tot)return'';
       const fp=t.flow/tot*100,cp=100-fp,R=38,C=2*Math.PI*R,fl=C*t.flow/tot;
-      return `<div class="tile pietile"><div class="lab">${t.l}</div>`
+      return `<div class="tile pietile"><div class="lab">${ticon(t.i)}${t.l}</div>`
        +`<div class="pie-wrap"><svg viewBox="0 0 100 100" class="donut" role="img">`
        +`<circle cx="50" cy="50" r="${R}" fill="none" stroke="var(--camp)" stroke-width="16"><title>Campaign ${SYM}${Math.round(t.camp).toLocaleString()} · ${cp.toFixed(0)}%</title></circle>`
        +`<circle cx="50" cy="50" r="${R}" fill="none" stroke="var(--flow)" stroke-width="16" stroke-dasharray="${fl} ${C-fl}" transform="rotate(-90 50 50)"><title>Flow ${SYM}${Math.round(t.flow).toLocaleString()} · ${fp.toFixed(0)}%</title></circle></svg>`
        +`<div class="pie-leg"><span><i style="background:var(--flow)"></i>Flow ${fp.toFixed(0)}%</span><span><i style="background:var(--camp)"></i>Campaign ${cp.toFixed(0)}%</span></div></div></div>`;}
+    if(t.split){
+      const mx=Math.max.apply(null,t.split.map(r=>r.v||0))||1;
+      return `<div class="tile splittile"><div class="lab">${ticon(t.i)}${t.l}</div>`
+        +t.split.map(r=>{let c=r.d?r.d.c:'flat';
+            if(t.inv&&c==='up')c='down';else if(t.inv&&c==='down')c='up';
+            return `<div class="srow${r.blend?' blend':''}"><span class="sname">${r.n}</span>`
+              +`<span class="sbar"><i style="width:${Math.max(2,(r.v||0)/mx*100)}%;background:${r.col}"></i></span>`
+              +`<span class="sval">${r.t}</span>`
+              +`<span class="sdelta ${c}">${r.d?r.d.t:'—'}</span></div>`;}).join('')
+        +`</div>`;}
     if(t.d){let c=t.d.c;if(t.inv&&c==='up')c='down';else if(t.inv&&c==='down')c='up';
       dd=`<div class="delta ${c}">${t.d.t} vs ${CMP==='yoy'?'LY':'prev'}</div>`;}
     else dd=`<div class="delta flat">no prior period</div>`;
-    const body=`<div class="lab">${t.l}</div><div class="val">${t.v}</div>${t.sub?'<div class="tsub">'+t.sub+'</div>':''}${dd}`;
-    if(t.spark){return `<div class="tile${t.hero?' hero':''} sparktile"><div class="tile-body">${body}</div><div class="spark-box" id="tile-attrshare"></div></div>`;}
+    const body=`<div class="lab">${ticon(t.i)}${t.l}</div><div class="val">${t.v}</div>${t.sub?'<div class="tsub">'+t.sub+'</div>':''}${dd}`;
+    if(t.spark){return `<div class="tile${t.hero?' hero':''} sparktile"><div class="tile-body">${body}</div><div class="spark-box" id="${t.sparkId||'tile-attrshare'}"></div></div>`;}
     return `<div class="tile${t.hero?' hero':''}">${body}</div>`;};
   const hero=rows.filter(t=>t.hero), rest=rows.filter(t=>!t.hero);
   document.getElementById('tiles').innerHTML=
     '<div class="trow-hero">'+hero.map(tileHTML).join('')+'</div>'+
     '<div class="trow-rest">'+rest.map(tileHTML).join('')+'</div>';
-  {const sb=document.getElementById('tile-attrshare');if(sb)drawAttrShare(sb,MONTHS.slice(cur[0],cur[1]+1),tShare);}
+  rows.filter(t=>t.spark&&t.draw).forEach(t=>{const sb=document.getElementById(t.sparkId);
+    if(sb)t.draw(sb,MONTHS.slice(cur[0],cur[1]+1),t.spark);});
   document.getElementById('rangeText').textContent=`${mlabel(MONTHS[cur[0]])} – ${mlabel(MONTHS[cur[1]])}`+
     (valid?`  ·  vs ${mlabel(MONTHS[cmp[0]])} – ${mlabel(MONTHS[cmp[1]])}`:'  ·  no comparison period');}
 
