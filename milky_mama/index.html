@@ -890,6 +890,7 @@
   .rm-pop .pbark i{width:8px;height:8px;border-radius:2px;flex:none}
   .rm-pop .pbark i.y{background:var(--good)}
   .rm-pop .pbark i.n{background:var(--crit)}
+  .rm-pop .pmuted{color:var(--muted)}
   .rm-pop .pnote{font-size:11px;line-height:1.5;color:var(--muted);margin:10px 0 0}
   .rm-pop .psec{font-size:9.5px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;
     color:var(--muted);margin:16px 0 8px;padding-top:13px;
@@ -3586,6 +3587,8 @@ function rmBranchReach(startId, by){
       if(!st||!st.delivered)blocked=true;   // draft, or no sends in this window
       return;
     }
+    if(n.branches){ n.branches.forEach(b=>walk(b.next)); return; }
+    if(n.outs&&n.outs.length){ n.outs.forEach(walk); return; }
     if(n.yes||n.no){ if(n.yes)walk(n.yes); if(n.no)walk(n.no); return; }
     walk(n.next);
   })(startId);
@@ -3609,6 +3612,24 @@ function rmSplit(n, by){
          yesPct:tot?y.delivered/tot:null,noPct:tot?o.delivered/tot:null,
          readable:!!tot&&!overlap};
   }
+  _rmSplitMemo[key]=out; return out;
+}
+// Same measurement for Klaviyo's N-path splits: one reach per named branch.
+// Unreadable when the paths rejoin before anything sends (double-count) or
+// when nothing has sent at all.
+function rmSplitN(n, by){
+  if(!n.branches||!n.branches.length)return null;
+  const key='mb:'+n.id+'|'+RM_RANGE;
+  if(key in _rmSplitMemo)return _rmSplitMemo[key];
+  const reach=n.branches.map(b=>b.next?rmBranchReach(b.next,by):{ids:new Set(),delivered:0,blocked:true});
+  let overlap=false;
+  reach.forEach((r,i)=>reach.forEach((o,j)=>{if(j>i)r.ids.forEach(id=>{if(o.ids.has(id))overlap=true;});}));
+  const tot=reach.reduce((a,r)=>a+r.delivered,0);
+  const out={total:tot, overlap:overlap, blocked:reach.some(r=>r.blocked),
+    readable:!!tot&&!overlap,
+    paths:n.branches.map((b,i)=>({name:b.name||b.cond, cond:b.cond_full||b.cond,
+      is_else:!!b.is_else, delivered:reach[i].delivered,
+      pct:tot?reach[i].delivered/tot:null}))};
   _rmSplitMemo[key]=out; return out;
 }
 function rmIssues(n){
@@ -3680,11 +3701,15 @@ function rmDraw(){
   const eg=sv('g',{});
   drawn.forEach(n=>{
     const a=L.pos[n.id]; if(!a)return;
-    [].concat((n.outs||[]).map(o=>[o,null]),[[n.yes,'Yes'],[n.no,'No'],[n.next,null]]).filter(e=>e[0]&&L.pos[e[0]]).forEach(([kid,lab])=>{
+    const spn=n.branches?rmSplitN(n,L.by):null;
+    const edges=n.branches
+      ? n.branches.map((b,i)=>[b.next, b.name||b.cond, i])
+      : [].concat((n.outs||[]).map(o=>[o,null]),[[n.yes,'Yes'],[n.no,'No'],[n.next,null]]);
+    edges.filter(e=>e[0]&&L.pos[e[0]]).forEach(([kid,lab,bi])=>{
       const b=L.pos[kid];
       const x1=a.x+a.w/2,y1=a.y+a.h,x2=b.x+b.w/2,y2=b.y;
       let d;
-      const isSplit=!!(n.yes||n.no);
+      const isSplit=!!(n.yes||n.no||n.branches);
       const myy=isSplit?y1+RM_FAN:y1+Math.max(22,(y2-y1)/2);
       if(Math.abs(x1-x2)<2)d='M'+x1+' '+y1+' L'+x2+' '+(y2-6);
       else{
@@ -3696,9 +3721,12 @@ function rmDraw(){
         'stroke-linecap':'round','stroke-linejoin':'round','marker-end':'url(#rm-ar)'}));
       if(lab){
         const lx=x1+(x2-x1)*0.5, ly=myy-9;
-        const sp=rmSplit(n,L.by);
-        const pct=sp&&sp.readable?(lab==='Yes'?sp.yesPct:sp.noPct):null;
-        const bcol=lab==='Yes'?P.good:P.crit;
+        const br=n.branches?n.branches[bi]:null;
+        const sp=n.branches?null:rmSplit(n,L.by);
+        const pct=br
+          ? (spn&&spn.readable?spn.paths[bi].pct:null)
+          : (sp&&sp.readable?(lab==='Yes'?sp.yesPct:sp.noPct):null);
+        const bcol=br?(br.is_else?P.mute:P.accent):(lab==='Yes'?P.good:P.crit);
         if(pct==null){
           rmText(eg,lx,ly,lab,10,700,bcol,.85,'.1em');
         }else{
@@ -3708,6 +3736,9 @@ function rmDraw(){
             fill:P.card,stroke:bcol,'stroke-opacity':.5,'stroke-width':1}));
           rmText(eg,lx,ly,txt,10,700,bcol,1,'.04em');
         }
+        if(br&&!br.is_else&&br.cond)
+          rmText(eg,lx,ly+13,rmTrunc(br.cond,Math.max(90,Math.abs(x2-x1)-14),9.5,500),
+                 9.5,500,P.mute,.95);
       }
     });
   });
@@ -3763,8 +3794,18 @@ function rmDraw(){
       rmText(g,p.x+40,p.y+p.h/2+4.5,rmDelay(n),12.5,600,P.dim,1,null,'start');
     }else if(k==='split'){
       drawIcon(p.x+16,p.y+15,17,P.accent,'split');
-      rmText(g,p.x+40,p.y+27,'CONDITION',8.5,800,P.accent,1,'.13em','start');
+      rmText(g,p.x+40,p.y+27,n.branches?('SPLIT · '+n.branches.length+' PATHS'):'CONDITION',
+             8.5,800,P.accent,1,'.13em','start');
       rmText(g,p.x+16,p.y+50,rmTrunc(n.cond||'condition',p.w-32,11.5,600),11.5,600,P.ink,1,null,'start');
+      if(n.branches){
+        const spn=rmSplitN(n,L.by);
+        if(spn&&spn.readable){
+          const t=spn.total.toLocaleString()+' sent';
+          const w=rmMeasure(t,8.5,700)+16;
+          g.appendChild(sv('rect',{x:p.x+p.w-w-14,y:p.y+14,width:w,height:17,rx:8.5,fill:P.chip}));
+          rmText(g,p.x+p.w-w/2-14,p.y+26,t,8.5,700,P.dim,.9);
+        }
+      }
       {const sp=rmSplit(n,L.by);
        if(sp&&sp.readable){
          const ys=String(Math.round(sp.yesPct*100)), ns=String(Math.round(sp.noPct*100));
@@ -4001,8 +4042,13 @@ function rmPopHtml(n,flow){
           ? '<span class="ptag g">MATCHES THE MAP</span>'
           : '<span class="ptag c">MAP WANTS '+esc(want.toUpperCase())+'</span>';
       }
+      const lg=(flow&&flow.filters&&flow.filters.legacy_reentry)||[];
       reBlock='<div class="psec">Re-entry criteria</div>'
-        +'<div class="preentry"><b>'+esc(re.label)+'</b>'+verdict+'</div>';
+        +'<div class="preentry"><b>'+esc(re.label)+'</b>'+verdict+'</div>'
+        +(lg.length?'<p class="pnote">Klaviyo\'s definition still carries the older '
+          +'profile filter '+lg.map(l=>'\u201c'+esc(l)+'\u201d').join(' and ')
+          +', from before this flow moved to Re-entry criteria. The flow\'s own screen no '
+          +'longer shows it, so it is left out of the filter list above.</p>':'');
     }
     let list='';
     if(fc){
@@ -4039,7 +4085,27 @@ function rmPopHtml(n,flow){
   }
   if(k==='delay'||k==='split'){
     let traffic='';
-    if(k==='split'&&RM_L){
+    if(k==='split'&&RM_L&&n.branches){
+      const spn=rmSplitN(n,RM_L.by);
+      traffic='<div class="psub" style="margin:13px 0 7px"><b>The paths</b></div><ul class="plist">'
+        +n.branches.map((b,i)=>{
+          const pt=spn&&spn.readable?spn.paths[i]:null;
+          return '<li><b>'+esc(b.name||('Path '+(i+1)))+'</b> — '+esc(b.cond_full||b.cond)
+            +(pt?' <span class="pmuted">('+Math.round(pt.pct*100)+'% · '
+                 +pt.delivered.toLocaleString()+' delivered)</span>':'')+'</li>';
+        }).join('')+'</ul>'
+        +'<p class="pnote">'+(spn&&spn.readable
+          ? 'Shares are measured from the first message that sends on each path over the '
+            +RM_RLABEL[RM_RANGE]+'. Klaviyo does not report split traffic, so this counts sends, '
+            +'not people entering the path.'
+          : (spn&&spn.overlap
+             ? 'The paths rejoin before any of them sends, so the split cannot be measured '
+               +'without double-counting. Only the timing differs below this point.'
+             : 'Nothing has sent on these paths over the '+RM_RLABEL[RM_RANGE]
+               +', so there is no traffic to read.'))
+        +'</p>';
+    }
+    if(k==='split'&&RM_L&&!n.branches){
       const sp=rmSplit(n,RM_L.by);
       if(sp&&sp.readable){
         const yp=Math.round(sp.yesPct*100), np=100-yp;
@@ -4062,10 +4128,12 @@ function rmPopHtml(n,flow){
           +RM_RLABEL[RM_RANGE]+', so there is no traffic to read.</p>';
       }
     }
-    return close+'<h5>'+(k==='delay'?'Wait '+esc(rmDelay(n)):'Condition')+'</h5>'
+    return close+'<h5>'+(k==='delay'?'Wait '+esc(rmDelay(n))
+        :(n.branches?esc(n.cond||'Split'):'Condition'))+'</h5>'
       +'<div class="psub">'+esc(k==='delay'
         ? ((n.delay&&n.delay.tz?'Evaluated in the '+n.delay.tz+' timezone':'')||'')
-        : (n.cond_full||n.cond||''))+'</div>'
+        : (n.branches?(n.branches.length+' paths, taken in order — the first one a profile '
+             +'matches is the one it travels'):(n.cond_full||n.cond||'')))+'</div>'
       +'<p class="pwhat">'+esc(rmWhat(n))+'</p>'+traffic+actions;
   }
   const st=rmStats(n), stat=(n.status||'live');
