@@ -661,9 +661,60 @@
   .rm-band .n{font-size:12px;color:var(--ink2);margin-top:3px;line-height:1.4}
 
   .rm-group{margin-bottom:22px}
-  .rm-glab{display:flex;align-items:center;gap:12px;font-size:11px;font-weight:700;
-    letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+  .rm-glab{display:flex;align-items:center;gap:10px;font-size:11px;font-weight:700;
+    letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:9px;
+    width:100%;background:none;border:0;padding:0;cursor:pointer;text-align:left;font-family:inherit}
   .rm-glab::after{content:"";flex:1;height:1px;background:var(--border)}
+  .rm-glab:hover{color:var(--ink2)}
+  .rm-glab .chev{display:inline-block;transition:transform .15s;font-size:10px;color:var(--muted)}
+  .rm-group.shut .rm-glab .chev{transform:rotate(-90deg)}
+  .rm-group.shut .rm-rows{display:none}
+  .rm-glab .gcount{letter-spacing:.04em;font-weight:600;color:var(--muted);text-transform:none;
+    font-size:11px}
+  .rm-allbtns{display:flex;gap:7px;justify-content:flex-end;margin:0 0 10px}
+  .rm-allbtns button{font-size:11px;font-weight:600;color:var(--ink2);background:var(--surface);
+    border:1px solid var(--border);border-radius:8px;padding:5px 10px;cursor:pointer}
+  .rm-allbtns button:hover{border-color:var(--flow);color:var(--flow)}
+
+  /* Filter check: every trigger and its filters, without opening each map */
+  .rm-fcflow{background:var(--surface);border:1px solid var(--border);border-radius:11px;
+    margin-bottom:5px;overflow:hidden}
+  .rm-fchead{display:grid;grid-template-columns:minmax(160px,1.1fr) minmax(120px,.8fr) 1fr auto;
+    gap:12px;align-items:center;width:100%;background:none;border:0;padding:11px 13px;
+    cursor:pointer;text-align:left;font-family:inherit}
+  .rm-fchead:hover{background:color-mix(in srgb,var(--flow) 4%,transparent)}
+  .rm-fcnm{font-size:12.5px;font-weight:600;color:var(--ink)}
+  .rm-fcnm .chev{display:inline-block;font-size:10px;color:var(--muted);margin-right:6px;
+    transition:transform .15s}
+  .rm-fcflow.open .rm-fcnm .chev{transform:rotate(90deg)}
+  .rm-fctrig{font-size:11.5px;color:var(--ink2)}
+  .rm-fctrig b{font-weight:600;color:var(--ink2)}
+  .rm-fcchips{display:flex;gap:6px;flex-wrap:wrap;justify-self:end}
+  .rm-fcchip{font-size:9.5px;font-weight:800;letter-spacing:.07em;padding:3px 7px;border-radius:6px;
+    background:var(--border);color:var(--ink2);white-space:nowrap}
+  .rm-fcchip.g{background:color-mix(in srgb,var(--good) 14%,transparent);color:var(--good)}
+  .rm-fcchip.c{background:color-mix(in srgb,var(--crit) 13%,transparent);color:var(--crit)}
+  .rm-fcchip.w{background:color-mix(in srgb,var(--warn) 15%,transparent);color:var(--warn)}
+  .rm-fcchip.b{background:color-mix(in srgb,var(--flow) 13%,transparent);color:var(--flow)}
+  .rm-fcbody{display:none;border-top:1px solid var(--border);padding:12px 13px 14px}
+  .rm-fcflow.open .rm-fcbody{display:block}
+  .rm-fclist li{position:relative;padding-right:32px}
+  .rm-fclist .pice{position:absolute;right:4px;top:2px;border:0;background:transparent;
+    cursor:pointer;font-size:12px;line-height:1;padding:3px 4px;border-radius:6px;
+    color:var(--muted);opacity:0;transition:opacity .12s}
+  .rm-fclist li:hover .pice,.rm-fclist .pice:focus{opacity:1}
+  .rm-fclist li.hold .pice{opacity:.75;color:var(--flow)}
+  .rm-fclist .pice:hover{background:color-mix(in srgb,var(--flow) 14%,transparent);color:var(--flow)}
+  .rm-fclist .picef{display:flex;gap:6px;margin:6px 0 0}
+  .rm-fclist .picef input{flex:1;min-width:0;font:inherit;font-size:11.5px;padding:5px 7px;
+    border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--ink)}
+  .rm-fclist .picef button{font-size:11px;font-weight:700;padding:5px 9px;border-radius:7px;
+    border:1px solid var(--border);background:var(--surface);color:var(--ink2);cursor:pointer}
+  .rm-fclist .picef button.go{border-color:var(--flow);color:var(--flow)}
+  .rm-fcbody .pacts{display:flex;gap:8px;flex-wrap:wrap}
+  .rm-fcbody .pacts a{font-size:12px;font-weight:600;color:var(--flow);text-decoration:none;
+    border:1px solid var(--border);border-radius:8px;padding:6px 10px;background:var(--surface)}
+  .rm-fcbody .pacts a:hover{border-color:var(--flow)}
   .rm-rows{display:flex;flex-direction:column;gap:5px}
   .rm-row{display:grid;
     grid-template-columns:minmax(150px,1.15fr) 92px minmax(180px,1fr) minmax(140px,.9fr) minmax(92px,.55fr);
@@ -926,6 +977,20 @@
   .rm-pop .pmix li.miss em{color:var(--crit)}
   .rm-pop .pmix li.extra em{color:var(--warn)}
   .rm-pop .pmix li.hold em{color:var(--flow)}
+  .rm-pop .pmix li{padding-right:34px}
+  .rm-pop .pice{position:absolute;right:5px;top:2px;border:0;background:transparent;
+    cursor:pointer;font-size:12px;line-height:1;padding:3px 4px;border-radius:6px;
+    color:var(--muted);opacity:0;transition:opacity .12s}
+  .rm-pop .pmix li:hover .pice,.rm-pop .pice:focus{opacity:1}
+  .rm-pop .pmix li.hold .pice{opacity:.75;color:var(--flow)}
+  .rm-pop .pice:hover{background:color-mix(in srgb,var(--flow) 14%,transparent);color:var(--flow)}
+  .rm-pop .picef{display:flex;gap:6px;margin:6px 0 0}
+  .rm-pop .picef input{flex:1;min-width:0;font:inherit;font-size:11.5px;padding:5px 7px;
+    border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--ink)}
+  .rm-pop .picef button{font-size:11px;font-weight:700;padding:5px 9px;border-radius:7px;
+    border:1px solid var(--border);background:var(--surface);color:var(--ink2);cursor:pointer}
+  .rm-pop .picef button.go{border-color:var(--flow);color:var(--flow)}
+  .rm-pop .pice[disabled]{opacity:.5;cursor:default}
   .rm-pop .pmix li.andor{color:var(--ink);background:color-mix(in srgb,var(--warn) 12%,transparent)}
   .rm-pop .pmix li.andor::before{content:"!";color:var(--warn)}
   .rm-pop .pmix li.andor em{color:var(--warn)}
@@ -3286,6 +3351,135 @@ function rmSyncedLabel(){
 }
 function rmMoney(v){try{return money(v);}catch(e){return '$'+Math.round(v||0).toLocaleString();}}
 
+// Which coverage headings are open, per client, so a collapse survives a reload.
+function rmGroupKey(){return 'rm-groups:'+ACTIVE;}
+function rmGroupOpen(key,dflt){
+  try{const o=JSON.parse(localStorage.getItem(rmGroupKey())||'{}');
+    return key in o?!!o[key]:dflt;}catch(e){return dflt;}
+}
+function rmGroupState(key,open){
+  try{const o=JSON.parse(localStorage.getItem(rmGroupKey())||'{}');
+    o[key]=!!open; localStorage.setItem(rmGroupKey(),JSON.stringify(o));}catch(e){}
+}
+function rmGroupHtml(key,label,count,inner,dflt){
+  const open=rmGroupOpen(key,dflt!==false);
+  return '<div class="rm-group'+(open?'':' shut')+'" data-group="'+esc(key)+'">'
+    +'<button class="rm-glab" type="button"><span class="chev">▾</span>'+esc(label)
+    +(count?'<span class="gcount">'+esc(count)+'</span>':'')+'</button>'
+    +'<div class="rm-rows">'+inner+'</div></div>';
+}
+
+// ---- Filter check: every live flow's trigger and filters in one place, so a
+// filter review needs no trips into the flow graph. Same three-state reading as
+// the graph's pop-up, and the same ❄ control.
+function rmFcRow(cls,line,note,raw,flowId,canIce,isHold){
+  const btn=(IS_OWNER&&canIce&&raw)
+    ? '<button class="pice" type="button" data-ice="'+(isHold?'off':'on')+'"'
+      +' data-flow="'+esc(flowId)+'" data-line="'+esc(raw).replace(/"/g,'&quot;')+'"'
+      +' title="'+(isHold?'Take this filter off ice':'Put this filter on ice for this flow')
+      +'">'+(isHold?'\u21ba':'\u2744')+'</button>' : '';
+  return '<li class="'+cls+'">'+line+(note?' <em>('+esc(note)+')</em>':'')+btn+'</li>';
+}
+function rmFilterCheck(M){
+  const orMark=t=>esc(t).replace(/ OR /g,' <span class="rm-join or">OR</span> ');
+  const flows=(M.flows||[]).filter(f=>f.status==='live'&&!f.duplicate)
+    .sort((a,b)=>{
+      const sa=a.filter_check?0:1, sb=b.filter_check?0:1;
+      if(sa!==sb)return sa-sb;
+      const ma=a.filter_check?a.filter_check.missing.length:0;
+      const mb=b.filter_check?b.filter_check.missing.length:0;
+      if(ma!==mb)return mb-ma;
+      return (a.name||'').localeCompare(b.name||'');
+    });
+  if(!flows.length)return '';
+  let offspec=0;
+  const inner=flows.map(f=>{
+    const fc=f.filter_check, fl=f.filters||{};
+    const trig=(fl.triggers||[]).join(', ')||'—';
+    const re=fl.reentry?fl.reentry.label:'';
+    const chips=[];
+    if(fc){
+      const pRows=(fc.rows||[]).filter(r=>r.present!==null&&!r.hold);
+      const nOk=pRows.filter(r=>r.present===true).length;
+      if(nOk<pRows.length)offspec++;
+      chips.push('<span class="rm-fcchip '+(nOk<pRows.length?'c':'g')+'">'
+        +nOk+'/'+pRows.length+' PRESCRIBED</span>');
+      if((fc.held||[]).length)
+        chips.push('<span class="rm-fcchip b">'+fc.held.length+' ON ICE</span>');
+      if((fc.logic_off||[]).length)
+        chips.push('<span class="rm-fcchip w">'+fc.logic_off.length+' AND/OR</span>');
+      if(fc.reentry&&fc.reentry.match===false)
+        chips.push('<span class="rm-fcchip c">RE-ENTRY OFF</span>');
+    }else{
+      chips.push('<span class="rm-fcchip">NOT ON THE MAP</span>');
+    }
+    chips.push('<span class="rm-fcchip">'+((fl.groups||fl.lines||[]).length)+' SET</span>');
+
+    // prescribed column: held rows last, ANDed-instead-of-OR flagged
+    let left='';
+    if(fc){
+      const rows=(fc.rows||[]).filter(r=>!/re-?entry/i.test(r.prescribed||''))
+        .slice().sort((a,b)=>(a.hold?1:0)-(b.hold?1:0));
+      left=rows.map(r=>rmFcRow(
+        r.hold?'hold':r.logic==='and'?'andor':r.present===false?'miss':r.present?'has':'',
+        orMark(r.prescribed),
+        r.hold?('on ice'+(r.hold===true?'':' — '+r.hold))
+          :r.logic==='and'?'set, but ANDed — the map wants OR'
+          :r.logic==='or'?'OR, as prescribed':'',
+        r.prescribed, f.id,
+        (r.hold&&!((fc.held||[]).find(h=>h.line===r.prescribed)||{}).auto)||r.present===false,
+        !!r.hold)).join('');
+    }else{
+      left='<li class="dim">Not on the retention map, so nothing is prescribed.</li>';
+    }
+    // live column: one row per Klaviyo group, ORs inline
+    let right;
+    const gs=fl.groups||(fl.lines||[]).map(l=>[l]);
+    if(gs.length){
+      const rec=l=>fc&&(fc.actual||[]).some(a=>a.line===l&&a.recommended);
+      right=gs.map(g=>'<li class="'+(fc?(g.some(rec)?'has':'extra'):'')+' grp">'
+        +g.map(l=>esc(l)).join(' <span class="rm-join or">OR</span> ')+'</li>').join('');
+    }else{
+      right='<li class="dim">No flow filters set.</li>';
+    }
+    const reBad=fc&&fc.reentry&&fc.reentry.match===false;
+    return '<div class="rm-fcflow" data-flow="'+esc(f.id)+'">'
+      +'<button class="rm-fchead" type="button">'
+        +'<span class="rm-fcnm"><span class="chev">▸</span>'+esc(f.name)
+          +(f.idr?' <span class="rm-subtag idr">IDR</span>':'')+'</span>'
+        +'<span class="rm-fctrig"><b>'+esc(trig)+'</b></span>'
+        +'<span class="rm-fctrig">'+esc(re)+(reBad&&fc.reentry.prescribed_days!=null
+           ? ' · map wants '+(fc.reentry.prescribed_days===0?'no re-entry'
+             :fc.reentry.prescribed_days+' days'):'')+'</span>'
+        +'<span class="rm-fcchips">'+chips.join('')+'</span>'
+      +'</button>'
+      +'<div class="rm-fcbody"><div class="rm-fcols">'
+        +'<div><div class="rm-fh">Retention map prescribes</div>'
+          +'<ul class="rm-flist rm-fclist">'+left+'</ul></div>'
+        +'<div><div class="rm-fh">This flow actually runs'
+          +(gs.some(g=>g.length>1)?' <span class="rm-join">— ALL OF THESE (AND), ORs INLINE</span>':'')
+          +'</div><ul class="rm-flist'+(fc?'':' plain')+'">'+right+'</ul></div>'
+      +'</div>'
+      +'<div class="pacts" style="margin-top:11px">'
+        +'<a href="'+rmFlowUrl(f.id)+'" target="_blank" rel="noopener">↗ Open flow</a>'
+        +'<a href="#" data-draw="'+esc(f.id)+'">→ Draw this flow</a></div>'
+      +'</div></div>';
+  }).join('');
+  return rmGroupHtml('filtercheck','Filter check',
+    offspec?(offspec+' of '+flows.length+' flows off spec'):(flows.length+' live flows, all on spec'),
+    inner,false);
+}
+function rmWireFilterCheck(){
+  document.querySelectorAll('#map-coverage .rm-fchead').forEach(b=>
+    b.addEventListener('click',()=>b.closest('.rm-fcflow').classList.toggle('open')));
+  document.querySelectorAll('#map-coverage [data-draw]').forEach(a=>
+    a.addEventListener('click',e=>{e.preventDefault();rmPick(a.dataset.draw);
+      document.getElementById('map-stage').scrollIntoView({behavior:'smooth',block:'start'});}));
+  document.querySelectorAll('#map-coverage .rm-fclist .pice').forEach(b=>{
+    const M=rmData(); const f=M&&(M.flows||[]).find(x=>x.id===b.dataset.flow);
+    if(f)b.addEventListener('click',()=>rmIce(b,null,f));});
+}
+
 function renderMap(){
   const M=rmData(); if(!M)return;
   document.getElementById('map-sub').textContent=
@@ -3317,11 +3511,27 @@ function renderMap(){
   const byId={}; M.flows.forEach(f=>byId[f.id]=f);
   const groups=M.groups||[['core','Core flows'],['advanced','Advanced flows'],
     ['subscription','Subscription flows'],['superfiliate','Superfiliate flows']];
-  document.getElementById('map-coverage').innerHTML=groups.map(g=>{
-    const rows=M.coverage.filter(c=>c.group===g[0]); if(!rows.length)return '';
-    return '<div class="rm-group"><div class="rm-glab">'+g[1]+'</div><div class="rm-rows">'
-      +rows.map(c=>rmRow(c,byId)).join('')+'</div></div>';
-  }).join('');
+  document.getElementById('map-coverage').innerHTML=
+    '<div class="rm-allbtns"><button type="button" data-all="open">Expand all</button>'
+    +'<button type="button" data-all="shut">Collapse all</button></div>'
+    +groups.map(g=>{
+      const rows=M.coverage.filter(c=>c.group===g[0]); if(!rows.length)return '';
+      const built=rows.filter(c=>c.state==='ok').length;
+      return rmGroupHtml(g[0],g[1],built+' of '+rows.length+' built',
+        rows.map(c=>rmRow(c,byId)).join(''));
+    }).join('')
+    +rmFilterCheck(M);
+  // headings collapse, and remember it per client
+  document.querySelectorAll('#map-coverage .rm-glab').forEach(b=>
+    b.addEventListener('click',()=>{
+      const grp=b.closest('.rm-group'), shut=grp.classList.toggle('shut');
+      rmGroupState(grp.dataset.group,!shut);}));
+  document.querySelectorAll('#map-coverage .rm-allbtns button').forEach(b=>
+    b.addEventListener('click',()=>{
+      const open=b.dataset.all==='open';
+      document.querySelectorAll('#map-coverage .rm-group').forEach(g=>{
+        g.classList.toggle('shut',!open); rmGroupState(g.dataset.group,open);});}));
+  rmWireFilterCheck();
   // A slot with a nest expands on click; only single-flow rows (and the nested
   // sub-rows) jump to the map stage.
   document.querySelectorAll('#map-coverage .rm-row[data-flow]').forEach(b=>
@@ -4083,10 +4293,65 @@ function rmDetail(n,iss,flow){
       el.classList.remove('sel');
       const h=el.querySelector('.halo'); if(h)h.setAttribute('opacity',0);});});
   pop.addEventListener('pointerdown',e=>e.stopPropagation());
+  pop.querySelectorAll('.pice').forEach(b=>b.addEventListener('click',()=>rmIce(b,n,flow)));
   const r=pop.getBoundingClientRect(), sc=document.getElementById('map-scroll');
   const sr=sc.getBoundingClientRect();
   if(r.right>sr.right)sc.scrollLeft+=r.right-sr.right+12;
   if(r.bottom>sr.bottom)sc.scrollTop+=Math.min(r.top-sr.top-8,r.bottom-sr.bottom+12);
+}
+
+// Put one prescribed filter on ice for ONE flow, or take it off. The durable
+// record is Airtable (ZM: Clients > 🧊 Filter Holds); the edge function writes
+// there and moves the line inside the published map, so the change survives a
+// reload without waiting for the next sync.
+let RM_ICING=false;
+function rmIce(btn,node,flow){
+  if(RM_ICING)return;
+  const off=btn.dataset.ice==='off', line=btn.dataset.line, li=btn.closest('li');
+  if(off){ rmIceSend(node,flow,line,'',true,btn); return; }
+  if(li.querySelector('.picef'))return;
+  // a reason, because a hold with no reason is just a filter nobody explained
+  const f=document.createElement('div'); f.className='picef';
+  f.innerHTML='<input type="text" maxlength="160" placeholder="Why is this on ice for this flow?">'
+    +'<button type="button" class="go">On ice</button><button type="button">Cancel</button>';
+  li.appendChild(f);
+  const inp=f.querySelector('input'); inp.focus();
+  f.querySelectorAll('button')[1].addEventListener('click',()=>f.remove());
+  const go=()=>rmIceSend(node,flow,line,inp.value.trim(),false,btn);
+  f.querySelector('.go').addEventListener('click',go);
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter')go();if(e.key==='Escape')f.remove();});
+}
+async function rmIceSend(node,flow,line,reason,off,btn){
+  const openIds=[...document.querySelectorAll('#map-coverage .rm-fcflow.open')]
+    .map(el=>el.dataset.flow);
+  RM_ICING=true; btn.disabled=true;
+  const li=btn.closest('li'), was=li.innerHTML;
+  li.innerHTML=(off?'Taking off ice…':'Putting on ice…');
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session)throw new Error('signed out');
+    const r=await fetch(SB_URL+'/functions/v1/filter-hold',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+      body:JSON.stringify({client:ACTIVE,flow_id:flow.id,line:line,reason:reason,
+                           action:off?'unhold':'hold'})});
+    const out=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(out.error||('failed ('+r.status+')'));
+    // the function already saved it; pull the row back so the whole tab agrees
+    const {data}=await sb.from('client_series').select('data').eq('client_slug',ACTIVE).limit(1);
+    const fresh=data&&data[0]&&data[0].data;
+    if(fresh){SERIES[ACTIVE]=fresh;renderMap();}
+    openIds.forEach(id=>{const el=document.querySelector(
+      '#map-coverage .rm-fcflow[data-flow="'+id+'"]'); if(el)el.classList.add('open');});
+    const M=rmData(), fl=M&&(M.flows||[]).find(x=>x.id===flow.id);
+    const nn=node&&fl&&(fl.nodes||[]).find(x=>x.id===node.id);
+    if(fl&&nn){RM_SEL=nn.id;rmDraw();rmDetail(nn,rmIssues(nn),fl);}
+  }catch(err){
+    li.innerHTML=was;
+    li.querySelectorAll('.pice').forEach(b=>b.addEventListener('click',()=>rmIce(b,node,flow)));
+    const w=document.createElement('em'); w.textContent=' ('+String(err.message||err).slice(0,60)+')';
+    li.appendChild(w);
+  }finally{ RM_ICING=false; }
 }
 
 function rmPopHtml(n,flow){
@@ -4142,7 +4407,7 @@ function rmPopHtml(n,flow){
       });
       (fc.missing||[]).forEach(l=>{
         if(/re-?entry/i.test(l))return;      // covered by the re-entry block above
-        rows.push(['miss',esc(l),'Prescribed, not set',false]);
+        rows.push(['miss',esc(l),'Prescribed, not set',false,l]);
       });
       // present, but the flow ANDs what the map wants ORed — a stricter filter
       // than intended, which quietly shrinks the audience
@@ -4150,8 +4415,8 @@ function rmPopHtml(n,flow){
         'Set, but as AND where the map wants OR',false]));
       // on hold: still not set, still shown, but last and out of the count —
       // this account has a standing reason it cannot or should not be set
-      (fc.held||[]).forEach(h=>rows.push(['hold',h.line,
-        'On hold'+(h.reason?' — '+h.reason:'')]));
+      (fc.held||[]).forEach(h=>rows.push(['hold',esc(h.line),
+        'On ice'+(h.reason?' — '+h.reason:''),false,h.line,h.auto]));
       // same denominator as the panel below: prescribed rows present vs total,
       // held rows excluded from both halves
       const pRows=(fc.rows||[]).filter(r=>r.present!==null&&!r.hold);
@@ -4160,11 +4425,20 @@ function rmPopHtml(n,flow){
       list='<div class="psec">Profile filters</div>'
         +'<div class="ptags">'
         +'<span class="ptag'+(nOk<pRows.length?' w':' g')+'">'+nOk+' OF '+pRows.length+' PRESCRIBED</span>'
-        +(nHold?'<span class="ptag b">'+nHold+' ON HOLD</span>':'')
+        +(nHold?'<span class="ptag b">'+nHold+' ON ICE</span>':'')
         +'<span class="ptag">'+((flow.filters.groups||flow.filters.lines||[]).length)
         +' SET ON THE FLOW</span></div>'
-        +'<ul class="pmix">'+rows.map(r=>'<li class="'+r[0]+'">'+r[1]
-          +(r[2]?' <em>('+esc(r[2])+')</em>':'')+'</li>').join('')+'</ul>'
+        +'<ul class="pmix">'+rows.map(r=>{
+          // owner-only: put a prescribed filter on ice for THIS flow, or take it
+          // off. An automatic hold has no button — it is derived, not a choice.
+          const icy=IS_OWNER&&flow&&r[4]&&(r[0]==='miss'||(r[0]==='hold'&&!r[5]))
+            ? '<button class="pice" type="button" data-ice="'+(r[0]==='hold'?'off':'on')+'"'
+              +' data-flow="'+esc(flow.id)+'" data-line="'+esc(r[4]).replace(/"/g,'&quot;')+'"'
+              +' title="'+(r[0]==='hold'?'Take this filter off ice':'Put this filter on ice for this flow')
+              +'">'+(r[0]==='hold'?'\u21ba':'\u2744')+'</button>' : '';
+          return '<li class="'+r[0]+'">'+r[1]
+            +(r[2]?' <em>('+esc(r[2])+')</em>':'')+icy+'</li>';
+        }).join('')+'</ul>'
         +(flow.filters_source==='inferred'
           ? '<p class="pnote">Which slot these recommendations belong to was matched on the '
             +'filter wording, not read off the map directly. Worth confirming.</p>' : '');
@@ -4303,7 +4577,7 @@ function rmFilters(flow,cov){
       '<li class="'+(r.hold?'hold':r.logic==='and'?'andor':r.present===false?'miss'
         :r.present?'has':'')+'">'
       +orMark(r.prescribed)
-      +(r.hold?' <em>(on hold'+(r.hold===true?'':' — '+esc(r.hold))+')</em>'
+      +(r.hold?' <em>(on ice'+(r.hold===true?'':' — '+esc(r.hold))+')</em>'
         :r.logic==='and'?' <em>(set, but ANDed — the map wants OR)</em>'
         :r.logic==='or'?' <em>(OR, as prescribed)</em>':'')
       +'</li>').join('')
