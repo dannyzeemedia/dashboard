@@ -926,6 +926,9 @@
   .rm-flist li.andor{color:var(--ink);background:color-mix(in srgb,var(--warn) 12%,transparent)}
   .rm-flist li.andor::before{content:"!";color:var(--warn)}
   .rm-flist li.andor em{font-style:normal;font-size:11px;color:var(--warn)}
+  .rm-flist li.dupe{color:var(--ink);background:color-mix(in srgb,var(--warn) 13%,transparent)}
+  .rm-flist li.dupe::before{content:"⧉";color:var(--warn);font-weight:700}
+  .rm-flist li.dupe em{font-style:normal;font-size:11px;color:var(--warn)}
   /* OR alternatives inside one requirement, AND between requirements */
   .rm-join{display:block;font-size:9.5px;font-weight:800;letter-spacing:.11em;
     color:var(--muted);margin:2px 0 1px}
@@ -1066,6 +1069,9 @@
   .rm-pop .pmix li.andor{color:var(--ink);background:color-mix(in srgb,var(--warn) 12%,transparent)}
   .rm-pop .pmix li.andor::before{content:"!";color:var(--warn)}
   .rm-pop .pmix li.andor em{color:var(--warn)}
+  .rm-pop .pmix li.dupe{color:var(--ink);background:color-mix(in srgb,var(--warn) 13%,transparent)}
+  .rm-pop .pmix li.dupe::before{content:"⧉";color:var(--warn);font-weight:700}
+  .rm-pop .pmix li.dupe em{color:var(--warn)}
   .rm-pop .ptag.b{color:var(--flow);background:color-mix(in srgb,var(--flow) 13%,transparent)}
   .rm-pop .pacts{display:flex;gap:8px;flex-wrap:wrap}
   .rm-pop .pacts a{font-size:12px;font-weight:600;color:var(--flow);text-decoration:none;
@@ -3576,6 +3582,9 @@ function rmFilterCheck(M){
         +nOk+'/'+pRows.length+' PRESCRIBED</span>');
       const nIce=(fc.held||[]).length+(fc.held_extra||[]).length;
       if(nIce)chips.push('<span class="rm-fcchip b">'+nIce+' ON ICE</span>');
+      const nDup=(fc.redundant||[]).length;
+      if(nDup)chips.push('<span class="rm-fcchip w" title="'+nDup
+        +' filter(s) another filter on this flow already covers">'+nDup+' REDUNDANT</span>');
       const nX=(fc.extra||[]).length;
       if(nX)chips.push('<span class="rm-fcchip w" title="'+nX
         +' filters the flow runs that the map does not ask for">'+nX+' EXTRA</span>');
@@ -3615,8 +3624,12 @@ function rmFilterCheck(M){
         const rec=rs.some(a=>a&&a.recommended);
         const held=!rec&&rs.length&&rs.every(a=>a&&a.hold);
         const auto=held&&rs.every(a=>a.hold_auto);
-        const cls=!fc?'':rec?'has':held?'holdok':'extra';
-        const note=!fc?'':rec?'':held
+        const dup=rs.find(a=>a&&a.redundant&&!a.hold);
+        const cls=!fc?'':dup?'dupe':rec?'has':held?'holdok':'extra';
+        const note=!fc?''
+          :dup?(dup.redundant.kind==='identical'?'redundant — set twice on this flow'
+                :'redundant — the wider window already covers it')
+          :rec?'':held
           ? ('on ice'+(rs[0].hold===true?'':' — '+rs[0].hold)) : 'not on the map';
         return {html:rmFcRow(cls+' grp',
           g.map(l=>esc(l)).join(' <span class="rm-join or">OR</span> '),
@@ -4603,8 +4616,12 @@ function rmPopHtml(n,flow){
       const gseen={}, iced=[];
       (fc.actual||[]).forEach(r=>{
         const gi=(r.group==null?'l'+rows.length:r.group);
-        const cls=r.recommended?'has':r.hold?'holdok':'extra';
-        const note=r.recommended?'Prescribed'
+        const cls=(r.redundant&&!r.hold)?'dupe'
+          :r.recommended?'has':r.hold?'holdok':'extra';
+        const note=(r.redundant&&!r.hold)
+            ?(r.redundant.kind==='identical'?'Redundant — set twice on this flow'
+              :'Redundant — the wider window already covers it')
+          :r.recommended?'Prescribed'
           :r.hold?('On ice'+(r.hold===true?'':' — '+r.hold)):'Not on the map';
         const bank=(cls==='holdok')?iced:rows;
         if(gseen[gi]!=null){const at=gseen[gi][0], into=gseen[gi][1];
@@ -4910,7 +4927,7 @@ async function rmResync(from){
       throw new Error(e.error||('sync could not start ('+r.status+')'));
     }
     // poll the row until the map's timestamp moves, then re-render in place
-    for(let i=0;i<80;i++){
+    for(let i=0;i<45;i++){
       await new Promise(res=>setTimeout(res,4000));
       const {data}=await sb.from('client_series').select('data')
         .eq('client_slug',ACTIVE).limit(1);
@@ -4927,8 +4944,8 @@ async function rmResync(from){
       }
       say('Reading… '+((i+1)*4)+'s');
     }
-    say('Still running');
-    setTimeout(done,4000);
+    say('No update after 3 min — the sync may have failed');
+    setTimeout(done,7000);
   }catch(err){
     lbl.textContent=String(err.message||err).slice(0,40);
     setTimeout(done,5000);
