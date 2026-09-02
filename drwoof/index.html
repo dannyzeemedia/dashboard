@@ -36,6 +36,30 @@
     --ice-ok:#7FA6FF; --ice-no:#A9B8F0;
     --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.6);
   }
+  /* Range/comparison toggles rebuild the dashboard from scratch, which read as
+     a hard cut. Charts and rows ease in; the numbers themselves are counted up
+     in JS (dashTween), which is the part that actually softens the change. */
+  @keyframes dash-in{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+  @keyframes dash-grow{from{transform:scaleY(.72);opacity:.35}to{transform:none;opacity:1}}
+  @media (prefers-reduced-motion:no-preference){
+    #view-dash .card svg,#p-chart svg{animation:dash-in .34s cubic-bezier(.22,.61,.36,1) both}
+    #view-dash .card svg rect:not([fill="transparent"]){
+      transform-box:fill-box;transform-origin:bottom;
+      animation:dash-grow .40s cubic-bezier(.22,.61,.36,1) both}
+    #view-dash .rprrow{animation:dash-in .30s cubic-bezier(.22,.61,.36,1) both}
+    #view-dash .rprrow:nth-child(2){animation-delay:.02s}
+    #view-dash .rprrow:nth-child(3){animation-delay:.04s}
+    #view-dash .rprrow:nth-child(4){animation-delay:.06s}
+    #view-dash .rprrow:nth-child(5){animation-delay:.08s}
+    #view-dash .rprrow:nth-child(6){animation-delay:.10s}
+    #view-dash .rprrow:nth-child(7){animation-delay:.12s}
+    #view-dash .rprrow:nth-child(8){animation-delay:.14s}
+    #view-dash .rprrow:nth-child(9){animation-delay:.16s}
+    #view-dash .rprrow:nth-child(n+10){animation-delay:.18s}
+    /* bars inside the tiles and the A/B rows slide their width rather than jump */
+    #view-dash .rbar i,#view-dash .sbar i,#view-dash .abt{
+      transition:width .42s cubic-bezier(.22,.61,.36,1)}
+  }
   *{box-sizing:border-box}
   body{margin:0;background:var(--plane);color:var(--ink);font-family:var(--sans);
     -webkit-font-smoothing:antialiased;line-height:1.5}
@@ -711,7 +735,7 @@
   .rm-fcchip.b{background:color-mix(in srgb,var(--flow) 13%,transparent);color:var(--flow)}
   .rm-fcbody{display:none;border-top:1px solid var(--border);padding:12px 13px 14px}
   .rm-fcflow.open .rm-fcbody{display:block}
-  .rm-fclist li{position:relative;padding-right:36px}
+  .rm-flist.rm-fclist li{position:relative;padding-right:40px}
   .rm-fclist .pice{position:absolute;right:4px;top:2px;border:0;background:transparent;
     cursor:pointer;font-size:12px;line-height:1;padding:3px 4px;border-radius:6px;
     color:var(--muted);opacity:0;transition:opacity .12s}
@@ -730,6 +754,27 @@
   .rm-fcbody .pacts a{font-size:12px;font-weight:600;color:var(--flow);text-decoration:none;
     border:1px solid var(--border);border-radius:8px;padding:6px 10px;background:var(--surface)}
   .rm-fcbody .pacts a:hover{border-color:var(--flow)}
+  .rm-fcbody .pacts button{font-size:12px;font-weight:600;color:var(--flow);
+    border:1px solid var(--border);border-radius:8px;padding:6px 10px;
+    background:var(--surface);cursor:pointer;font-family:inherit}
+  .rm-fcbody .pacts button:hover{border-color:var(--flow)}
+  .rm-fcbody .pacts button[disabled]{opacity:.6;cursor:default}
+  /* changed since the last read: start on the old colour, settle on the new */
+  @keyframes fc-fixed{
+    0%{background:rgba(224,74,52,.20);box-shadow:0 0 0 2px rgba(224,74,52,.55)}
+    30%{background:rgba(47,163,107,.42);box-shadow:0 0 0 4px rgba(47,163,107,.75)}
+    70%{background:rgba(47,163,107,.30);box-shadow:0 0 0 3px rgba(47,163,107,.45)}
+    100%{background:rgba(47,163,107,.12);box-shadow:0 0 0 0 rgba(47,163,107,0)}}
+  @keyframes fc-broke{
+    0%{background:rgba(47,163,107,.20);box-shadow:0 0 0 2px rgba(47,163,107,.55)}
+    30%{background:rgba(224,74,52,.42);box-shadow:0 0 0 4px rgba(224,74,52,.75)}
+    70%{background:rgba(224,74,52,.30);box-shadow:0 0 0 3px rgba(224,74,52,.45)}
+    100%{background:rgba(224,74,52,.12);box-shadow:0 0 0 0 rgba(224,74,52,0)}}
+  @media (prefers-reduced-motion:no-preference){
+    .rm-flist li.fc-fixed{animation:fc-fixed 2.4s cubic-bezier(.3,.7,.4,1) both}
+    .rm-flist li.fc-broke{animation:fc-broke 2.4s cubic-bezier(.3,.7,.4,1) both}
+  }
+  .rm-fcchip.chg{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
   .rm-rows{display:flex;flex-direction:column;gap:5px}
   .rm-row{display:grid;
     grid-template-columns:minmax(150px,1.15fr) 92px minmax(180px,1fr) minmax(140px,.9fr) minmax(92px,.55fr);
@@ -1002,7 +1047,7 @@
   .rm-pop .pmix li.miss em{color:var(--crit)}
   .rm-pop .pmix li.extra em{color:var(--warn)}
   .rm-pop .pmix li.hold em{color:var(--ice-no)}
-  .rm-pop .pmix li{padding-right:34px}
+  .rm-pop .pmix li{padding-right:38px}
   .rm-pop .pice{position:absolute;right:5px;top:2px;border:0;background:transparent;
     cursor:pointer;font-size:12px;line-height:1;padding:3px 4px;border-radius:6px;
     color:var(--muted);opacity:0;transition:opacity .12s}
@@ -3132,7 +3177,53 @@ function auditBars(host,spec,S){const map=auditFlowAgg(S,12);let items=[];
   host.appendChild(wrap);}
 
 function clearDash(){document.querySelectorAll('#view-dash .card svg,#view-dash .card .sm,#view-dash .card .tip,#p-chart svg,#p-chart .tip').forEach(e=>e.remove());}
-function renderDash(){clearDash();const{cur}=windows();renderTiles();renderRpr();renderPor();renderTests();renderBuckets();
+
+// ---- softening a range change -------------------------------------------
+// The figures are rendered as formatted strings ("$1.24M", "3.2%", "12,480"),
+// so the tween works on the strings: same prefix and suffix, count the number
+// between them. Anything it cannot read that way is set straight to its new
+// value rather than animated wrongly.
+const DASH_NUM_SEL=['#tiles .val','#tiles .sval','#tiles .tsub'];
+const dashStill=()=>matchMedia('(prefers-reduced-motion:reduce)').matches;
+function dashSnap(){
+  const m={}; if(dashStill())return m;
+  DASH_NUM_SEL.forEach(sel=>document.querySelectorAll(sel)
+    .forEach((el,i)=>{m[sel+'#'+i]=el.textContent;}));
+  return m;
+}
+function dashParts(str){
+  const m=String(str==null?'':str).match(/^([^0-9]*?)([-+]?[\d,]*\.?\d+)([^0-9]*)$/);
+  if(!m)return null;
+  const d=m[2];
+  return {pre:m[1],post:m[3],val:parseFloat(d.replace(/,/g,'')),
+          dec:(d.split('.')[1]||'').length,comma:d.indexOf(',')>=0};
+}
+function dashTween(el,from,to){
+  const a=dashParts(from),b=dashParts(to);
+  if(!a||!b||a.pre!==b.pre||a.post!==b.post||!isFinite(a.val)||!isFinite(b.val)
+     ||a.val===b.val){el.textContent=to;return;}
+  const t0=performance.now(),D=460;
+  const step=now=>{
+    if(!el.isConnected)return;
+    const p=Math.min(1,(now-t0)/D), e=1-Math.pow(1-p,3);
+    const v=a.val+(b.val-a.val)*e;
+    let sv=v.toFixed(b.dec);
+    if(b.comma)sv=(+sv).toLocaleString(undefined,
+      {minimumFractionDigits:b.dec,maximumFractionDigits:b.dec});
+    el.textContent=b.pre+sv+b.post;
+    if(p<1)requestAnimationFrame(step); else el.textContent=to;
+  };
+  requestAnimationFrame(step);
+}
+function dashAnimate(snap){
+  if(!snap||dashStill())return;
+  DASH_NUM_SEL.forEach(sel=>document.querySelectorAll(sel).forEach((el,i)=>{
+    const was=snap[sel+'#'+i];
+    if(was!=null&&was!==el.textContent)dashTween(el,was,el.textContent);
+  }));
+}
+
+function renderDash(){const _snap=dashSnap();clearDash();const{cur}=windows();renderTiles();renderRpr();renderPor();renderTests();renderBuckets();
   const ipT=IP?{idx:IP.idx,project:IP.project,proj:[IP.proj.flow+IP.proj.camp,null]}:null;
   const ipS=IP?{idx:IP.idx,project:IP.project,proj:[IP.proj.subs,null]}:null;
   const ipR=IP?{idx:IP.idx,project:false,proj:[null,null]}:null;   // rates: mark point, don't project
@@ -3142,6 +3233,7 @@ function renderDash(){clearDash();const{cur}=windows();renderTiles();renderRpr()
   // List health: email shows unsub/spam RATE (% of delivered); SMS shows the
   // absolute opt-out COUNT (STOP events aren't send-attributable, so a rate is
   // meaningless), and SMS has no spam signal — so the metric toggle is hidden.
+  dashAnimate(_snap);
   {const sms=healthChannel==='sms';
    const seg=document.getElementById('healthSeg');if(seg)seg.style.display=sms?'none':'';
    const cap=document.querySelector('#c-health .cap');
@@ -3399,13 +3491,58 @@ function rmGroupHtml(key,label,count,inner,dflt){
 // ---- Filter check: every live flow's trigger and filters in one place, so a
 // filter review needs no trips into the flow graph. Same three-state reading as
 // the graph's pop-up, and the same ❄ control.
-function rmFcRow(cls,line,note,raw,flowId,canIce,isHold){
+function rmFcRow(cls,line,note,raw,flowId,canIce,isHold,key){
   const btn=(IS_OWNER&&canIce&&raw&&[].concat(raw).length)
     ? '<button class="pice" type="button" data-ice="'+(isHold?'off':'on')+'"'
       +' data-flow="'+esc(flowId)+'" data-line="'+rmIceAttr(raw)+'"'
       +' title="'+(isHold?'Take this off ice':'Mark this as deliberate on this flow')
       +'">'+(isHold?'\u21ba':'\u2744')+'</button>' : '';
-  return '<li class="'+cls+'">'+line+(note?' <em>('+esc(note)+')</em>':'')+btn+'</li>';
+  const id=key?' data-flow="'+esc(flowId)+'" data-key="'+esc(key).replace(/"/g,'&quot;')+'"':'';
+  return '<li class="'+cls+'"'+id+'>'+line+(note?' <em>('+esc(note)+')</em>':'')+btn+'</li>';
+}
+
+// What each filter row said last time this tab was read, so a resync can show
+// what actually moved instead of silently redrawing.
+function rmSnapFilters(){
+  const M=rmData(), out={};
+  (M&&M.flows||[]).forEach(f=>{
+    const fc=f.filter_check; if(!fc)return;
+    const st={};
+    (fc.rows||[]).forEach(r=>{st['p:'+r.prescribed]=
+      r.hold?'ice':r.present===false?'miss':r.present?'has':'na';});
+    (fc.actual||[]).forEach(r=>{st['a:'+r.line]=
+      r.recommended?'has':r.hold?'ice':'extra';});
+    out[f.id]=st;
+  });
+  return out;
+}
+const RM_STATE_NOW=li=>li.classList.contains('has')?'has'
+  :li.classList.contains('miss')?'miss'
+  :(li.classList.contains('hold')||li.classList.contains('holdok'))?'ice'
+  :li.classList.contains('extra')?'extra':'na';
+// good = a gap closed or an unknown explained; bad = something that was fine is not
+function rmFlashChanges(prev){
+  if(!prev)return 0;
+  let n=0;
+  document.querySelectorAll('#map-coverage .rm-flist li[data-key]').forEach(li=>{
+    const was=(prev[li.dataset.flow]||{})[li.dataset.key];
+    if(!was)return;
+    const now=RM_STATE_NOW(li);
+    if(now===was)return;
+    const better=(was==='miss'||was==='extra')&&(now==='has');
+    const worse=(was==='has')&&(now==='miss'||now==='extra');
+    if(!better&&!worse)return;
+    li.classList.add(better?'fc-fixed':'fc-broke');
+    n++;
+    const flow=li.closest('.rm-fcflow');
+    if(flow){flow.classList.add('open');
+      const chips=flow.querySelector('.rm-fcchips');
+      if(chips&&!chips.querySelector('.chg')){
+        const c=document.createElement('span');
+        c.className='rm-fcchip chg'; c.textContent='CHANGED';
+        chips.insertBefore(c,chips.firstChild);}}
+  });
+  return n;
 }
 function rmFilterCheck(M){
   const orMark=t=>esc(t).replace(/ OR /g,' <span class="rm-join or">OR</span> ');
@@ -3464,7 +3601,7 @@ function rmFilterCheck(M){
           :r.logic==='or'?'OR, as prescribed':'',
         [r.prescribed], f.id,
         (r.hold&&!((fc.held||[]).find(h=>h.line===r.prescribed)||{}).auto)||r.present===false,
-        !!r.hold)).join('');
+        !!r.hold, 'p:'+r.prescribed)).join('');
     }else{
       left='<li class="dim">Not on the retention map, so nothing is prescribed.</li>';
     }
@@ -3483,7 +3620,7 @@ function rmFilterCheck(M){
           ? ('on ice'+(rs[0].hold===true?'':' — '+rs[0].hold)) : 'not on the map';
         return {html:rmFcRow(cls+' grp',
           g.map(l=>esc(l)).join(' <span class="rm-join or">OR</span> '),
-          note, g, f.id, !!fc&&!rec&&!auto, held), held:held};
+          note, g, f.id, !!fc&&!rec&&!auto, held, 'a:'+g[0]), held:held};
       };
       const all=gs.map(mk);
       right=all.filter(x=>!x.held).map(x=>x.html).join('')
@@ -3511,7 +3648,11 @@ function rmFilterCheck(M){
       +'</div>'
       +'<div class="pacts" style="margin-top:11px">'
         +'<a href="'+rmFlowUrl(f.id)+'" target="_blank" rel="noopener">↗ Open flow</a>'
-        +'<a href="#" data-draw="'+esc(f.id)+'">→ Draw this flow</a></div>'
+        +'<a href="#" data-draw="'+esc(f.id)+'">→ Draw this flow</a>'
+        +'<button type="button" data-fcsync="'+esc(f.id)+'" title="Re-read the flows from '
+        +'Klaviyo. Reads the whole account, because one flow costs the same as all of them: '
+        +'filters come from the flow definitions, which are free of report calls.">'
+        +'⟳ Re-read filters</button></div>'
       +'</div></div>';
   }).join('');
   const keys='<div class="rm-fckeys rm-fcgrid"><span>Flow</span><span>Trigger</span>'
@@ -3524,6 +3665,8 @@ function rmFilterCheck(M){
 function rmWireFilterCheck(){
   document.querySelectorAll('#map-coverage .rm-fchead').forEach(b=>
     b.addEventListener('click',()=>b.closest('.rm-fcflow').classList.toggle('open')));
+  document.querySelectorAll('#map-coverage [data-fcsync]').forEach(b=>
+    b.addEventListener('click',()=>rmResync(b)));
   document.querySelectorAll('#map-coverage [data-draw]').forEach(a=>
     a.addEventListener('click',e=>{e.preventDefault();rmPick(a.dataset.draw);
       document.getElementById('map-stage').scrollIntoView({behavior:'smooth',block:'start'});}));
@@ -4740,12 +4883,19 @@ function rmFullscreen(on){
   setTimeout(rmFit,60);
 }
 let RM_SYNCING=false;
-async function rmResync(){
+async function rmResync(from){
   if(RM_SYNCING)return;
-  const btn=document.getElementById('map-resync'), lbl=document.getElementById('map-resync-t');
+  const bar=document.getElementById('map-resync');
+  const btn=from||bar;
+  const lbl=from?from:document.getElementById('map-resync-t');
+  const say=t=>{lbl.textContent=(from?'⟳ ':'')+t;};
+  const done=()=>{lbl.textContent=from?'⟳ Re-read filters':'Resync';};
   const M=rmData(); if(!M)return;
   const before=M.generated_at;
-  RM_SYNCING=true; btn.disabled=true; lbl.textContent='Syncing…';
+  const snap=rmSnapFilters();
+  const openIds=[...document.querySelectorAll('#map-coverage .rm-fcflow.open')]
+    .map(el=>el.dataset.flow);
+  RM_SYNCING=true; btn.disabled=true; if(bar)bar.disabled=true; say('Reading…');
   try{
     const {data:{session}}=await sb.auth.getSession();
     if(!session)throw new Error('signed out');
@@ -4767,20 +4917,23 @@ async function rmResync(){
       const fresh=data&&data[0]&&data[0].data;
       if(fresh&&fresh.retention_map&&fresh.retention_map.generated_at!==before){
         SERIES[ACTIVE]=fresh;
-        lbl.textContent='Updated';
         renderMap();
-        setTimeout(()=>{lbl.textContent='Resync';},2500);
+        openIds.forEach(id=>{const el=document.querySelector(
+          '#map-coverage .rm-fcflow[data-flow="'+id+'"]'); if(el)el.classList.add('open');});
+        const moved=rmFlashChanges(snap);
+        say(moved?(moved+' changed'):'No change');
+        setTimeout(done,moved?4000:2500);
         return;
       }
-      lbl.textContent='Syncing… '+((i+1)*4)+'s';
+      say('Reading… '+((i+1)*4)+'s');
     }
-    lbl.textContent='Still running';
-    setTimeout(()=>{lbl.textContent='Resync';},4000);
+    say('Still running');
+    setTimeout(done,4000);
   }catch(err){
     lbl.textContent=String(err.message||err).slice(0,40);
-    setTimeout(()=>{lbl.textContent='Resync';},5000);
+    setTimeout(done,5000);
   }finally{
-    RM_SYNCING=false; btn.disabled=false;
+    RM_SYNCING=false; btn.disabled=false; if(bar)bar.disabled=false;
   }
 }
 function rmWire(){
@@ -4797,7 +4950,7 @@ function rmWire(){
     RM_RANGE=b.dataset.r; renderMap();});
   document.getElementById('map-openflow').addEventListener('click',()=>{
     if(RM_FLOW)window.open(rmFlowUrl(RM_FLOW),'_blank','noopener');});
-  document.getElementById('map-resync').addEventListener('click',rmResync);
+  document.getElementById('map-resync').addEventListener('click',()=>rmResync());
   setInterval(rmSyncedLabel,60000);   // keep "3 minutes ago" honest
   document.getElementById('map-full').addEventListener('click',()=>rmFullscreen());
   document.addEventListener('keydown',e=>{
