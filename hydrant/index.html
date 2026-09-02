@@ -3546,7 +3546,17 @@ const SRC_ICON={
 };
 function srcIcon(src){
   if(!src)return '';
-  const it=SRC_ICON[String(src).toLowerCase()];
+  const key=String(src).toLowerCase();
+  // The pipeline resolves a logo for any integration this file has no mark for
+  // and ships it in the map, so a new one appears without a deploy.
+  const M=rmData(), auto=M&&M.integration_icons;
+  if(auto&&!SRC_ICON[key]){
+    const hit=auto[src]||auto[key]||Object.keys(auto).find(k=>k.toLowerCase()===key);
+    const uri=typeof hit==='string'&&hit.indexOf('data:')===0?hit:(hit?auto[hit]:null);
+    if(uri)return '<span class="fsrc" title="'+esc(src)+'"><img src="'+uri+'" alt="" '
+      +'width="13" height="13" loading="lazy"></span>';
+  }
+  const it=SRC_ICON[key];
   const t=it?it.t:src;
   if(it&&it.m==='i')
     return '<span class="fsrc" title="'+esc(t)+'"><img src="'+it.src+'" alt="" width="13" '
