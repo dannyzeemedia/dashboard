@@ -13,6 +13,7 @@
     --grid:#e5eaed; --axis:#c2ccd0; --border:rgba(12,48,74,.12);
     --flow:#0C304A; --camp:#CDA434; --aqua:#0F4E59;
     --good:#1a8f3c; --warn:#b5820c; --crit:#c8452f;
+    --ice-ok:#2F5BE0; --ice-no:#1B2A6B;
     --shadow:0 1px 2px rgba(12,48,74,.05),0 8px 24px -12px rgba(12,48,74,.14);
     --radius:14px;
     --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -23,6 +24,7 @@
     --ink:#FDFEF9; --ink2:#c3ccc8; --muted:#8f948f;
     --grid:#3a3b33; --axis:#4a4b42; --border:rgba(220,228,231,.13);
     --flow:#5aa0d6; --camp:#F7E984; --aqua:#3aa0af;
+    --ice-ok:#7FA6FF; --ice-no:#A9B8F0;
     --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.6);
   }}
   :root[data-theme="dark"]{
@@ -31,6 +33,7 @@
     --ink:#FDFEF9; --ink2:#c3ccc8; --muted:#8f948f;
     --grid:#3a3b33; --axis:#4a4b42; --border:rgba(220,228,231,.13);
     --flow:#5aa0d6; --camp:#F7E984; --aqua:#3aa0af;
+    --ice-ok:#7FA6FF; --ice-no:#A9B8F0;
     --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.6);
   }
   *{box-sizing:border-box}
@@ -713,7 +716,9 @@
     cursor:pointer;font-size:12px;line-height:1;padding:3px 4px;border-radius:6px;
     color:var(--muted);opacity:0;transition:opacity .12s}
   .rm-fclist li:hover .pice,.rm-fclist .pice:focus{opacity:1}
-  .rm-fclist li.hold .pice{opacity:.75;color:var(--flow)}
+  .rm-fclist li.hold .pice,.rm-fclist li.holdok .pice{opacity:.75}
+  .rm-fclist li.hold .pice{color:var(--ice-no)}
+  .rm-fclist li.holdok .pice{color:var(--ice-ok)}
   .rm-fclist .pice:hover{background:color-mix(in srgb,var(--flow) 14%,transparent);color:var(--flow)}
   .rm-fclist .picef{display:flex;gap:6px;margin:6px 0 0}
   .rm-fclist .picef input{flex:1;min-width:0;font:inherit;font-size:11.5px;padding:5px 7px;
@@ -865,9 +870,14 @@
   .rm-flist li.miss::before{content:"✕";color:var(--crit)}
   .rm-flist li.extra{color:var(--ink);background:color-mix(in srgb,var(--warn) 12%,transparent)}
   .rm-flist li.extra::before{content:"?";color:var(--warn)}
-  .rm-flist li.hold{color:var(--ink2);background:color-mix(in srgb,var(--flow) 9%,transparent)}
-  .rm-flist li.hold::before{content:"✕";color:var(--flow)}
-  .rm-flist li.hold em{font-style:normal;font-size:11px;color:var(--flow)}
+  /* prescribed, not set, accepted anyway — navy, still an ✕ */
+  .rm-flist li.hold{color:var(--ink2);background:color-mix(in srgb,var(--ice-no) 10%,transparent)}
+  .rm-flist li.hold::before{content:"✕";color:var(--ice-no)}
+  /* there, not prescribed, and that is deliberate — royal blue, a ✓ */
+  .rm-flist li.holdok{color:var(--ink2);background:color-mix(in srgb,var(--ice-ok) 11%,transparent)}
+  .rm-flist li.holdok::before{content:"✓";color:var(--ice-ok)}
+  .rm-flist li.holdok em{font-style:normal;font-size:11px;color:var(--ice-ok)}
+  .rm-flist li.hold em{font-style:normal;font-size:11px;color:var(--ice-no)}
   .rm-flist li.andor{color:var(--ink);background:color-mix(in srgb,var(--warn) 12%,transparent)}
   .rm-flist li.andor::before{content:"!";color:var(--warn)}
   .rm-flist li.andor em{font-style:normal;font-size:11px;color:var(--warn)}
@@ -980,19 +990,26 @@
   .rm-pop .pmix li.miss::before{content:"✕";color:var(--crit)}
   .rm-pop .pmix li.extra{color:var(--ink);background:color-mix(in srgb,var(--warn) 12%,transparent)}
   .rm-pop .pmix li.extra::before{content:"?";color:var(--warn)}
-  .rm-pop .pmix li.hold{color:var(--ink2);background:color-mix(in srgb,var(--flow) 9%,transparent)}
-  .rm-pop .pmix li.hold::before{content:"✕";color:var(--flow)}
+  /* prescribed, not set, accepted anyway — navy, still an ✕ */
+  .rm-pop .pmix li.hold{color:var(--ink2);background:color-mix(in srgb,var(--ice-no) 10%,transparent)}
+  .rm-pop .pmix li.hold::before{content:"✕";color:var(--ice-no)}
+  /* there, not prescribed, and that is deliberate — royal blue, a ✓ */
+  .rm-pop .pmix li.holdok{color:var(--ink2);background:color-mix(in srgb,var(--ice-ok) 11%,transparent)}
+  .rm-pop .pmix li.holdok::before{content:"✓";color:var(--ice-ok)}
+  .rm-pop .pmix li.holdok em{font-style:normal;font-size:11px;color:var(--ice-ok)}
   .rm-pop .pmix li em{font-style:normal;font-size:11px;color:var(--muted)}
   .rm-pop .pmix li.has em{color:var(--good)}
   .rm-pop .pmix li.miss em{color:var(--crit)}
   .rm-pop .pmix li.extra em{color:var(--warn)}
-  .rm-pop .pmix li.hold em{color:var(--flow)}
+  .rm-pop .pmix li.hold em{color:var(--ice-no)}
   .rm-pop .pmix li{padding-right:34px}
   .rm-pop .pice{position:absolute;right:5px;top:2px;border:0;background:transparent;
     cursor:pointer;font-size:12px;line-height:1;padding:3px 4px;border-radius:6px;
     color:var(--muted);opacity:0;transition:opacity .12s}
   .rm-pop .pmix li:hover .pice,.rm-pop .pice:focus{opacity:1}
-  .rm-pop .pmix li.hold .pice{opacity:.75;color:var(--flow)}
+  .rm-pop .pmix li.hold .pice,.rm-pop .pmix li.holdok .pice{opacity:.75}
+  .rm-pop .pmix li.hold .pice{color:var(--ice-no)}
+  .rm-pop .pmix li.holdok .pice{color:var(--ice-ok)}
   .rm-pop .pice:hover{background:color-mix(in srgb,var(--flow) 14%,transparent);color:var(--flow)}
   .rm-pop .picef{display:flex;gap:6px;margin:6px 0 0}
   .rm-pop .picef input{flex:1;min-width:0;font:inherit;font-size:11.5px;padding:5px 7px;
@@ -3461,7 +3478,7 @@ function rmFilterCheck(M){
         const rec=rs.some(a=>a&&a.recommended);
         const held=!rec&&rs.length&&rs.every(a=>a&&a.hold);
         const auto=held&&rs.every(a=>a.hold_auto);
-        const cls=!fc?'':rec?'has':held?'hold':'extra';
+        const cls=!fc?'':rec?'has':held?'holdok':'extra';
         const note=!fc?'':rec?'':held
           ? ('on ice'+(rs[0].hold===true?'':' — '+rs[0].hold)) : 'not on the map';
         return {html:rmFcRow(cls+' grp',
@@ -4443,10 +4460,10 @@ function rmPopHtml(n,flow){
       const gseen={}, iced=[];
       (fc.actual||[]).forEach(r=>{
         const gi=(r.group==null?'l'+rows.length:r.group);
-        const cls=r.recommended?'has':r.hold?'hold':'extra';
+        const cls=r.recommended?'has':r.hold?'holdok':'extra';
         const note=r.recommended?'Prescribed'
           :r.hold?('On ice'+(r.hold===true?'':' — '+r.hold)):'Not on the map';
-        const bank=(cls==='hold')?iced:rows;
+        const bank=(cls==='holdok')?iced:rows;
         if(gseen[gi]!=null){const at=gseen[gi][0], into=gseen[gi][1];
           into[at][1]+=' <span class="rm-join or">OR</span> '+esc(r.line);
           into[at][4]=[].concat(into[at][4]||[],[r.line]);
@@ -4482,16 +4499,17 @@ function rmPopHtml(n,flow){
         +'<ul class="pmix">'+rows.map(r=>{
           // owner-only: put a prescribed filter on ice for THIS flow, or take it
           // off. An automatic hold has no button — it is derived, not a choice.
-          const iceable=r[0]==='miss'||r[0]==='extra'||(r[0]==='hold'&&!r[5]);
+          const onIce=r[0]==='hold'||r[0]==='holdok';
+          const iceable=r[0]==='miss'||r[0]==='extra'||(onIce&&!r[5]);
           const icy=IS_OWNER&&flow&&r[4]&&iceable
-            ? '<button class="pice" type="button" data-ice="'+(r[0]==='hold'?'off':'on')+'"'
+            ? '<button class="pice" type="button" data-ice="'+(onIce?'off':'on')+'"'
               +' data-flow="'+esc(flow.id)+'" data-line="'+rmIceAttr(r[4])+'"'
-              +' title="'+(r[0]==='hold'
+              +' title="'+(onIce
                 ? 'Take this off ice'
                 : (r[0]==='extra'
                    ? 'Mark this as deliberate on this flow, so it stops flagging'
                    : 'Put this filter on ice for this flow'))
-              +'">'+(r[0]==='hold'?'\u21ba':'\u2744')+'</button>' : '';
+              +'">'+(onIce?'\u21ba':'\u2744')+'</button>' : '';
           return '<li class="'+r[0]+'">'+r[1]
             +(r[2]?' <em>('+esc(r[2])+')</em>':'')+icy+'</li>';
         }).join('')+'</ul>'
