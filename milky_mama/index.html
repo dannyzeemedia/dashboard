@@ -679,17 +679,27 @@
   /* Filter check: every trigger and its filters, without opening each map */
   .rm-fcflow{background:var(--surface);border:1px solid var(--border);border-radius:11px;
     margin-bottom:5px;overflow:hidden}
-  .rm-fchead{display:grid;grid-template-columns:minmax(160px,1.1fr) minmax(120px,.8fr) 1fr auto;
-    gap:12px;align-items:center;width:100%;background:none;border:0;padding:11px 13px;
+  .rm-fcgrid{display:grid;grid-template-columns:minmax(0,1fr) 215px 200px 278px;gap:14px;
+    align-items:center}
+  .rm-fchead{width:100%;background:none;border:0;padding:11px 13px;
     cursor:pointer;text-align:left;font-family:inherit}
+  .rm-fckeys{padding:0 13px 7px;font-size:9.5px;font-weight:800;letter-spacing:.11em;
+    text-transform:uppercase;color:var(--muted)}
+  .rm-fckeys span:last-child{text-align:right}
+  @media (max-width:900px){
+    .rm-fcgrid{grid-template-columns:minmax(0,1fr) 150px;row-gap:6px}
+    .rm-fckeys{display:none}
+  }
   .rm-fchead:hover{background:color-mix(in srgb,var(--flow) 4%,transparent)}
   .rm-fcnm{font-size:12.5px;font-weight:600;color:var(--ink)}
   .rm-fcnm .chev{display:inline-block;font-size:10px;color:var(--muted);margin-right:6px;
     transition:transform .15s}
   .rm-fcflow.open .rm-fcnm .chev{transform:rotate(90deg)}
-  .rm-fctrig{font-size:11.5px;color:var(--ink2)}
+  .rm-fctrig{font-size:11.5px;color:var(--ink2);text-align:left;min-width:0;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .rm-fctrig b{font-weight:600;color:var(--ink2)}
-  .rm-fcchips{display:flex;gap:6px;flex-wrap:wrap;justify-self:end}
+  .rm-fcnm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rm-fcchips{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
   .rm-fcchip{font-size:9.5px;font-weight:800;letter-spacing:.07em;padding:3px 7px;border-radius:6px;
     background:var(--border);color:var(--ink2);white-space:nowrap}
   .rm-fcchip.g{background:color-mix(in srgb,var(--good) 14%,transparent);color:var(--good)}
@@ -3382,13 +3392,19 @@ function rmFcRow(cls,line,note,raw,flowId,canIce,isHold){
 }
 function rmFilterCheck(M){
   const orMark=t=>esc(t).replace(/ OR /g,' <span class="rm-join or">OR</span> ');
+  // Order follows the retention map itself — welcome, site, browse, cart,
+  // checkout, post-purchase, then advanced, subscription, affiliate — because
+  // that is the order the journey happens in, and the order the Universal task
+  // list uses. Coverage is already in framework order, so it IS the index.
+  const slotOrd={}; (M.coverage||[]).forEach((c,i)=>{slotOrd[c.key]=i;});
+  const rank=f=>(f.slot!=null&&slotOrd[f.slot]!=null)?slotOrd[f.slot]:9999;
   const flows=(M.flows||[]).filter(f=>f.status==='live'&&!f.duplicate)
     .sort((a,b)=>{
-      const sa=a.filter_check?0:1, sb=b.filter_check?0:1;
-      if(sa!==sb)return sa-sb;
-      const ma=a.filter_check?a.filter_check.missing.length:0;
-      const mb=b.filter_check?b.filter_check.missing.length:0;
-      if(ma!==mb)return mb-ma;
+      const ra=rank(a), rb=rank(b);
+      if(ra!==rb)return ra-rb;                       // journey order
+      if(!!a.idr!==!!b.idr)return a.idr?1:-1;        // main flow leads its slot
+      const da=(a.depth&&a.depth.email)||0, db=(b.depth&&b.depth.email)||0;
+      if(da!==db)return db-da;                       // then the deeper one
       return (a.name||'').localeCompare(b.name||'');
     });
   if(!flows.length)return '';
@@ -3444,7 +3460,7 @@ function rmFilterCheck(M){
     }
     const reBad=fc&&fc.reentry&&fc.reentry.match===false;
     return '<div class="rm-fcflow" data-flow="'+esc(f.id)+'">'
-      +'<button class="rm-fchead" type="button">'
+      +'<button class="rm-fchead rm-fcgrid" type="button">'
         +'<span class="rm-fcnm"><span class="chev">▸</span>'+esc(f.name)
           +(f.idr?' <span class="rm-subtag idr">IDR</span>':'')+'</span>'
         +'<span class="rm-fctrig"><b>'+esc(trig)+'</b></span>'
@@ -3465,9 +3481,12 @@ function rmFilterCheck(M){
         +'<a href="#" data-draw="'+esc(f.id)+'">→ Draw this flow</a></div>'
       +'</div></div>';
   }).join('');
+  const keys='<div class="rm-fckeys rm-fcgrid"><span>Flow</span><span>Trigger</span>'
+    +'<span>Re-entry</span><span>Filter check</span></div>';
   return rmGroupHtml('filtercheck','Filter check',
-    offspec?(offspec+' of '+flows.length+' flows off spec'):(flows.length+' live flows, all on spec'),
-    inner,false);
+    (offspec?(offspec+' of '+flows.length+' flows off spec'):(flows.length+' live flows, all on spec'))
+      +' · in journey order',
+    keys+inner,false);
 }
 function rmWireFilterCheck(){
   document.querySelectorAll('#map-coverage .rm-fchead').forEach(b=>
