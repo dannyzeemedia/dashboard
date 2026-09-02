@@ -708,7 +708,7 @@
   .rm-fcchip.b{background:color-mix(in srgb,var(--flow) 13%,transparent);color:var(--flow)}
   .rm-fcbody{display:none;border-top:1px solid var(--border);padding:12px 13px 14px}
   .rm-fcflow.open .rm-fcbody{display:block}
-  .rm-fclist li{position:relative;padding-right:32px}
+  .rm-fclist li{position:relative;padding-right:36px}
   .rm-fclist .pice{position:absolute;right:4px;top:2px;border:0;background:transparent;
     cursor:pointer;font-size:12px;line-height:1;padding:3px 4px;border-radius:6px;
     color:var(--muted);opacity:0;transition:opacity .12s}
@@ -3383,10 +3383,10 @@ function rmGroupHtml(key,label,count,inner,dflt){
 // filter review needs no trips into the flow graph. Same three-state reading as
 // the graph's pop-up, and the same ❄ control.
 function rmFcRow(cls,line,note,raw,flowId,canIce,isHold){
-  const btn=(IS_OWNER&&canIce&&raw)
+  const btn=(IS_OWNER&&canIce&&raw&&[].concat(raw).length)
     ? '<button class="pice" type="button" data-ice="'+(isHold?'off':'on')+'"'
-      +' data-flow="'+esc(flowId)+'" data-line="'+esc(raw).replace(/"/g,'&quot;')+'"'
-      +' title="'+(isHold?'Take this filter off ice':'Put this filter on ice for this flow')
+      +' data-flow="'+esc(flowId)+'" data-line="'+rmIceAttr(raw)+'"'
+      +' title="'+(isHold?'Take this off ice':'Mark this as deliberate on this flow')
       +'">'+(isHold?'\u21ba':'\u2744')+'</button>' : '';
   return '<li class="'+cls+'">'+line+(note?' <em>('+esc(note)+')</em>':'')+btn+'</li>';
 }
@@ -3420,8 +3420,11 @@ function rmFilterCheck(M){
       if(nOk<pRows.length)offspec++;
       chips.push('<span class="rm-fcchip '+(nOk<pRows.length?'c':'g')+'">'
         +nOk+'/'+pRows.length+' PRESCRIBED</span>');
-      if((fc.held||[]).length)
-        chips.push('<span class="rm-fcchip b">'+fc.held.length+' ON ICE</span>');
+      const nIce=(fc.held||[]).length+(fc.held_extra||[]).length;
+      if(nIce)chips.push('<span class="rm-fcchip b">'+nIce+' ON ICE</span>');
+      const nX=(fc.extra||[]).length;
+      if(nX)chips.push('<span class="rm-fcchip w" title="'+nX
+        +' filters the flow runs that the map does not ask for">'+nX+' EXTRA</span>');
       if((fc.logic_off||[]).length)
         chips.push('<span class="rm-fcchip w">'+fc.logic_off.length+' AND/OR</span>');
       if(fc.reentry&&fc.reentry.match===false)
@@ -3442,7 +3445,7 @@ function rmFilterCheck(M){
         r.hold?('on ice'+(r.hold===true?'':' — '+r.hold))
           :r.logic==='and'?'set, but ANDed — the map wants OR'
           :r.logic==='or'?'OR, as prescribed':'',
-        r.prescribed, f.id,
+        [r.prescribed], f.id,
         (r.hold&&!((fc.held||[]).find(h=>h.line===r.prescribed)||{}).auto)||r.present===false,
         !!r.hold)).join('');
     }else{
@@ -3452,9 +3455,22 @@ function rmFilterCheck(M){
     let right;
     const gs=fl.groups||(fl.lines||[]).map(l=>[l]);
     if(gs.length){
-      const rec=l=>fc&&(fc.actual||[]).some(a=>a.line===l&&a.recommended);
-      right=gs.map(g=>'<li class="'+(fc?(g.some(rec)?'has':'extra'):'')+' grp">'
-        +g.map(l=>esc(l)).join(' <span class="rm-join or">OR</span> ')+'</li>').join('');
+      const arow=l=>fc&&(fc.actual||[]).find(a=>a.line===l);
+      const mk=g=>{
+        const rs=g.map(arow);
+        const rec=rs.some(a=>a&&a.recommended);
+        const held=!rec&&rs.length&&rs.every(a=>a&&a.hold);
+        const auto=held&&rs.every(a=>a.hold_auto);
+        const cls=!fc?'':rec?'has':held?'hold':'extra';
+        const note=!fc?'':rec?'':held
+          ? ('on ice'+(rs[0].hold===true?'':' — '+rs[0].hold)) : 'not on the map';
+        return {html:rmFcRow(cls+' grp',
+          g.map(l=>esc(l)).join(' <span class="rm-join or">OR</span> '),
+          note, g, f.id, !!fc&&!rec&&!auto, held), held:held};
+      };
+      const all=gs.map(mk);
+      right=all.filter(x=>!x.held).map(x=>x.html).join('')
+           +all.filter(x=>x.held).map(x=>x.html).join('');
     }else{
       right='<li class="dim">No flow filters set.</li>';
     }
@@ -3474,7 +3490,7 @@ function rmFilterCheck(M){
           +'<ul class="rm-flist rm-fclist">'+left+'</ul></div>'
         +'<div><div class="rm-fh">This flow actually runs'
           +(gs.some(g=>g.length>1)?' <span class="rm-join">— ALL OF THESE (AND), ORs INLINE</span>':'')
-          +'</div><ul class="rm-flist'+(fc?'':' plain')+'">'+right+'</ul></div>'
+          +'</div><ul class="rm-flist rm-fclist'+(fc?'':' plain')+'">'+right+'</ul></div>'
       +'</div>'
       +'<div class="pacts" style="margin-top:11px">'
         +'<a href="'+rmFlowUrl(f.id)+'" target="_blank" rel="noopener">↗ Open flow</a>'
@@ -4324,9 +4340,19 @@ function rmDetail(n,iss,flow){
 // there and moves the line inside the published map, so the change survives a
 // reload without waiting for the next sync.
 let RM_ICING=false;
+// an OR group is one requirement, so it ices as a unit — the attribute holds a
+// JSON array and the send loops
+function rmIceAttr(lines){
+  const a=[].concat(lines);
+  return esc(JSON.stringify(a)).replace(/"/g,'&quot;');
+}
+function rmIceLines(btn){
+  try{const v=JSON.parse(btn.dataset.line);return [].concat(v);}
+  catch(e){return [btn.dataset.line];}
+}
 function rmIce(btn,node,flow){
   if(RM_ICING)return;
-  const off=btn.dataset.ice==='off', line=btn.dataset.line, li=btn.closest('li');
+  const off=btn.dataset.ice==='off', line=rmIceLines(btn), li=btn.closest('li');
   if(off){ rmIceSend(node,flow,line,'',true,btn); return; }
   if(li.querySelector('.picef'))return;
   // a reason, because a hold with no reason is just a filter nobody explained
@@ -4340,7 +4366,7 @@ function rmIce(btn,node,flow){
   f.querySelector('.go').addEventListener('click',go);
   inp.addEventListener('keydown',e=>{if(e.key==='Enter')go();if(e.key==='Escape')f.remove();});
 }
-async function rmIceSend(node,flow,line,reason,off,btn){
+async function rmIceSend(node,flow,lines,reason,off,btn){
   const openIds=[...document.querySelectorAll('#map-coverage .rm-fcflow.open')]
     .map(el=>el.dataset.flow);
   RM_ICING=true; btn.disabled=true;
@@ -4349,13 +4375,15 @@ async function rmIceSend(node,flow,line,reason,off,btn){
   try{
     const {data:{session}}=await sb.auth.getSession();
     if(!session)throw new Error('signed out');
-    const r=await fetch(SB_URL+'/functions/v1/filter-hold',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
-      body:JSON.stringify({client:ACTIVE,flow_id:flow.id,line:line,reason:reason,
-                           action:off?'unhold':'hold'})});
-    const out=await r.json().catch(()=>({}));
-    if(!r.ok)throw new Error(out.error||('failed ('+r.status+')'));
+    for(const line of [].concat(lines)){
+      const r=await fetch(SB_URL+'/functions/v1/filter-hold',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token},
+        body:JSON.stringify({client:ACTIVE,flow_id:flow.id,line:line,reason:reason,
+                             action:off?'unhold':'hold'})});
+      const out=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(out.error||('failed ('+r.status+')'));
+    }
     // the function already saved it; pull the row back so the whole tab agrees
     const {data}=await sb.from('client_series').select('data').eq('client_slug',ACTIVE).limit(1);
     const fresh=data&&data[0]&&data[0].data;
@@ -4412,17 +4440,20 @@ function rmPopHtml(n,flow){
       const rows=[];
       // one row per Klaviyo condition group: the conditions inside a group are
       // ORed, and the groups are ANDed with each other
-      const gseen={};
+      const gseen={}, iced=[];
       (fc.actual||[]).forEach(r=>{
-        const gi=(r.group==null?rows.length:r.group);
-        if(gseen[gi]!=null){const at=gseen[gi];
-          rows[at][1]+=' <span class="rm-join or">OR</span> '+esc(r.line);
-          rows[at][3]=true;
-          if(!r.recommended&&rows[at][0]==='has')rows[at][2]='Prescribed in part';
+        const gi=(r.group==null?'l'+rows.length:r.group);
+        const cls=r.recommended?'has':r.hold?'hold':'extra';
+        const note=r.recommended?'Prescribed'
+          :r.hold?('On ice'+(r.hold===true?'':' — '+r.hold)):'Not on the map';
+        const bank=(cls==='hold')?iced:rows;
+        if(gseen[gi]!=null){const at=gseen[gi][0], into=gseen[gi][1];
+          into[at][1]+=' <span class="rm-join or">OR</span> '+esc(r.line);
+          into[at][4]=[].concat(into[at][4]||[],[r.line]);
+          if(!r.recommended&&into[at][0]==='has')into[at][2]='Prescribed in part';
           return;}
-        gseen[gi]=rows.length;
-        rows.push(r.recommended?['has',esc(r.line),'Prescribed',false]
-                               :['extra',esc(r.line),'Not on the map',false]);
+        gseen[gi]=[bank.length,bank];
+        bank.push([cls,esc(r.line),note,false,[r.line],r.hold_auto,'live']);
       });
       (fc.missing||[]).forEach(l=>{
         if(/re-?entry/i.test(l))return;      // covered by the re-entry block above
@@ -4432,15 +4463,16 @@ function rmPopHtml(n,flow){
       // than intended, which quietly shrinks the audience
       (fc.logic_off||[]).forEach(x=>rows.push(['andor',esc(x.line),
         'Set, but as AND where the map wants OR',false]));
-      // on hold: still not set, still shown, but last and out of the count —
-      // this account has a standing reason it cannot or should not be set
+      // on ice: still off spec, still shown, but last and out of the count —
+      // this account has a standing reason to leave it as it is
       (fc.held||[]).forEach(h=>rows.push(['hold',esc(h.line),
         'On ice'+(h.reason?' — '+h.reason:''),false,h.line,h.auto]));
+      iced.forEach(r=>rows.push(r));
       // same denominator as the panel below: prescribed rows present vs total,
       // held rows excluded from both halves
       const pRows=(fc.rows||[]).filter(r=>r.present!==null&&!r.hold);
       const nOk=pRows.filter(r=>r.present===true).length;
-      const nHold=(fc.held||[]).length;
+      const nHold=(fc.held||[]).length+(fc.held_extra||[]).length;
       list='<div class="psec">Profile filters</div>'
         +'<div class="ptags">'
         +'<span class="ptag'+(nOk<pRows.length?' w':' g')+'">'+nOk+' OF '+pRows.length+' PRESCRIBED</span>'
@@ -4450,10 +4482,15 @@ function rmPopHtml(n,flow){
         +'<ul class="pmix">'+rows.map(r=>{
           // owner-only: put a prescribed filter on ice for THIS flow, or take it
           // off. An automatic hold has no button — it is derived, not a choice.
-          const icy=IS_OWNER&&flow&&r[4]&&(r[0]==='miss'||(r[0]==='hold'&&!r[5]))
+          const iceable=r[0]==='miss'||r[0]==='extra'||(r[0]==='hold'&&!r[5]);
+          const icy=IS_OWNER&&flow&&r[4]&&iceable
             ? '<button class="pice" type="button" data-ice="'+(r[0]==='hold'?'off':'on')+'"'
-              +' data-flow="'+esc(flow.id)+'" data-line="'+esc(r[4]).replace(/"/g,'&quot;')+'"'
-              +' title="'+(r[0]==='hold'?'Take this filter off ice':'Put this filter on ice for this flow')
+              +' data-flow="'+esc(flow.id)+'" data-line="'+rmIceAttr(r[4])+'"'
+              +' title="'+(r[0]==='hold'
+                ? 'Take this off ice'
+                : (r[0]==='extra'
+                   ? 'Mark this as deliberate on this flow, so it stops flagging'
+                   : 'Put this filter on ice for this flow'))
               +'">'+(r[0]==='hold'?'\u21ba':'\u2744')+'</button>' : '';
           return '<li class="'+r[0]+'">'+r[1]
             +(r[2]?' <em>('+esc(r[2])+')</em>':'')+icy+'</li>';
