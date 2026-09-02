@@ -931,7 +931,8 @@
   .rm-flist li.dupe em{font-style:normal;font-size:11px;color:var(--warn)}
   .fsrc{display:inline-flex;width:13px;height:13px;margin-right:5px;vertical-align:-2px;
     flex:0 0 auto}
-  .fsrc svg{width:13px;height:13px;display:block}
+  .fsrc svg,.fsrc img{width:13px;height:13px;display:block}
+  .fsrc img{border-radius:2.5px;object-fit:contain}
   /* OR alternatives inside one requirement, AND between requirements */
   .rm-join{display:block;font-size:9.5px;font-weight:800;letter-spacing:.11em;
     color:var(--muted);margin:2px 0 1px}
@@ -3515,19 +3516,17 @@ function rmFcRow(cls,line,note,raw,flowId,canIce,isHold,key){
 // filter row can say whose event it reads. Brand marks are drawn, not fetched:
 // the page is a single file and the CSP allows no external images.
 const SRC_ICON={
-  // m: how the path is painted — f filled, s stroked, w white on a coloured disc
-  'shopify':        {c:'#95BF47',m:'f',t:'Shopify',
-    d:'M12.4 4.1c-.1-.6-.6-.9-1.1-.9l-1 .1c-.4-1.1-1-1.6-1.8-1.6h-.2C7.9.9 7.3.5 6.6.5 5.2.5 4.1 2 3.6 4l-1 .3c-.6.2-.7.4-.8 1L.7 14.3l8.9 1.7 3.7-.9-.9-11zM8 3.4l-1.6.2C6.6 2.4 7 1.7 7.5 1.5c.3.3.5 1 .5 1.9z'},
-  'klaviyo':        {c:'#2A2A2A',m:'f',t:'Klaviyo',
-    d:'M1.6 4.2 8 8.6l6.4-4.4A1.4 1.4 0 0 0 13.1 3H2.9a1.4 1.4 0 0 0-1.3 1.2z M1.5 5.8v5A1.5 1.5 0 0 0 3 12.3h10a1.5 1.5 0 0 0 1.5-1.5v-5L8 10.1z'},
-  'triple whale':   {c:'#1E5EFF',t:'Triple Whale',raw:
-    '<circle cx="8" cy="8" r="7.2" fill="#1E5EFF"/>'
-    +'<path fill="#fff" d="M2.9 6.1c2.6-.6 4.8.4 6.4 2.8l2-2.4c.4-.5 1.2-.1 1.1.6l-.5 2.7.7 1.4'
-    +'c.3.6-.4 1.2-.9.8l-2-1.4c-1.8 1.8-4 2.4-6.5 1.6-.6-.2-.7-1-.2-1.3.8-.6 1.2-1.4 1.2-2.4'
-    +'0-.8-.3-1.5-.9-2c-.4-.4-.2-1.1.3-1.2z"/>'
-    +'<circle cx="4.9" cy="7.4" r=".85" fill="#1E5EFF"/>'},
-  'recharge':       {c:'#00A0B0',m:'s',t:'Recharge',
-    d:'M13.4 8A5.4 5.4 0 1 1 8 2.6 M8 2.6l2.6-2 M8 2.6l2.4 2.2'},
+  // Real brand marks, inlined so the page stays a single self-contained file:
+  // Shopify and Meta as their official single-path SVGs (simple-icons, MIT,
+  // 24x24), Klaviyo / Triple Whale / Recharge / Attentive as their own 32px
+  // favicons — none of them publish an SVG. Everything non-brand is drawn.
+  // m: f filled path, s stroked path, i inlined image
+  'shopify':        {t:'Shopify',m:'f',c:'#95BF47',vb:'0 0 24 24',d:'M15.337 23.979l7.216-1.561s-2.604-17.613-2.625-17.73c-.018-.116-.114-.192-.211-.192s-1.929-.136-1.929-.136-1.275-1.274-1.439-1.411c-.045-.037-.075-.057-.121-.074l-.914 21.104h.023zM11.71 11.305s-.81-.424-1.774-.424c-1.447 0-1.504.906-1.504 1.141 0 1.232 3.24 1.715 3.24 4.629 0 2.295-1.44 3.76-3.406 3.76-2.354 0-3.54-1.465-3.54-1.465l.646-2.086s1.245 1.066 2.28 1.066c.675 0 .975-.545.975-.932 0-1.619-2.654-1.694-2.654-4.359-.034-2.237 1.571-4.416 4.827-4.416 1.257 0 1.875.361 1.875.361l-.945 2.715-.02.01zM11.17.83c.136 0 .271.038.405.135-.984.465-2.064 1.639-2.508 3.992-.656.213-1.293.405-1.889.578C7.697 3.75 8.951.84 11.17.84V.83zm1.235 2.949v.135c-.754.232-1.583.484-2.394.736.466-1.777 1.333-2.645 2.085-2.971.193.501.309 1.176.309 2.1zm.539-2.234c.694.074 1.141.867 1.429 1.755-.349.114-.735.231-1.158.366v-.252c0-.752-.096-1.371-.271-1.871v.002zm2.992 1.289c-.02 0-.06.021-.078.021s-.289.075-.714.21c-.423-1.233-1.176-2.37-2.508-2.37h-.115C12.135.209 11.669 0 11.265 0 8.159 0 6.675 3.877 6.21 5.846c-1.194.365-2.063.636-2.16.674-.675.213-.694.232-.772.87-.075.462-1.83 14.063-1.83 14.063L15.009 24l.927-21.166z'},
+  'meta ads':       {t:'Meta Ads',m:'f',c:'#0866FF',vb:'0 0 24 24',d:'M6.915 4.03c-1.968 0-3.683 1.28-4.871 3.113C.704 9.208 0 11.883 0 14.449c0 .706.07 1.369.21 1.973a6.624 6.624 0 0 0 .265.86 5.297 5.297 0 0 0 .371.761c.696 1.159 1.818 1.927 3.593 1.927 1.497 0 2.633-.671 3.965-2.444.76-1.012 1.144-1.626 2.663-4.32l.756-1.339.186-.325c.061.1.121.196.183.3l2.152 3.595c.724 1.21 1.665 2.556 2.47 3.314 1.046.987 1.992 1.22 3.06 1.22 1.075 0 1.876-.355 2.455-.843a3.743 3.743 0 0 0 .81-.973c.542-.939.861-2.127.861-3.745 0-2.72-.681-5.357-2.084-7.45-1.282-1.912-2.957-2.93-4.716-2.93-1.047 0-2.088.467-3.053 1.308-.652.57-1.257 1.29-1.82 2.05-.69-.875-1.335-1.547-1.958-2.056-1.182-.966-2.315-1.303-3.454-1.303zm10.16 2.053c1.147 0 2.188.758 2.992 1.999 1.132 1.748 1.647 4.195 1.647 6.4 0 1.548-.368 2.9-1.839 2.9-.58 0-1.027-.23-1.664-1.004-.496-.601-1.343-1.878-2.832-4.358l-.617-1.028a44.908 44.908 0 0 0-1.255-1.98c.07-.109.141-.224.211-.327 1.12-1.667 2.118-2.602 3.358-2.602zm-10.201.553c1.265 0 2.058.791 2.675 1.446.307.327.737.871 1.234 1.579l-1.02 1.566c-.757 1.163-1.882 3.017-2.837 4.338-1.191 1.649-1.81 1.817-2.486 1.817-.524 0-1.038-.237-1.383-.794-.263-.426-.464-1.13-.464-2.046 0-2.221.63-4.535 1.66-6.088.454-.687.964-1.226 1.533-1.533a2.264 2.264 0 0 1 1.088-.285z'},
+  'klaviyo':        {t:'Klaviyo',m:'i',src:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAADfklEQVR42r2XTW8cRRCGn+qe7GKTtVfmAlE4+BbZJoZTDhwDCHNK+A18SXEiPkQuwUIy5ALKgWAEzp/wMZZDbnCMIJFtfgCR43zYsnYlo/Vu98shPavRam2vnbVfqTXTmul6q6urqquMXSDJAGdmIc1fB94F3gHeiDGeds4Npd9rwEPgAXAXuGNm/6Z1HohmJnqFJFd4n5A0L2ldvWM9rZnoJnM/cp+eJyXdkNQoCA5pxC6ksfA9RyPJOFmU3Qv5mKR7BUHNXUh3Q0xrctyTNLanErmJJJ2T9Dgt3DkgcTdFdtL7Y0nnuh5HgfyMpCeFXfcLuawnks4UOS15uwEDwJ/AJBAAT3+Ry7wPvA38ByjLQ03SbCJvAVmIEaS+sXvvfZI9Ccya2VeSvCVzjMcY/3LOOcAlixwFBMQYY3TOvWlmq1n68Llz7gTQkmRmxvz8LVZX/2FgYICoeCg2M6PVbFGtDnP16teUy2UDlLi+AD7OJJ0CLibt2ud+e3GRpaU7DA8PE0I4+FYFWebZ2Nzkxo8/UC6XCSHgvfeSMLOLkr7NgPeBV4CYzA9ApVJhZGSEoaGhQyngvadWq/HhhQtcvjyNJJ67AWZmMXFOZSm3K402YoyEENrjwC4fAqVSiZmZa3moY2ZFXwA472KMk8npXL88Lcsytra2+OzTTxgfHyeEwHP/biOfnHXAqX66uXOOer3OxMQEl6YvEWPsJC/iVVe4UvsSepLIshNc/36WlwcH29HQGSDpWXUcGXrbj4sx1joc48VozWi1mlz7Zobt7e22VbokJIAtB6z1c98xRiqVCsvLy8zN/YJzjhh3TWTrzjl3P1/bLyVarRbVapVff7vFysoK3vtOJfLJAwf83u3QnHdkmcf7w41SqUSztcPsd9e7OWI+uZsBi8AGMJLOxgDqtTrPnm3SbAZCaB06HywsLHDz5hxXrkznqViSnJltALczM1uTtAB8lF/FAB9MTTE6OsrASy9+GdXrdRo7O5RLJYBgZhmwYGZr+XU8FmP8+7iu4zTeMrOVTJI3s1VJPwNf5laIMXYLn0NbImXDkCz8k5mtSPLFkmwQ+OO4S7JuRenTIyxKn3YWpd16guMoy/2ejUmj0Rg/9sakiyUq+7RmsYNwr9as0hP5Ps3po6NoTu0A7flp4D3gPHAWeA2o5rca8KjQni+Z2cNe2vP/AYK1x6k1Fc0eAAAAAElFTkSuQmCC'},
+  'triple whale':   {t:'Triple Whale',m:'i',src:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACY0lEQVR42sWXTUhUURTHf/e++TA/hrQPPwqHwATJGQiDCLJFu0ADK2wZLYIwolxWoATBMIuaRRK0cNEmSqJFSNkXSGIQtTCNEJFCJAMRtdEx5817c1u0yea9mXmg3P/ynvPO+b3/O/fyrgCouJJsQ6pehYyiVICtlQ1qAiFjq4mKAVHevdKJUo/RIKFolyiuoUuCXgkqoqu/gqgEDPQpINEs3/8L4UrhmLiQgpSpiioaKhFUbnOOzSwpd4B9OyXjN8pcC3+Zy/JxxqZv2GRqPrshdihs0Nbs42TUx/7d7sY29q7yM6mcAb4vZBmZtmltcB6L5jpJc53k/BE/Dz5kiA+lmV1WdB0LEO8IFnRmZNra0BwgBzX2Ml2UzecO+xm6XEq4SvBm0mJ2KVvwmXvvMjlrMpfS5taL4iDqqyTPL5WymFJ0PVrPm9v/PsPghFUYACD+yiTx1iwaIt4RZHjK5tl4xjFn9JtN9xNnQNdp6RlMc/HhOvPJwtZ2tvhpbTC4O5xxsN3kRN8aymUDifKrybx7qzYkaYsYXDgaoKnGfbpfT1qcuv+brz1lhEoET8cs+kdNPv/I/wIFAf5VVZng9ukgZw76c2JpC/ZeXyVgQHK96JJ4OgkXU4q5ZefiQR8cbzQ8NfcMUEiRPd7LbSpAS72hF6CpWrMD4R2aAYSAmpDQBwBwoNbQC6DdgYBvi2fAsvPHqz064OkoBij1C3ZVuMeX1rwdxT6vDqxlFDOLm/fJtP8VSwSmxv62FDCur7+akAhu6mpvCBWTK3dCg2SzZ0GN/b06b/WFVJgCPglF+6/E9oE/JRLJv0ausDAAAAAASUVORK5CYII='},
+  'recharge':       {t:'Recharge',m:'i',src:'data:image/png;base64,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'},
+  'attentive':      {t:'Attentive',m:'i',src:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAE10lEQVR42s2XS2yVVRDHf3O+7757oSWBgIgQqBUCLmgDXSBpjAmIaGKMIFJjYjQhIBFjdIExRmDBRlRYSIxxoRCCAWMgptAu0CugNrZFTJXSFAgWpEWgSLm39/Hdb1x89EF7XwgLZjtzzjz+c+b8Rygiqghd+ElFKrC1FpclQA0iM1GtAECkD9WzQCtKEyrNBOJ9VJIWQQvdLwWddxDFRGaRcetBViAynZJEzyO6D1f2YCW6ZDb9dxSAKobOaBWZzAqMtRaYwv+TS7jZnfh8+6jq7xTBLRqAtuNHI3VYugFYCmJzV6IO0EhWtiPxmMwjnTcAbcePCT8FbESlGuEunQ9ejINoG7AVN9EwMghzW9k1UgdshHvo3EvTBqn2EovUqQ77HXbSGa3Cym4oJXPHgViLj+MnPLNF1Q51NRnswiHbqFRj6QY6o93Q3zEEgXYQxQm+iTHvF8M8mRY++irI14cD3Ex4CEbDysqlKd56OUkwoMV7wnU3Yyc/kdn0G1WEbLjS6/bCzlWh4UcfB7/3c/2G4DheNfpuCAd/8NNw1IdqUTxsjLUWE5mlihi68GN0dSlP7UKv4dBxHz1XzBhdzxXDkWYfl6+ZUrpiCin3JbrwG1KRClRWFDuRzni4t7TnzlIVWv6w+fmkjZMtIQQjz5OKVBhEa6H4hDt30aLhqI9r/+Yfnj1XDUeabXqvllAFkenYWmsQlhSzTSSFWItN2592sX+DYyd8nDxtlVYFlyUGqClml0xBwKdsXp9g42sJ5szMYuVJ8up1w3exwpUaITWipyKXUSYWfPdZiA8IkaCScYSTnRbvbAvz1yUrp304qOx4N84TCzMYU3BA/WOGvtRCE8SC8WWKbUMoqCyc57DssTQ+Oz9kuw4ESKWl2F9fUbRb4gPCL7/bfLo3wOf7A/zWYZFKwyvPphlf5uY9F2u1+bXdKoqB7ZGJ3BD8fdmwaWeIxp98qMpQeVctS7FmZYr6p1Ps2B3KwziEj3cFWfBonFC+6SjSZ24xmRyNJ2z5LMTh4/4h54Pl/fJAkG+a/Kx6Ms0Dk/K3e9spm8ZjdiEIzhqgNZfu1FlDrMWX81zWhb2H/JSFlVefS2Ekf5d98e3wn5FDWg1KUy7NmW6LbIG33N1rEU/CM3Vp5sxy8tqd6bY5d9Hk4wlNBpVmVM+P1kUjihRo4lBA8ftgQrlSvzyVdy6oenDm5I0qzYZAvA9X949WL5jrMKE8/9e2uCZDOOg90UXzHWrmZnLalYWVyodylFJ0H4F4n6GSNAGzG7g0Ul9RrmxeF8dnjw1i2uQs615IEvR7uqmTXOqXpxg35lkqb9QPUD5Oc5BV2UMlaWvTJvjg9UycrGUjshjEDDKVmdNcFs3PcKHXcOOmEA0rjy9Ms2V9grkPu0PNZxmYMdVlxhSX7h5DMiU8ONnlvTUJXlyWGcV81cF1t2EPNMhEhsHR09HZZLMforJ0NCVThWR6EPvCg8VxPNYUCiiWlZOcNmJZb8sjHiUbbp2q/k6POmsb4Nw+LzzHxZwD2LaHuzV2CHrMOCvbqervHMOKRXCReAzYCtqG4twzVqw4cIuWSzw2ckG5vxaT+2I1G7OcZsOVGF3t8cYSl1PV87i6n4DZjRs/c8fLad71XLT2FoXLv54bmnBKX8//A7FKIphQvZtGAAAAAElFTkSuQmCC'},
   'api':            {c:'#7C8698',t:'API',raw:
     '<g fill="#7C8698"><rect x="6.6" y="0.9" width="2.8" height="14.2" rx="1.2"/>'
     +'<rect x="6.6" y="0.9" width="2.8" height="14.2" rx="1.2" transform="rotate(45 8 8)"/>'
@@ -3535,11 +3534,7 @@ const SRC_ICON={
     +'<rect x="6.6" y="0.9" width="2.8" height="14.2" rx="1.2" transform="rotate(135 8 8)"/>'
     +'<circle cx="8" cy="8" r="5.2"/></g>'
     +'<circle cx="8" cy="8" r="2" fill="#fff"/>'},
-  'meta ads':       {c:'#0866FF',m:'s',t:'Meta Ads',
-    d:'M2.4 10c0-2.5 1.3-4.8 2.9-4.8 1.2 0 2 1 3 3s1.8 2.9 3 2.9c1.6 0 2.9-1.3 2.9-3.4S13 4.4 11.4 4.4c-1.2 0-2.2.9-3 2.2'},
   'alia':           {c:'#7C4DFF',m:'s',t:'Alia',d:'M8 2.6 12.8 13H3.2z M6.2 10h3.6'},
-  'attentive':      {c:'#C9A800',m:'s',t:'Attentive',
-    d:'M3 3.4h10a1.4 1.4 0 0 1 1.4 1.4v5A1.4 1.4 0 0 1 13 11.2H7l-3.4 2.6v-2.6H3A1.4 1.4 0 0 1 1.6 9.8v-5A1.4 1.4 0 0 1 3 3.4z'},
   'profile property':{c:'#8A94A6',m:'s',t:'Profile property',
     d:'M8.5 2.2H3.4A1.2 1.2 0 0 0 2.2 3.4v5.1c0 .3.1.6.4.9l4.6 4.6c.5.5 1.2.5 1.7 0l4.1-4.1c.5-.5.5-1.2 0-1.7L9.4 2.6a1.2 1.2 0 0 0-.9-.4z M5.2 5.3h.02'},
   'list or segment':{c:'#8A94A6',m:'s',t:'List or segment',d:'M2.6 4h10.8 M2.6 8h10.8 M2.6 12h6.8'},
@@ -3553,16 +3548,17 @@ function srcIcon(src){
   if(!src)return '';
   const it=SRC_ICON[String(src).toLowerCase()];
   const t=it?it.t:src;
+  if(it&&it.m==='i')
+    return '<span class="fsrc" title="'+esc(t)+'"><img src="'+it.src+'" alt="" width="13" '
+      +'height="13" loading="lazy"></span>';
   let body;
   if(!it)body='<circle cx="8" cy="8" r="3.4" fill="#8A94A6"/>';
   else if(it.raw)body=it.raw;
-  else if(it.m==='w')body='<circle cx="8" cy="8" r="7.2" fill="'+it.c+'"/>'
-    +'<path d="'+it.d+'" fill="#fff"/>';
   else if(it.m==='f')body='<path d="'+it.d+'" fill="'+it.c+'"/>';
   else body='<path d="'+it.d+'" fill="none" stroke="'+it.c
     +'" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>';
-  return '<span class="fsrc" title="'+esc(t)+'"><svg viewBox="0 0 16 16" aria-hidden="true">'
-    +body+'</svg></span>';
+  return '<span class="fsrc" title="'+esc(t)+'"><svg viewBox="'+((it&&it.vb)||'0 0 16 16')
+    +'" aria-hidden="true">'+body+'</svg></span>';
 }
 
 // What each filter row said last time this tab was read, so a resync can show
