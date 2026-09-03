@@ -695,7 +695,27 @@
   .rm-glab:hover{color:var(--ink2)}
   .rm-glab .chev{display:inline-block;transition:transform .15s;font-size:10px;color:var(--muted)}
   .rm-group.shut .rm-glab .chev{transform:rotate(-90deg)}
-  .rm-group.shut .rm-rows{display:none}
+  .rm-rows{display:grid;grid-template-rows:1fr;transition:grid-template-rows .28s
+    cubic-bezier(.3,.7,.3,1),opacity .22s ease,margin-bottom .28s ease}
+  .rm-rows > *{min-height:0}
+  .rm-group.shut .rm-rows{grid-template-rows:0fr;opacity:0;margin-bottom:-4px;
+    pointer-events:none}
+  .rm-group.shut .rm-rows>.rm-inner{overflow:hidden}
+  @media (prefers-reduced-motion:reduce){
+    .rm-rows{transition:none}
+    .rm-group.shut .rm-rows{display:none}
+  }
+  /* a flow's own body in Filter check, same trick */
+  .rm-fcbody{display:grid;grid-template-rows:0fr;opacity:0;
+    transition:grid-template-rows .26s cubic-bezier(.3,.7,.3,1),opacity .2s ease;
+    border-top:1px solid transparent}
+  .rm-fcflow.open .rm-fcbody{grid-template-rows:1fr;opacity:1;
+    border-top-color:var(--border)}
+  .rm-fcbody > .rm-fcinner{overflow:hidden;padding:0 13px}
+  .rm-pinnote{margin:0 0 11px;font-size:11.5px;line-height:1.5;color:var(--muted)}
+  .rm-pinnote b{color:var(--ink2)}
+  .rm-fcflow.open .rm-fcbody > .rm-fcinner{padding:12px 13px 14px}
+  @media (prefers-reduced-motion:reduce){.rm-fcbody{transition:none}}
   .rm-glab .gcount{letter-spacing:.04em;font-weight:600;color:var(--muted);text-transform:none;
     font-size:11px}
   .rm-allbtns{display:flex;gap:7px;justify-content:flex-end;margin:0 0 10px}
@@ -736,8 +756,7 @@
   .rm-fcchip.c{background:color-mix(in srgb,var(--crit) 13%,transparent);color:var(--crit)}
   .rm-fcchip.w{background:color-mix(in srgb,var(--warn) 15%,transparent);color:var(--warn)}
   .rm-fcchip.b{background:color-mix(in srgb,var(--flow) 13%,transparent);color:var(--flow)}
-  .rm-fcbody{display:none;border-top:1px solid var(--border);padding:12px 13px 14px}
-  .rm-fcflow.open .rm-fcbody{display:block}
+
   .rm-flist.rm-fclist li{position:relative;padding-right:40px}
   .rm-fclist .pice{position:absolute;right:4px;top:2px;border:0;background:transparent;
     cursor:pointer;font-size:12px;line-height:1;padding:3px 4px;border-radius:6px;
@@ -797,7 +816,7 @@
       animation:fc-rail 2.9s cubic-bezier(.22,.7,.3,1) both}
   }
   .rm-fcchip.chg{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
-  .rm-rows{display:flex;flex-direction:column;gap:5px}
+  .rm-inner{display:flex;flex-direction:column;gap:5px}
   .rm-row{display:grid;
     grid-template-columns:minmax(150px,1.15fr) 92px minmax(180px,1fr) minmax(140px,.9fr) minmax(92px,.55fr);
     gap:14px;align-items:center;background:var(--surface);border:1px solid var(--border);
@@ -3517,7 +3536,7 @@ function rmGroupHtml(key,label,count,inner,dflt){
   return '<div class="rm-group'+(open?'':' shut')+'" data-group="'+esc(key)+'">'
     +'<button class="rm-glab" type="button"><span class="chev">▾</span>'+esc(label)
     +(count?'<span class="gcount">'+esc(count)+'</span>':'')+'</button>'
-    +'<div class="rm-rows">'+inner+'</div></div>';
+    +'<div class="rm-rows"><div class="rm-inner">'+inner+'</div></div></div>';
 }
 
 // ---- Filter check: every live flow's trigger and filters in one place, so a
@@ -3794,7 +3813,13 @@ function rmFilterCheck(M){
              :fc.reentry.prescribed_days+' days'):'')+'</span>'
         +'<span class="rm-fcchips">'+chips.join('')+'</span>'
       +'</button>'
-      +'<div class="rm-fcbody"><div class="rm-fcols">'
+      +'<div class="rm-fcbody"><div class="rm-fcinner">'
+      +((f.pin&&f.pin.renamed)
+        ? '<p class="rm-pinnote">Pinned to this slot as <b>'+esc((f.pin.role||'').toUpperCase())
+          +'</b> on '+esc(f.pin.pinned||'')+', when it was called “'+esc(f.pin.renamed)+'”. '
+          +'The flow ID holds the slot, so renaming it in Klaviyo changes nothing here.</p>'
+        : '')
+      +'<div class="rm-fcols">'
         +'<div><div class="rm-fh">Retention map prescribes</div>'
           +'<ul class="rm-flist rm-fclist">'+left+'</ul></div>'
         +'<div><div class="rm-fh">This flow actually runs'
@@ -3808,7 +3833,7 @@ function rmFilterCheck(M){
         +'Klaviyo. Reads the whole account, because one flow costs the same as all of them: '
         +'filters come from the flow definitions, which are free of report calls.">'
         +'⟳ Re-read filters</button></div>'
-      +'</div></div>';
+      +'</div></div></div>';
   }).join('');
   const keys='<div class="rm-fckeys rm-fcgrid"><span>Flow</span><span>Trigger</span>'
     +'<span>Re-entry</span><span>Filter check</span></div>';
