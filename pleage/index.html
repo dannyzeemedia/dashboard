@@ -3602,7 +3602,7 @@ function rmSnapFilters(){
     const st={};
     (fc.rows||[]).forEach(r=>{st['p:'+r.prescribed]=
       r.hold?'hold':r.present===false?'miss':r.present?'has':'na';});
-    (fc.actual||[]).forEach(r=>{st['a:'+r.line]=
+    (fc.actual||[]).forEach(r=>{st['a:'+(r.sig||r.line)]=
       r.recommended?'has':r.hold?'holdok':r.redundant?'dupe':'extra';});
     out[f.id]=st;
   });
@@ -3629,12 +3629,32 @@ function rmStateColour(state){
   if(!tok)return null;
   return getComputedStyle(document.documentElement).getPropertyValue(tok);
 }
+// A row is identified by its rendered wording, which is not stable: renaming a
+// metric, disambiguating two metrics that share a name, or renaming a flow that
+// another flow suppresses on all rewrite the line. Match the exact text first,
+// then a form with the parentheses stripped, so a re-worded row is still
+// recognised as the same row instead of silently reading as "No change" — which
+// is what made a resync look like it did nothing at all.
+const RM_NORM=t=>String(t||'').toLowerCase()
+  .replace(/\([^)]*\)/g,' ').replace(/[^a-z0-9]+/g,' ').trim();
+function rmPrevState(prev,flow,key){
+  const bag=prev[flow]||{};
+  if(bag[key]!=null)return bag[key];
+  const want=RM_NORM(key);
+  if(!want)return null;
+  let hit=null, count=0;
+  for(const k in bag){
+    if(RM_NORM(k)!==want)continue;
+    hit=bag[k]; count++;
+  }
+  return count===1?hit:null;      // ambiguous means do not guess
+}
 function rmFlashChanges(prev){
   if(!prev)return 0;
   let n=0, first=null;
   document.querySelectorAll('#map-coverage .rm-flist li[data-key],'
     +'.rm-pop .pmix li[data-key]').forEach(li=>{
-    const was=(prev[li.dataset.flow]||{})[li.dataset.key];
+    const was=rmPrevState(prev,li.dataset.flow,li.dataset.key);
     if(!was)return;
     const now=RM_STATE_NOW(li);
     if(now===was||now==='na'||was==='na')return;
@@ -3750,7 +3770,8 @@ function rmFilterCheck(M){
         return {html:rmFcRow(cls+' grp',
           g.map((l,i)=>(rs[i]&&rs[i].src?srcIcon(rs[i].src):'')+esc(l))
             .join(' <span class="rm-join or">OR</span> '),
-          note, g, f.id, !!fc&&!rec&&!auto, held, 'a:'+g[0]), held:held};
+          note, g, f.id, !!fc&&!rec&&!auto, held,
+          'a:'+((rs[0]&&rs[0].sig)||g[0])), held:held};
       };
       const all=gs.map(mk);
       right=all.filter(x=>!x.held).map(x=>x.html).join('')
@@ -4757,7 +4778,7 @@ function rmPopHtml(n,flow){
           return;}
         gseen[gi]=[bank.length,bank];
         bank.push([cls,(r.src?srcIcon(r.src):'')+esc(r.line),note,false,[r.line],
-                   r.hold_auto,'a:'+r.line]);
+                   r.hold_auto,'a:'+(r.sig||r.line)]);
       });
       const psrc=l=>{const r=(fc.rows||[]).find(x=>x.prescribed===l);
         return r&&r.src?srcIcon(r.src):'';};
