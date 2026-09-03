@@ -970,6 +970,9 @@
   .rm-flist li.dupe{color:var(--ink);background:color-mix(in srgb,var(--warn) 13%,transparent)}
   .rm-flist li.dupe::before{content:"⧉";color:var(--warn);font-weight:700}
   .rm-flist li.dupe em{font-style:normal;font-size:11px;color:var(--warn)}
+  .rm-flist li.opp{color:var(--ink);background:color-mix(in srgb,var(--crit) 15%,transparent)}
+  .rm-flist li.opp::before{content:"!";color:var(--crit);font-weight:800}
+  .rm-flist li.opp em{font-style:normal;font-size:11px;color:var(--crit);font-weight:600}
   .fsrc{display:inline-flex;width:13px;height:13px;margin-right:5px;vertical-align:-2px;
     flex:0 0 auto}
   .fsrc svg,.fsrc img{width:13px;height:13px;display:block}
@@ -1117,6 +1120,9 @@
   .rm-pop .pmix li.dupe{color:var(--ink);background:color-mix(in srgb,var(--warn) 13%,transparent)}
   .rm-pop .pmix li.dupe::before{content:"⧉";color:var(--warn);font-weight:700}
   .rm-pop .pmix li.dupe em{color:var(--warn)}
+  .rm-pop .pmix li.opp{color:var(--ink);background:color-mix(in srgb,var(--crit) 15%,transparent)}
+  .rm-pop .pmix li.opp::before{content:"!";color:var(--crit);font-weight:800}
+  .rm-pop .pmix li.opp em{font-style:normal;font-size:11px;color:var(--crit);font-weight:600}
   .rm-pop .ptag.b{color:var(--flow);background:color-mix(in srgb,var(--flow) 13%,transparent)}
   .rm-pop .pacts{display:flex;gap:8px;flex-wrap:wrap}
   .rm-pop .pacts a{font-size:12px;font-weight:600;color:var(--flow);text-decoration:none;
@@ -3622,17 +3628,18 @@ function rmSnapFilters(){
     (fc.rows||[]).forEach(r=>{st['p:'+r.prescribed]=
       r.hold?'hold':r.present===false?'miss':r.present?'has':'na';});
     (fc.actual||[]).forEach(r=>{st['a:'+(r.sig||r.line)]=
-      r.recommended?'has':r.hold?'holdok':r.redundant?'dupe':'extra';});
+      r.recommended?'has':r.hold?'holdok':r.opposes?'opp'
+      :r.redundant?'dupe':'extra';});
     out[f.id]=st;
   });
   return out;
 }
-const RM_STATES=['has','miss','extra','hold','holdok','dupe','andor'];
+const RM_STATES=['has','miss','extra','hold','holdok','dupe','andor','opp'];
 const RM_STATE_NOW=li=>RM_STATES.find(c=>li.classList.contains(c))||'na';
 // Each state's own colour, as rgba so it can be animated: --fc-from is where the
 // row was, --fc-to where it lands, --fc-hot a saturated pass on the way through.
 const FC_TOKEN={has:'--good',miss:'--crit',extra:'--warn',dupe:'--warn',
-                andor:'--warn',hold:'--ice-no',holdok:'--ice-ok'};
+                andor:'--warn',opp:'--crit',hold:'--ice-no',holdok:'--ice-ok'};
 function rmRgba(col,a){
   const c=(col||'').trim();
   let m=c.match(/^#?([0-9a-f]{6})$/i);
@@ -3700,9 +3707,17 @@ function rmFlashChanges(prev){
         c.className='rm-fcchip chg'; c.textContent='CHANGED';
         chips.insertBefore(c,chips.firstChild);}}
   });
-  // and put the first change on screen, since a resync takes ~75s and the tab
-  // may well have been scrolled somewhere else in the meantime
-  if(first)try{first.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}
+  // and put the first change on screen, but only if it is not already there,
+  // and only once the expand animation has settled — measuring an element's
+  // position mid-animation is what threw the page back to the top
+  if(first)setTimeout(()=>{
+    try{
+      const r=first.getBoundingClientRect();
+      const h=window.innerHeight||document.documentElement.clientHeight;
+      if(r.height&&r.top>=64&&r.bottom<=h-24)return;      // already visible
+      first.scrollIntoView({behavior:'smooth',block:'center'});
+    }catch(e){}
+  },360);
   return n;
 }
 function rmFilterCheck(M){
@@ -3737,6 +3752,10 @@ function rmFilterCheck(M){
         +nOk+'/'+pRows.length+' PRESCRIBED</span>');
       const nIce=(fc.held||[]).length+(fc.held_extra||[]).length;
       if(nIce)chips.push('<span class="rm-fcchip b">'+nIce+' ON ICE</span>');
+      const nOpp=(fc.opposed||[]).length;
+      if(nOpp)chips.push('<span class="rm-fcchip c" title="'+nOpp
+        +' filter(s) doing the opposite of what the map prescribes">'+nOpp
+        +' BACKWARDS</span>');
       const nDup=(fc.redundant||[]).length;
       if(nDup)chips.push('<span class="rm-fcchip w" title="'+nDup
         +' filter(s) another filter on this flow already covers">'+nDup+' REDUNDANT</span>');
@@ -3780,8 +3799,10 @@ function rmFilterCheck(M){
         const held=!rec&&rs.length&&rs.every(a=>a&&a.hold);
         const auto=held&&rs.every(a=>a.hold_auto);
         const dup=rs.find(a=>a&&a.redundant&&!a.hold);
-        const cls=!fc?'':dup?'dupe':rec?'has':held?'holdok':'extra';
+        const opp=rs.find(a=>a&&a.opposes&&!a.hold);
+        const cls=!fc?'':opp?'opp':dup?'dupe':rec?'has':held?'holdok':'extra';
         const note=!fc?''
+          :opp?('the opposite of the map’s “'+opp.opposes+'”')
           :dup?(dup.redundant.kind==='identical'?'redundant — set twice on this flow'
                 :'redundant — the wider window already covers it')
           :rec?'':held
@@ -4787,9 +4808,12 @@ function rmPopHtml(n,flow){
       const gseen={}, iced=[];
       (fc.actual||[]).forEach(r=>{
         const gi=(r.group==null?'l'+rows.length:r.group);
-        const cls=(r.redundant&&!r.hold)?'dupe'
+        const cls=(r.opposes&&!r.hold)?'opp'
+          :(r.redundant&&!r.hold)?'dupe'
           :r.recommended?'has':r.hold?'holdok':'extra';
-        const note=(r.redundant&&!r.hold)
+        const note=(r.opposes&&!r.hold)
+            ?('The OPPOSITE of the map’s “'+r.opposes+'”')
+          :(r.redundant&&!r.hold)
             ?(r.redundant.kind==='identical'?'Redundant — set twice on this flow'
               :'Redundant — the wider window already covers it')
           :r.recommended?'Prescribed'
