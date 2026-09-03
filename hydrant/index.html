@@ -759,20 +759,37 @@
     background:var(--surface);cursor:pointer;font-family:inherit}
   .rm-fcbody .pacts button:hover{border-color:var(--flow)}
   .rm-fcbody .pacts button[disabled]{opacity:.6;cursor:default}
-  /* changed since the last read: start on the old colour, settle on the new */
-  @keyframes fc-fixed{
-    0%{background:rgba(224,74,52,.20);box-shadow:0 0 0 2px rgba(224,74,52,.55)}
-    30%{background:rgba(47,163,107,.42);box-shadow:0 0 0 4px rgba(47,163,107,.75)}
-    70%{background:rgba(47,163,107,.30);box-shadow:0 0 0 3px rgba(47,163,107,.45)}
-    100%{background:rgba(47,163,107,.12);box-shadow:0 0 0 0 rgba(47,163,107,0)}}
-  @keyframes fc-broke{
-    0%{background:rgba(47,163,107,.20);box-shadow:0 0 0 2px rgba(47,163,107,.55)}
-    30%{background:rgba(224,74,52,.42);box-shadow:0 0 0 4px rgba(224,74,52,.75)}
-    70%{background:rgba(224,74,52,.30);box-shadow:0 0 0 3px rgba(224,74,52,.45)}
-    100%{background:rgba(224,74,52,.12);box-shadow:0 0 0 0 rgba(224,74,52,0)}}
+  /* Changed since the last read (option C): the row lifts, its marker pops, the
+     new colour arrives hot and settles, and a rail stays down the left edge for
+     a beat after the rest has finished — a resync takes ~75s, so the animation
+     has to leave something behind for eyes that arrive late.
+     The from/to colours are set per row as rgba custom properties, because
+     color-mix() inside @keyframes does not animate in Chrome. */
+  @keyframes fc-lift{
+    0%{transform:none;box-shadow:none;background-color:var(--fc-from)}
+    10%{transform:translateY(-3px);box-shadow:0 7px 18px -6px rgba(72,89,122,.30)}
+    16%{background-color:var(--fc-hot)}
+    38%{transform:none;box-shadow:0 1px 3px -1px rgba(72,89,122,.22)}
+    70%{background-color:var(--fc-hot)}
+    100%{transform:none;box-shadow:none;background-color:var(--fc-to)}}
+  @keyframes fc-rail{
+    0%{transform:scaleY(0);opacity:0}
+    14%{transform:scaleY(1);opacity:1}
+    80%{opacity:1}
+    100%{opacity:0}}
+  @keyframes fc-mark{
+    0%{transform:scale(1)}
+    9%{transform:scale(.55);opacity:.35}
+    20%{transform:scale(1.75)}
+    32%{transform:scale(1)}
+    100%{transform:scale(1)}}
   @media (prefers-reduced-motion:no-preference){
-    .rm-flist li.fc-fixed{animation:fc-fixed 2.4s cubic-bezier(.3,.7,.4,1) both}
-    .rm-flist li.fc-broke{animation:fc-broke 2.4s cubic-bezier(.3,.7,.4,1) both}
+    .rm-flist li.fc-run{animation:fc-lift 2.9s cubic-bezier(.22,.7,.3,1) both}
+    .rm-flist li.fc-run::before{animation:fc-mark 2.9s cubic-bezier(.2,.8,.2,1) both;
+      transform-origin:center}
+    .rm-flist li.fc-run::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+      background:var(--fc-ink);border-radius:7px 0 0 7px;pointer-events:none;
+      animation:fc-rail 2.9s cubic-bezier(.22,.7,.3,1) both}
   }
   .rm-fcchip.chg{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}
   .rm-rows{display:flex;flex-direction:column;gap:5px}
@@ -3579,18 +3596,34 @@ function rmSnapFilters(){
     const fc=f.filter_check; if(!fc)return;
     const st={};
     (fc.rows||[]).forEach(r=>{st['p:'+r.prescribed]=
-      r.hold?'ice':r.present===false?'miss':r.present?'has':'na';});
+      r.hold?'hold':r.present===false?'miss':r.present?'has':'na';});
     (fc.actual||[]).forEach(r=>{st['a:'+r.line]=
-      r.recommended?'has':r.hold?'ice':'extra';});
+      r.recommended?'has':r.hold?'holdok':r.redundant?'dupe':'extra';});
     out[f.id]=st;
   });
   return out;
 }
-const RM_STATE_NOW=li=>li.classList.contains('has')?'has'
-  :li.classList.contains('miss')?'miss'
-  :(li.classList.contains('hold')||li.classList.contains('holdok'))?'ice'
-  :li.classList.contains('extra')?'extra':'na';
-// good = a gap closed or an unknown explained; bad = something that was fine is not
+const RM_STATES=['has','miss','extra','hold','holdok','dupe','andor'];
+const RM_STATE_NOW=li=>RM_STATES.find(c=>li.classList.contains(c))||'na';
+// Each state's own colour, as rgba so it can be animated: --fc-from is where the
+// row was, --fc-to where it lands, --fc-hot a saturated pass on the way through.
+const FC_TOKEN={has:'--good',miss:'--crit',extra:'--warn',dupe:'--warn',
+                andor:'--warn',hold:'--ice-no',holdok:'--ice-ok'};
+function rmRgba(col,a){
+  const c=(col||'').trim();
+  let m=c.match(/^#?([0-9a-f]{6})$/i);
+  if(m){const v=parseInt(m[1],16);
+    return `rgba(${v>>16&255},${v>>8&255},${v&255},${a})`;}
+  m=c.match(/^rgba?\(([^)]+)\)$/i);
+  if(m){const p=m[1].split(',').map(x=>parseFloat(x));
+    return `rgba(${p[0]|0},${p[1]|0},${p[2]|0},${a})`;}
+  return `rgba(120,130,145,${a})`;
+}
+function rmStateColour(state){
+  const tok=FC_TOKEN[state];
+  if(!tok)return null;
+  return getComputedStyle(document.documentElement).getPropertyValue(tok);
+}
 function rmFlashChanges(prev){
   if(!prev)return 0;
   let n=0;
@@ -3598,11 +3631,14 @@ function rmFlashChanges(prev){
     const was=(prev[li.dataset.flow]||{})[li.dataset.key];
     if(!was)return;
     const now=RM_STATE_NOW(li);
-    if(now===was)return;
-    const better=(was==='miss'||was==='extra')&&(now==='has');
-    const worse=(was==='has')&&(now==='miss'||now==='extra');
-    if(!better&&!worse)return;
-    li.classList.add(better?'fc-fixed':'fc-broke');
+    if(now===was||now==='na'||was==='na')return;
+    const from=rmStateColour(was), to=rmStateColour(now);
+    if(!from||!to)return;
+    li.style.setProperty('--fc-from',rmRgba(from,.14));
+    li.style.setProperty('--fc-to',rmRgba(to,.10));
+    li.style.setProperty('--fc-hot',rmRgba(to,.40));
+    li.style.setProperty('--fc-ink',rmRgba(to,1));
+    li.classList.add('fc-run');
     n++;
     const flow=li.closest('.rm-fcflow');
     if(flow){flow.classList.add('open');
