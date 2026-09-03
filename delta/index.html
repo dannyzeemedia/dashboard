@@ -3750,18 +3750,26 @@ function rmFilterCheck(M){
       if(nOk<pRows.length)offspec++;
       chips.push('<span class="rm-fcchip '+(nOk<pRows.length?'c':'g')+'">'
         +nOk+'/'+pRows.length+' PRESCRIBED</span>');
-      const nIce=(fc.held||[]).length+(fc.held_extra||[]).length;
+      // Counted off the ROWS, not off precomputed lists. Danny hit a flow whose
+      // chips said "7/7 prescribed, nothing else" while a live filter sat there
+      // amber and unaccounted for: the data had a field the loaded renderer did
+      // not know yet, so the row fell back to amber and no list counted it.
+      // Deriving the counts from what is actually drawn cannot drift like that.
+      const live=fc.actual||[];
+      const nIce=(fc.rows||[]).filter(r=>r.hold).length
+                +live.filter(r=>r.hold).length;
       if(nIce)chips.push('<span class="rm-fcchip b">'+nIce+' ON ICE</span>');
-      const nOpp=(fc.opposed||[]).length;
+      const nOpp=live.filter(r=>r.opposes&&!r.hold).length;
       if(nOpp)chips.push('<span class="rm-fcchip c" title="'+nOpp
         +' filter(s) doing the opposite of what the map prescribes">'+nOpp
         +' BACKWARDS</span>');
-      const nDup=(fc.redundant||[]).length;
+      const nDup=live.filter(r=>r.redundant&&!r.hold&&!r.opposes).length;
       if(nDup)chips.push('<span class="rm-fcchip w" title="'+nDup
         +' filter(s) another filter on this flow already covers">'+nDup+' REDUNDANT</span>');
-      const nX=(fc.extra||[]).length;
+      const nX=live.filter(r=>!r.recommended&&!r.hold&&!r.opposes&&!r.redundant).length;
       if(nX)chips.push('<span class="rm-fcchip w" title="'+nX
-        +' filters the flow runs that the map does not ask for">'+nX+' EXTRA</span>');
+        +' filter(s) the flow runs that the map does not ask for, and that are '
+        +'not on ice">'+nX+' EXTRA</span>');
       if((fc.logic_off||[]).length)
         chips.push('<span class="rm-fcchip w">'+fc.logic_off.length+' AND/OR</span>');
       if(fc.reentry&&fc.reentry.match===false)
