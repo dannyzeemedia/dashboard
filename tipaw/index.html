@@ -787,10 +787,12 @@
     32%{transform:scale(1)}
     100%{transform:scale(1)}}
   @media (prefers-reduced-motion:no-preference){
-    .rm-flist li.fc-run{animation:fc-lift 2.9s cubic-bezier(.22,.7,.3,1) both}
-    .rm-flist li.fc-run::before{animation:fc-mark 2.9s cubic-bezier(.2,.8,.2,1) both;
-      transform-origin:center}
-    .rm-flist li.fc-run::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+    .rm-flist li.fc-run,.rm-pop .pmix li.fc-run{
+      animation:fc-lift 2.9s cubic-bezier(.22,.7,.3,1) both}
+    .rm-flist li.fc-run::before,.rm-pop .pmix li.fc-run::before{
+      animation:fc-mark 2.9s cubic-bezier(.2,.8,.2,1) both;transform-origin:center}
+    .rm-flist li.fc-run::after,.rm-pop .pmix li.fc-run::after{
+      content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
       background:var(--fc-ink);border-radius:7px 0 0 7px;pointer-events:none;
       animation:fc-rail 2.9s cubic-bezier(.22,.7,.3,1) both}
   }
@@ -3629,8 +3631,9 @@ function rmStateColour(state){
 }
 function rmFlashChanges(prev){
   if(!prev)return 0;
-  let n=0;
-  document.querySelectorAll('#map-coverage .rm-flist li[data-key]').forEach(li=>{
+  let n=0, first=null;
+  document.querySelectorAll('#map-coverage .rm-flist li[data-key],'
+    +'.rm-pop .pmix li[data-key]').forEach(li=>{
     const was=(prev[li.dataset.flow]||{})[li.dataset.key];
     if(!was)return;
     const now=RM_STATE_NOW(li);
@@ -3642,8 +3645,15 @@ function rmFlashChanges(prev){
     li.style.setProperty('--fc-hot',rmRgba(to,.40));
     li.style.setProperty('--fc-ink',rmRgba(to,1));
     li.classList.add('fc-run');
+    if(!first)first=li;
     n++;
     const flow=li.closest('.rm-fcflow');
+    // An animation inside a collapsed section runs and nobody sees it, which is
+    // what made a resync look like it did nothing. Open the way to the row.
+    const grp=li.closest('.rm-group');
+    if(grp&&grp.classList.contains('shut')){
+      grp.classList.remove('shut'); rmGroupState(grp.dataset.group,true);
+    }
     if(flow){flow.classList.add('open');
       const chips=flow.querySelector('.rm-fcchips');
       if(chips&&!chips.querySelector('.chg')){
@@ -3651,6 +3661,9 @@ function rmFlashChanges(prev){
         c.className='rm-fcchip chg'; c.textContent='CHANGED';
         chips.insertBefore(c,chips.firstChild);}}
   });
+  // and put the first change on screen, since a resync takes ~75s and the tab
+  // may well have been scrolled somewhere else in the meantime
+  if(first)try{first.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}
   return n;
 }
 function rmFilterCheck(M){
@@ -4650,6 +4663,9 @@ function rmIce(btn,node,flow){
 async function rmIceSend(node,flow,lines,reason,off,btn){
   const openIds=[...document.querySelectorAll('#map-coverage .rm-fcflow.open')]
     .map(el=>el.dataset.flow);
+  // icing is a state change like any other, so it gets the same animation a
+  // resync gives: snapshot first, flash whatever moved after the redraw
+  const snap=rmSnapFilters();
   RM_ICING=true; btn.disabled=true;
   const li=btn.closest('li'), was=li.innerHTML;
   li.innerHTML=(off?'Taking off ice…':'Putting on ice…');
@@ -4674,6 +4690,7 @@ async function rmIceSend(node,flow,lines,reason,off,btn){
     const M=rmData(), fl=M&&(M.flows||[]).find(x=>x.id===flow.id);
     const nn=node&&fl&&(fl.nodes||[]).find(x=>x.id===node.id);
     if(fl&&nn){RM_SEL=nn.id;rmDraw();rmDetail(nn,rmIssues(nn),fl);}
+    rmFlashChanges(snap);
   }catch(err){
     li.innerHTML=was;
     li.querySelectorAll('.pice').forEach(b=>b.addEventListener('click',()=>rmIce(b,node,flow)));
@@ -4740,22 +4757,22 @@ function rmPopHtml(n,flow){
           return;}
         gseen[gi]=[bank.length,bank];
         bank.push([cls,(r.src?srcIcon(r.src):'')+esc(r.line),note,false,[r.line],
-                   r.hold_auto,'live']);
+                   r.hold_auto,'a:'+r.line]);
       });
       const psrc=l=>{const r=(fc.rows||[]).find(x=>x.prescribed===l);
         return r&&r.src?srcIcon(r.src):'';};
       (fc.missing||[]).forEach(l=>{
         if(/re-?entry/i.test(l))return;      // covered by the re-entry block above
-        rows.push(['miss',psrc(l)+esc(l),'Prescribed, not set',false,l]);
+        rows.push(['miss',psrc(l)+esc(l),'Prescribed, not set',false,l,false,'p:'+l]);
       });
       // present, but the flow ANDs what the map wants ORed — a stricter filter
       // than intended, which quietly shrinks the audience
       (fc.logic_off||[]).forEach(x=>rows.push(['andor',psrc(x.line)+esc(x.line),
-        'Set, but as AND where the map wants OR',false]));
+        'Set, but as AND where the map wants OR',false,x.line,false,'p:'+x.line]));
       // on ice: still off spec, still shown, but last and out of the count —
       // this account has a standing reason to leave it as it is
       (fc.held||[]).forEach(h=>rows.push(['hold',psrc(h.line)+esc(h.line),
-        'On ice'+(h.reason?' — '+h.reason:''),false,h.line,h.auto]));
+        'On ice'+(h.reason?' — '+h.reason:''),false,h.line,h.auto,'p:'+h.line]));
       iced.forEach(r=>rows.push(r));
       // same denominator as the panel below: prescribed rows present vs total,
       // held rows excluded from both halves
@@ -4782,7 +4799,9 @@ function rmPopHtml(n,flow){
                    ? 'Mark this as deliberate on this flow, so it stops flagging'
                    : 'Put this filter on ice for this flow'))
               +'">'+(onIce?'\u21ba':'\u2744')+'</button>' : '';
-          return '<li class="'+r[0]+'">'+r[1]
+          const id=(r[6]&&flow)?' data-flow="'+esc(flow.id)+'" data-key="'
+            +esc(r[6]).replace(/"/g,'&quot;')+'"':'';
+          return '<li class="'+r[0]+'"'+id+'>'+r[1]
             +(r[2]?' <em>('+esc(r[2])+')</em>':'')+icy+'</li>';
         }).join('')+'</ul>'
         +(flow.filters_source==='inferred'
