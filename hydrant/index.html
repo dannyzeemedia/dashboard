@@ -1586,6 +1586,41 @@ function switchTo(slug){ACTIVE=slug;
   renderDash();renderBoard();renderReports();
   if(IS_OWNER)updateFab();}
 
+// ---- projecting the in-progress month -----------------------------------
+// A bare run-rate (mtd / days elapsed x days in month) is the whole story only
+// if a month spends evenly, and months do not: promo weeks, weekends and
+// seasonality all land unevenly. So the projection blends two estimates.
+//
+//   run-rate   mtd / days elapsed x days in month — what this month is doing
+//   seasonal   the SAME month last year, scaled by how the last three complete
+//              months compare with their own year-earlier counterparts
+//
+// The weight is the share of the month already banked: on day 2 the seasonal
+// estimate carries the projection, by day 25 the run-rate does. That is what
+// keeps a projection honest on the 2nd without pretending two days of trading
+// predict thirty.
+//
+// Returns null when there is no year-earlier month to check against (a client
+// with under ~16 months of history), and the projection falls back to the plain
+// run-rate with the note saying so.
+function ipBlend(arr){
+  if(!IP||!IP.days)return null;
+  const i=arr.length-1, m=arr[i];
+  if(m==null||!isFinite(m))return null;
+  const e1=m/IP.days*IP.dim;
+  let e2=null,g=null;
+  const ly=arr[i-12];
+  if(ly!=null&&isFinite(ly)&&i-15>=0){
+    const now3=(arr[i-1]||0)+(arr[i-2]||0)+(arr[i-3]||0);
+    const then3=(arr[i-13]||0)+(arr[i-14]||0)+(arr[i-15]||0);
+    if(then3>0&&now3>0){ g=now3/then3; e2=ly*g; }
+  }
+  const w=Math.min(1,Math.max(0.15,IP.days/IP.dim));
+  const point=(e2!=null&&isFinite(e2))?(w*e1+(1-w)*e2):e1;
+  return {point:point, e1:e1, e2:e2, g:g, w:w, mtd:m};
+}
+let PROJ=null;
+
 // Build the working arrays from base + (optionally) the in-progress month.
 function applyMode(){
   const on=inProgress&&CUR&&CUR.mtd;
@@ -1626,8 +1661,23 @@ function applyMode(){
   roll3=total.map((_,i)=>{if(i<2)return null;const t0=(on&&i===last)?pTot:total[i];return Math.round((t0+total[i-1]+total[i-2])/3);});
   subsR3=subs.map((_,i)=>{if(i<2)return null;const s0=(on&&i===last)?pSub:subs[i];return Math.round((s0+subs[i-1]+subs[i-2])/3);});
   MI={}; MONTHS.forEach((m,i)=>MI[m]=i);
-  IP=on?{idx:MONTHS.length-1,project:!!CUR.project,proj:CUR.proj,mtd:CUR.mtd,
+  IP=on?{idx:MONTHS.length-1,project:!!CUR.days_complete,proj:CUR.proj,mtd:CUR.mtd,
          days:CUR.days_complete,dim:CUR.days_in_month,asOf:CUR.as_of,tests:ct}:null;
+  // blended projections, per metric, from the arrays just built (their last
+  // element is this month's actual-so-far)
+  PROJ=on?{flow:ipBlend(flow),camp:ipBlend(camp),subs:ipBlend(subs),
+           store:ipBlend(store),remail:ipBlend(remail),rsms:ipBlend(rsms),
+           total:ipBlend(total)}:null;
+  if(PROJ){
+    // the rolling average uses the projected month, so the 3-mo line connects
+    // instead of dipping into a half-finished month
+    const pT=PROJ.total?PROJ.total.point:(total[last]||0);
+    const pS=(subsChannel==='email'&&PROJ.subs)?PROJ.subs.point:(subs[last]||0);
+    roll3=total.map((_,i)=>{if(i<2)return null;const t0=(i===last)?pT:total[i];
+      return Math.round((t0+total[i-1]+total[i-2])/3);});
+    subsR3=subs.map((_,i)=>{if(i<2)return null;const s0=(i===last)?pS:subs[i];
+      return Math.round((s0+subs[i-1]+subs[i-2])/3);});
+  }
 }
 
 // ---- formatters ----
@@ -1885,7 +1935,8 @@ function stackedCols(id,win){const card=document.getElementById(id);const[i0,i1]
   const S1=chan?remail:flow, S2=chan?rsms:camp;
   const C1='var(--flow)', C2='var(--camp)';   // primary navy, secondary gold (email/SMS or flow/campaign)
   const N1=chan?'Email':'Flow', N2=chan?'SMS':'Campaign';
-  const P1=IP?(chan?IP.proj.remail:IP.proj.flow):0, P2=IP?(chan?IP.proj.rsms:IP.proj.camp):0;
+  const _p1=PROJ&&(chan?PROJ.remail:PROJ.flow), _p2=PROJ&&(chan?PROJ.rsms:PROJ.camp);
+  const P1=_p1?_p1.point:0, P2=_p2?_p2.point:0;
   const fv=S1.slice(i0,i1+1),cv=S2.slice(i0,i1+1),tv=fv.map((v,i)=>v+(cv[i]||0));
   const lg=document.getElementById('crev-legend');
   if(lg)lg.innerHTML=`<span><i style="background:${C1}"></i>${N1}</span><span><i style="background:${C2}"></i>${N2}</span>`;
@@ -1895,7 +1946,7 @@ function stackedCols(id,win){const card=document.getElementById(id);const[i0,i1]
   const bw=grp?step*0.30:step*0.6,gap=grp?4:0;
   const ipK=IP&&IP.idx>=i0&&IP.idx<=i1?IP.idx-i0:-1;
   const mvals=grp?[...fv,...cv]:[...tv];
-  if(ipK>=0&&IP.project){if(grp)mvals.push(P1,P2);else mvals.push(P1+P2);}
+  if(ipK>=0&&P1+P2>0){if(grp)mvals.push(P1,P2);else mvals.push(P1+P2);}
   const max=niceMax(Math.max(...mvals));const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
   const y=v=>PT+ih-(v/max)*ih,ev=lblEvery(n);
   const ghost=(x,w,v)=>svg.appendChild(el('rect',{x,y:y(v),width:w,height:Math.max(PT+ih-y(v),0),rx:3,fill:'none',stroke:'var(--ink2)','stroke-width':1.4,'stroke-dasharray':'4 3',opacity:.75}));
@@ -1905,16 +1956,24 @@ function stackedCols(id,win){const card=document.getElementById(id);const[i0,i1]
     if(grp){const cx=PL+step*i+step/2,x1=cx-bw-gap/2,x2=cx+gap/2;
       svg.appendChild(el('rect',{x:x1,y:PT+ih-hf,width:bw,height:Math.max(hf,0),rx:3,fill:C1,'fill-opacity':op}));
       svg.appendChild(el('rect',{x:x2,y:PT+ih-hc,width:bw,height:Math.max(hc,0),rx:3,fill:C2,'fill-opacity':op}));
-      if(ip&&IP.project){ghost(x1,bw,P1);ghost(x2,bw,P2);}}
+      if(ip&&P1+P2>0){ghost(x1,bw,P1);ghost(x2,bw,P2);}}
     else{const x=PL+step*i+(step-bw)/2;
       svg.appendChild(el('rect',{x,y:PT+ih-hf,width:bw,height:Math.max(hf,0),rx:3,fill:C1,'fill-opacity':op}));
       svg.appendChild(el('rect',{x,y:PT+ih-hf-hc-2,width:bw,height:Math.max(hc,0),rx:3,fill:C2,'fill-opacity':op}));
-      if(ip&&IP.project)ghost(x,bw,P1+P2);}
+      if(ip&&P1+P2>0)ghost(x,bw,P1+P2);}
     const lx=PL+step*i+step/2;
     if(labIdx(n).has(i)){mlab(svg,lx,PT+ih+16,mlabel(m)+(ip?'*':''));}
     const hit=el('rect',{x:PL+step*i,y:PT,width:step,height:ih,fill:'transparent'});
     hit.addEventListener('mousemove',e=>{const rows=[[N1,fv[i],C1],[N2,cv[i],C2],['Total',tv[i],'var(--ink2)']];
-      let title=mlabel(m); if(ip){title+=` · MTD ${IP.days}/${IP.dim}d`; if(IP.project)rows.push(['Projected total',P1+P2,'var(--ink2)']);}
+      let title=mlabel(m);
+      if(ip){title+=` · MTD ${IP.days}/${IP.dim}d`;
+        if(P1+P2>0){rows.push(['Projected total',P1+P2,'var(--ink2)']);
+          const b=_p1&&_p1.e2!=null?_p1:null;
+          if(_p1&&_p2){
+            rows.push(['· run-rate',(_p1.e1||0)+(_p2.e1||0),'var(--muted)']);
+            if(_p1.e2!=null&&_p2.e2!=null)
+              rows.push(['· same month last yr x growth',(_p1.e2||0)+(_p2.e2||0),'var(--muted)']);
+          }}}
       showTip(card,e,title,rows,money);});
     hit.addEventListener('mouseleave',()=>hideTip(card));svg.appendChild(hit);});
   svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));card.appendChild(svg);}
@@ -3300,8 +3359,10 @@ function dashAnimate(snap){
 }
 
 function renderDash(){const _snap=dashSnap();clearDash();const{cur}=windows();renderTiles();renderRpr();renderPor();renderTests();renderBuckets();
-  const ipT=IP?{idx:IP.idx,project:IP.project,proj:[IP.proj.flow+IP.proj.camp,null]}:null;
-  const ipS=IP?{idx:IP.idx,project:IP.project,proj:[IP.proj.subs,null]}:null;
+  const ipT=IP?{idx:IP.idx,project:!!(PROJ&&PROJ.total),
+                proj:[PROJ&&PROJ.total?PROJ.total.point:null,null]}:null;
+  const ipS=IP?{idx:IP.idx,project:!!(PROJ&&PROJ.subs),
+                proj:[PROJ&&PROJ.subs?PROJ.subs.point:null,null]}:null;
   const ipR=IP?{idx:IP.idx,project:false,proj:[null,null]}:null;   // rates: mark point, don't project
   stackedCols('c-rev',cur);
   lineChart('c-total',cur,[{name:'Monthly',color:'var(--flow)',data:total},{name:'3-mo avg',color:'var(--camp)',data:roll3,dash:true}],kfmt,{ip:ipT});
@@ -3334,10 +3395,21 @@ function renderIpNote(){const el=document.getElementById('ipnote');
   const asOf=new Date(IP.asOf+'T00:00:00');asOf.setDate(asOf.getDate()-1);   // last COMPLETE day
   const md=asOf.toLocaleDateString(undefined,{month:'short',day:'numeric'});
   el.hidden=false;
+  const t=PROJ&&PROJ.total;
+  let how=`<span>Projection appears once a full day has passed.</span>`;
+  if(t){
+    const wr=Math.round(t.w*100);
+    how=(t.e2!=null)
+      ? `<span>Dashed = projected full month: <b>${wr}%</b> this month's run-rate `
+        +`(${kfmt(t.e1)}), <b>${100-wr}%</b> ${mlabel(MONTHS[MONTHS.length-13])} `
+        +`scaled by the last 3 months' year-on-year growth `
+        +`(${t.g?('x'+t.g.toFixed(2)):'—'} → ${kfmt(t.e2)}). The run-rate's share `
+        +`grows as the month fills.</span>`
+      : `<span>Dashed = projected full month at this month's run-rate `
+        +`(${kfmt(t.e1)}). No year-earlier month to sanity-check it against yet.</span>`;
+  }
   el.innerHTML=`<span><b>${mlabel(CUR.month)} in progress</b> — month-to-date through ${md} (${IP.days}/${IP.dim} days).</span>`
-    +`<span>Faded bar / hollow ring = actual so far.</span>`
-    +(IP.project?`<span>Dashed = projected full month (run-rate).</span>`
-                :`<span>Projection appears once 7 full days have passed.</span>`);
+    +`<span>Faded bar / hollow ring = actual so far.</span>`+how;
 }
 
 function renderCamp(){const{cur}=windows();const cc=document.getElementById('c-camp');let sm=cc.querySelector('.sm');if(sm)sm.remove();
@@ -3350,9 +3422,9 @@ function renderCamp(){const{cur}=windows();const cc=document.getElementById('c-c
   const on=inProgress&&CUR&&CUR.mtd;
   let netSubs=BM.map((_,i)=>Math.max(0,(Bsubs[i]||0)-(Bucount[i]||0)));if(on)netSubs=netSubs.concat([CUR.mtd.subs||0]);
   let run=0;const netCum=netSubs.map((v,i)=>{run+=(i>=cur[0]?(v||0):0);return run;});   // cumulative net subscribers across the visible window
-  const areas=[];if(campRev)areas.push({data:camp,color:'var(--aqua)',label:'Campaign rev',fmt:money,proj:IP?IP.proj.camp:null});if(campSubs)areas.push({data:netCum,color:'var(--good)',label:'Cumulative net subs',fmt:nfmt,proj:null});
-  const ipSend=IP?{idx:IP.idx,project:IP.project,proj:IP.proj.csends}:null;
-  const ipRec=IP?{idx:IP.idx,project:IP.project,proj:IP.proj.crecip}:null;
+  const areas=[];if(campRev)areas.push({data:camp,color:'var(--aqua)',label:'Campaign rev',fmt:money,proj:PROJ&&PROJ.camp?PROJ.camp.point:null});if(campSubs)areas.push({data:netCum,color:'var(--good)',label:'Cumulative net subs',fmt:nfmt,proj:null});
+  const ipSend=IP?{idx:IP.idx,project:!!IP.days,proj:IP.proj?IP.proj.csends:null}:null;
+  const ipRec=IP?{idx:IP.idx,project:!!IP.days,proj:IP.proj?IP.proj.crecip:null}:null;
   miniCols(ac,cur,csends,'var(--camp)',v=>Math.round(v),'Sends',areas,ipSend);
   miniCols(bc,cur,crecip,'var(--flow)',nfmt,'Recipients',areas,ipRec);}
 
@@ -3405,8 +3477,9 @@ function renderSms(){const{cur}=windows();const cc=document.getElementById('c-sm
   const a=document.createElement('div');a.innerHTML='<div class="lab">'+srcLab+'</div>';const ac=document.createElement('div');a.appendChild(ac);
   const b=document.createElement('div');b.innerHTML='<div class="lab">SMS delivered / month</div>';const bc=document.createElement('div');b.appendChild(bc);
   sm.appendChild(a);sm.appendChild(b);cc.appendChild(sm);
-  const ipR=IP?{idx:IP.idx,project:IP.project,proj:(smsRevSeg==='all'?IP.proj.rsms:null)}:null;
-  const ipD=IP?{idx:IP.idx,project:IP.project,proj:IP.proj.sms_deliv}:null;
+  const ipR=IP?{idx:IP.idx,project:!!(PROJ&&PROJ.rsms),
+                proj:(smsRevSeg==='all'&&PROJ&&PROJ.rsms?PROJ.rsms.point:null)}:null;
+  const ipD=IP?{idx:IP.idx,project:!!IP.days,proj:IP.proj?IP.proj.sms_deliv:null}:null;
   miniCols(ac,cur,srcArr,'var(--camp)',money,'SMS rev',null,ipR);
   miniCols(bc,cur,smsDeliv,'var(--flow)',nfmt,'Delivered',null,ipD);
   const u=CUR&&CUR.sms_usage,cap=document.getElementById('sms-cap');
