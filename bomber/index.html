@@ -713,6 +713,25 @@
     border-top-color:var(--border)}
   .rm-fcbody > .rm-fcinner{overflow:hidden;padding:0 13px}
   .rm-pinnote{margin:0 0 11px;font-size:11.5px;line-height:1.5;color:var(--muted)}
+  /* Claude's weekly second opinion. Deliberately unlike the check rows: no
+     tick, no cross, its own frame — it must never be mistaken for a verdict. */
+  .rm-llm{margin:14px 0 0;border:1px dashed var(--border);border-radius:10px;
+    padding:11px 13px;background:color-mix(in srgb,var(--flow) 3%,transparent)}
+  .rm-llm h6{margin:0 0 3px;font-size:9.5px;font-weight:800;letter-spacing:.11em;
+    text-transform:uppercase;color:var(--muted)}
+  .rm-llm .when{font-size:10.5px;color:var(--muted);margin:0 0 9px}
+  .rm-llm ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+  .rm-llm li{font-size:12px;line-height:1.5;color:var(--ink2);padding-left:16px;
+    position:relative}
+  .rm-llm li::before{content:"";position:absolute;left:0;top:6px;width:7px;height:7px;
+    border-radius:50%;background:var(--muted)}
+  .rm-llm li.high::before{background:var(--crit)}
+  .rm-llm li.medium::before{background:var(--warn)}
+  .rm-llm li.low::before{background:var(--flow)}
+  .rm-llm .kind{font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--muted);margin-right:6px}
+  .rm-llm .quote{display:block;margin-top:3px;font-size:11px;color:var(--muted)}
+  .rm-fcchip.llm{background:color-mix(in srgb,var(--flow) 10%,transparent);color:var(--flow)}
   .rm-pinnote b{color:var(--ink2)}
   .rm-fcflow.open .rm-fcbody > .rm-fcinner{padding:12px 13px 14px}
   @media (prefers-reduced-motion:reduce){.rm-fcbody{transition:none}}
@@ -3759,6 +3778,10 @@ function rmFilterCheck(M){
       const nIce=(fc.rows||[]).filter(r=>r.hold).length
                 +live.filter(r=>r.hold).length;
       if(nIce)chips.push('<span class="rm-fcchip b">'+nIce+' ON ICE</span>');
+      const nLlm=(f.llm_notes||[]).length;
+      if(nLlm)chips.push('<span class="rm-fcchip llm" title="'+nLlm
+        +' advisory note(s) from the weekly review — not part of the checks">'
+        +nLlm+(nLlm>1?' NOTES':' NOTE')+'</span>');
       const nOpp=live.filter(r=>r.opposes&&!r.hold).length;
       if(nOpp)chips.push('<span class="rm-fcchip c" title="'+nOpp
         +' filter(s) doing the opposite of what the map prescribes">'+nOpp
@@ -3856,6 +3879,15 @@ function rmFilterCheck(M){
           +(gs.some(g=>g.length>1)?' <span class="rm-join">— ALL OF THESE (AND), ORs INLINE</span>':'')
           +'</div><ul class="rm-flist rm-fclist'+(fc?'':' plain')+'">'+right+'</ul></div>'
       +'</div>'
+      +((f.llm_notes||[]).length
+        ? '<div class="rm-llm"><h6>Claude’s second opinion</h6>'
+          +'<p class="when">Advisory only — this changes none of the checks above. '
+          +esc(((M.llm_review||{}).model)||'')+', '+esc(((M.llm_review||{}).at)||'')+'.</p>'
+          +'<ul>'+f.llm_notes.map(n=>'<li class="'+esc(n.severity||'')+'">'
+            +'<span class="kind">'+esc(n.kind||'')+'</span>'+esc(n.note||'')
+            +(n.refers_to?'<span class="quote">on: '+esc(n.refers_to)+'</span>':'')
+            +'</li>').join('')+'</ul></div>'
+        : '')
       +'<div class="pacts" style="margin-top:11px">'
         +'<a href="'+rmFlowUrl(f.id)+'" target="_blank" rel="noopener">↗ Open flow</a>'
         +'<a href="#" data-draw="'+esc(f.id)+'">→ Draw this flow</a>'
