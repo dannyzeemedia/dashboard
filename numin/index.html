@@ -712,6 +712,11 @@
   .rm-fcflow.open .rm-fcbody{grid-template-rows:1fr;opacity:1;
     border-top-color:var(--border)}
   .rm-fcbody > .rm-fcinner{overflow:hidden;padding:0 13px}
+  .rs-head{margin:10px 0 0;font-size:13.5px;line-height:1.55;color:var(--ink2);
+    border-left:3px solid var(--camp);padding:9px 0 9px 12px;
+    background:color-mix(in srgb,var(--camp) 6%,transparent);border-radius:0 8px 8px 0}
+  .rs-head b{color:var(--ink)}
+  .rs-note{display:block;margin-top:6px;font-size:12px;color:var(--muted)}
   .rm-pinnote{margin:0 0 11px;font-size:11.5px;line-height:1.5;color:var(--muted)}
   /* Claude's weekly second opinion. Deliberately unlike the check rows: no
      tick, no cross, its own frame — it must never be mistaken for a verdict. */
@@ -1240,6 +1245,12 @@
                 <button class="miniToggle" id="campSubsTog" aria-pressed="false" title="Overlay cumulative net subscribers over the period"><span class="dot"></span>Cumulative subscribers</button>
               </div>
               <div class="cap">Send count and total recipients side by side — volume context for the campaign-revenue line above.</div></div>
+            <div class="card wide" id="c-rightsize"><h3>Campaign right-size</h3>
+              <div class="mtwrap">
+                <button class="miniToggle" id="rsNetTog" aria-pressed="true" title="Subtract the 12-month value of the subscribers each extra send costs"><span class="dot"></span>Net of churn cost</button>
+              </div>
+              <div class="cap" id="rs-cap"></div>
+              <div id="rs-rec"></div></div>
           </div>
         </div></div>
       </div>
@@ -3358,7 +3369,7 @@ function dashAnimate(snap){
   }));
 }
 
-function renderDash(){const _snap=dashSnap();clearDash();const{cur}=windows();renderTiles();renderRpr();renderPor();renderTests();renderBuckets();
+function renderDash(){const _snap=dashSnap();clearDash();const{cur}=windows();renderTiles();renderRpr();renderPor();renderTests();renderBuckets();renderRightSize();
   const ipT=IP?{idx:IP.idx,project:!!(PROJ&&PROJ.total),
                 proj:[PROJ&&PROJ.total?PROJ.total.point:null,null]}:null;
   const ipS=IP?{idx:IP.idx,project:!!(PROJ&&PROJ.subs),
@@ -3427,6 +3438,177 @@ function renderCamp(){const{cur}=windows();const cc=document.getElementById('c-c
   const ipRec=IP?{idx:IP.idx,project:!!IP.days,proj:IP.proj?IP.proj.crecip:null}:null;
   miniCols(ac,cur,csends,'var(--camp)',v=>Math.round(v),'Sends',areas,ipSend);
   miniCols(bc,cur,crecip,'var(--flow)',nfmt,'Recipients',areas,ipRec);}
+
+// ---- Campaign right-size ------------------------------------------------
+// How many campaigns a month is the right number, and what moving off today's
+// cadence is worth. Every input comes from the client's own months:
+//
+//   revenue per campaign   campaign revenue / campaigns sent
+//   fatigue                the slope of ln(revenue per campaign) on
+//                          ln(sends per month) across months — the account's own
+//                          diminishing return, not a guessed haircut
+//   unsubs per campaign    campaign unsub rate x recipients per campaign
+//   list growth            new subscribers - email opt-outs per month
+//
+// Charging a lost subscriber a full year of average revenue at the tested
+// cadence made the cost quadratic in cadence and swamped everything: on Tipaw's
+// numbers it claimed churn destroyed 74% of campaign revenue and advised cutting
+// 12 sends to 8, trading 3.2k of measured monthly revenue for 813 of modelled
+// future value. Two corrections keep it honest:
+//   * an unsubscriber is not an average subscriber. They just opted out, so they
+//     were the least engaged; their forward value is charged at a quarter of the
+//     average (CHURN_VALUE).
+//   * six months, not twelve. Past that the counterfactual is guesswork.
+// And the model never recommends a cadence the account has never approached —
+// beyond the busiest month it has actually run, there is no evidence, only
+// extrapolation, and those cadences are drawn faded and cannot be chosen.
+let RS_NET=true;
+function rightSize(){
+  const {cur}=windows();
+  const idx=[];for(let i=cur[0];i<=cur[1];i++){if(IP&&i===IP.idx)continue;idx.push(i);}  // complete months only
+  const use=idx.filter(i=>(csends[i]||0)>0&&(camp[i]||0)>0);
+  if(use.length<3)return null;
+  const S=use.reduce((a,i)=>a+csends[i],0), R=use.reduce((a,i)=>a+camp[i],0);
+  const Q=use.reduce((a,i)=>a+(crecip[i]||0),0);
+  if(!S||!R||!Q)return null;
+  const mo=use.length, n0=S/mo, r0=R/S, rpr=R/Q, L=Q/S;
+  // unsubs per campaign, from the campaign unsub RATE against recipients
+  const uPer=use.map(i=>((unsub_camp_arr(i)||0)/100)*((crecip[i]||0)/(csends[i]||1)))
+                .filter(v=>isFinite(v)&&v>=0);
+  const u0=uPer.length?uPer.reduce((a,b)=>a+b,0)/uPer.length:0;
+  // net list growth per month as measured, with today's campaign churn added
+  // back so it can be re-applied at the cadence being tested
+  const gRaw=idx.map(i=>(subsBase(i)||0)-(unsubBase(i)||0));
+  const g0=gRaw.length?gRaw.reduce((a,b)=>a+b,0)/gRaw.length:0;
+  // fatigue slope from this account's own history
+  let beta=null;
+  if(use.length>=5){
+    const xs=use.map(i=>Math.log(csends[i])), ys=use.map(i=>Math.log(camp[i]/csends[i]));
+    const mx=xs.reduce((a,b)=>a+b,0)/xs.length, my=ys.reduce((a,b)=>a+b,0)/ys.length;
+    let sxy=0,sxx=0;xs.forEach((x,k)=>{sxy+=(x-mx)*(ys[k]-my);sxx+=(x-mx)*(x-mx);});
+    if(sxx>1e-9){beta=Math.max(-1.2,Math.min(0,sxy/sxx));}
+  }
+  if(beta===null)beta=-0.35;          // no readable history: a modest default
+  const H=6, CHURN_VALUE=0.25;
+  const seen=Math.max.apply(null,use.map(i=>csends[i]||0));
+  const evidence=Math.max(Math.round(n0)+1,Math.round(seen));   // the busiest month actually run
+  const hi=Math.max(evidence+3,Math.round(n0*1.6));
+  const rows=[];
+  for(let n=1;n<=hi;n++){
+    const perC=r0*Math.pow(n/n0,beta);
+    const rev=n*perC;
+    const un=n*u0;
+    const net=g0+(n0-n)*u0;
+    const cost=un*(rpr*n)*H*CHURN_VALUE;
+    rows.push({n:n,rev:rev,perC:perC,un:un,net:net,cost:cost,score:rev-cost,
+               extrapolated:n>evidence});
+  }
+  const pick=rows.filter(r=>!r.extrapolated);
+  let best=pick[0];pick.forEach(r=>{if((RS_NET?r.score:r.rev)>(RS_NET?best.score:best.rev))best=r;});
+  const now=rows[Math.max(0,Math.min(rows.length-1,Math.round(n0)-1))];
+  return {rows:rows,best:best,now:now,n0:n0,r0:r0,rpr:rpr,u0:u0,g0:g0,L:L,beta:beta,H:H,mo:mo,
+          evidence:evidence,churnValue:CHURN_VALUE,capped:best.n===evidence};
+}
+// the per-month campaign unsub rate, whichever shape the series carries
+function unsub_camp_arr(i){const S=SERIES[ACTIVE]||{};
+  const a=S.unsub_camp||[];return (i<a.length?a[i]:0)||0;}
+function subsBase(i){const S=SERIES[ACTIVE]||{};const a=S.subs||[];return (i<a.length?a[i]:0)||0;}
+function unsubBase(i){const S=SERIES[ACTIVE]||{};
+  const a=S.subs_unsub&&S.subs_unsub.length?S.subs_unsub:(S.unsub_count||[]);
+  return (i<a.length?a[i]:0)||0;}
+
+function renderRightSize(){
+  const card=document.getElementById('c-rightsize');if(!card)return;
+  card.querySelectorAll('svg,.tip').forEach(n=>n.remove());
+  const rec=document.getElementById('rs-rec'), cap=document.getElementById('rs-cap');
+  const R=rightSize();
+  if(!R){cap.textContent='Needs at least three complete months with campaigns to size the cadence.';
+    rec.innerHTML='';return;}
+  const W=760,H=250,PL=52,PR=54,PT=14,PB=34,iw=W-PL-PR,ih=H-PT-PB;
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`});
+  const maxRev=niceMax(Math.max.apply(null,R.rows.map(r=>Math.max(r.rev,r.score))));
+  const nets=R.rows.map(r=>r.net);
+  const netMax=niceMax(Math.max.apply(null,nets.concat([1]))), netMin=Math.min(0,Math.min.apply(null,nets));
+  const x=n=>PL+iw*(n-0.5)/R.rows.length, bw=Math.max(6,iw/R.rows.length-6);
+  const y=v=>PT+ih-(v/maxRev)*ih;
+  const yn=v=>PT+ih-((v-netMin)/((netMax-netMin)||1))*ih;
+  for(let k=0;k<=2;k++){const gv=maxRev*k/2;
+    svg.appendChild(el('line',{class:'gl',x1:PL,x2:W-PR,y1:y(gv),y2:y(gv)}));
+    const t=el('text',{class:'ax',x:PL-7,y:y(gv)+4,'text-anchor':'end'});t.textContent=kfmt(gv);svg.appendChild(t);}
+  R.rows.forEach(r=>{
+    const isBest=r.n===R.best.n, isNow=r.n===Math.round(R.n0);
+    const v=RS_NET?r.score:r.rev;
+    const top=y(Math.max(0,v));
+    svg.appendChild(el('rect',{x:x(r.n)-bw/2,y:top,width:bw,height:Math.max(PT+ih-top,0),rx:3,
+      fill:r.extrapolated?'none':isBest?'var(--camp)':isNow?'var(--flow)':'var(--surface-2)',
+      stroke:r.extrapolated?'var(--axis)':(isBest||isNow?'none':'var(--border)'),
+      'stroke-width':r.extrapolated?1.3:1,
+      'stroke-dasharray':r.extrapolated?'4 3':''}));
+  });
+  // where the account's own history stops
+  if(R.rows.some(r=>r.extrapolated)){
+    const bx=x(R.evidence)+ (iw/R.rows.length)/2;
+    svg.appendChild(el('line',{x1:bx,x2:bx,y1:PT,y2:PT+ih,stroke:'var(--axis)',
+      'stroke-width':1,'stroke-dasharray':'3 4',opacity:.8}));
+    const lb=el('text',{class:'ax',x:bx+5,y:PT+11,'text-anchor':'start'});
+    lb.textContent='never run →';svg.appendChild(lb);
+  }
+  let d='';R.rows.forEach((r,k)=>{d+=(k?'L':'M')+x(r.n)+' '+yn(r.net);});
+  svg.appendChild(el('path',{d:d,fill:'none',stroke:'var(--good)','stroke-width':2,'stroke-linejoin':'round'}));
+  if(netMin<0)svg.appendChild(el('line',{x1:PL,x2:W-PR,y1:yn(0),y2:yn(0),
+    stroke:'var(--crit)','stroke-width':1,'stroke-dasharray':'4 3',opacity:.6}));
+  R.rows.forEach(r=>{
+    if(r.n%2===0&&r.n!==R.best.n&&r.n!==Math.round(R.n0))return;
+    const t=el('text',{class:'ax',x:x(r.n),y:PT+ih+16,'text-anchor':'middle'});
+    t.textContent=r.n;svg.appendChild(t);});
+  const nt=el('text',{class:'ax',x:(PL+W-PR)/2,y:H-4,'text-anchor':'middle'});
+  nt.textContent='campaigns per month';svg.appendChild(nt);
+  {const t=el('text',{class:'ax',x:W-PR+8,y:yn(netMax)+4});t.textContent=nfmt(netMax);svg.appendChild(t);}
+  {const t=el('text',{class:'ax',x:W-PR+8,y:yn(netMin)+4});t.textContent=nfmt(netMin);svg.appendChild(t);}
+  R.rows.forEach(r=>{
+    const hit=el('rect',{x:x(r.n)-iw/R.rows.length/2,y:PT,width:iw/R.rows.length,height:ih,fill:'transparent'});
+    hit.addEventListener('mousemove',e=>showTip(card,e,r.n+' campaign'+(r.n===1?'':'s')+' / month',[
+      ['Campaign revenue',r.rev,'var(--camp)',kfmt],
+      ['Revenue per campaign',r.perC,'var(--muted)',kfmt],
+      ['Unsubscribes',r.un,'var(--crit)',v=>Math.round(v).toLocaleString()],
+      ['Net list growth',r.net,'var(--good)',v=>Math.round(v).toLocaleString()],
+      ['12-mo value of those unsubs',-r.cost,'var(--muted)',kfmt],
+      ['Net of churn cost',r.score,'var(--ink)',kfmt]]));
+    hit.addEventListener('mouseleave',()=>{const t=card.querySelector('.tip');if(t)t.style.opacity=0;});
+    svg.appendChild(hit);});
+  card.appendChild(svg);
+  card.appendChild(alegend([RS_NET?'Campaign revenue, net of churn cost':'Campaign revenue','var(--surface-2)'],
+    ['Recommended cadence','var(--camp)'],['Today','var(--flow)'],['Net list growth / mo','var(--good)']));
+  const dn=R.best.n-Math.round(R.n0);
+  const dRev=R.best.rev-R.now.rev, dNet=R.best.score-R.now.score, dUn=R.best.un-R.now.un;
+  const verb=dn>0?'Add':dn<0?'Cut':'Hold at';
+  const flat=Math.abs(R.beta)<0.05;
+  let head=dn===0
+    ? `<b>Today's cadence looks right.</b> ${Math.round(R.n0)} campaigns a month is the best net outcome this history supports.`
+    : `<b>${verb} ${Math.abs(dn)} campaign${Math.abs(dn)===1?'':'s'} a month</b> — ${Math.round(R.n0)} → ${R.best.n}. `
+      +`Campaign revenue ${dRev>=0?'up':'down'} about ${kfmt(Math.abs(dRev))} a month`
+      +`, ${dUn>=0?'costing':'saving'} roughly ${Math.abs(Math.round(dUn)).toLocaleString()} unsubscribes a month `
+      +`(${R.g0>0?Math.round(Math.abs(dUn)/R.g0*100)+'% of monthly list growth':'against no net list growth'})`
+      +`, ${dNet>=0?'net +':'net '}${kfmt(dNet)} a month after the churn charge.`;
+  if(flat)head+=` <span class="rs-note">No send fatigue is detectable across `
+    +`${R.mo} months — revenue per campaign has held as volume moved, so the ceiling here `
+    +`is list health rather than diminishing returns.</span>`;
+  if(R.capped&&dn>0)head+=` <span class="rs-note">Capped at ${R.evidence} — the busiest month `
+    +`this account has actually run. Past that the curve is extrapolation, not evidence, `
+    +`so step up and re-read rather than jumping.</span>`;
+  rec.innerHTML='<div class="rs-head">'+head+'</div>';
+  cap.innerHTML=`Revenue per campaign is ${kfmt(R.r0)} today at ${R.n0.toFixed(1)} sends a month `
+    +`(${R.mo} complete months). Each send reaches about ${nfmt(R.L)} people at `
+    +`${SYM+R.rpr.toFixed(3)} a head and costs about ${Math.round(R.u0).toLocaleString()} unsubscribes. `
+    +(Math.abs(R.beta)<0.05 ? `Revenue per send has not moved with volume across these months, so no `
+        + `fatigue is priced in. ` : `This account's fatigue slope is ${R.beta.toFixed(2)} — every 10% more `
+        + `sends moves revenue per send by about ${(R.beta*10).toFixed(1)}%. `)
+    +`A lost subscriber is charged at the campaign revenue they would have `
+    +`produced over ${R.H} months at the cadence shown, at ${Math.round(R.churnValue*100)}% of an average `
+    +`subscriber's rate — someone who just opted out was the least engaged, and past six months the `
+    +`counterfactual is guesswork. Nothing from flows is counted, so the case for sending more is the `
+    +`conservative one. Cadences past ${R.evidence} a month are drawn dashed: this account has never run them.`;
+}
 
 const FMIX_PAL=['var(--flow)','var(--camp)','var(--aqua)','var(--good)','#7c6cf0','#e2749b','#4bb3a6','#c9922a','#8a94a6'];
 function renderFlowMix(){const{cur}=windows();const cc=document.getElementById('c-flowmix');if(!cc)return;
@@ -3507,6 +3689,9 @@ function wireControls(){
   document.getElementById('cmpChips').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
     [...e.currentTarget.children].forEach(x=>x.setAttribute('aria-selected',x===b));CMP=b.dataset.c;renderDash();});
   // (view switching is handled by the single #viewSeg listener below)
+  {const rs=document.getElementById('rsNetTog');
+   if(rs)rs.addEventListener('click',()=>{RS_NET=!RS_NET;
+     rs.setAttribute('aria-pressed',RS_NET);renderRightSize();});}
   {const rt=document.getElementById('campRevTog'),st=document.getElementById('campSubsTog');
    const sync=()=>{rt.setAttribute('aria-pressed',campRev);st.setAttribute('aria-pressed',campSubs);renderCamp();};
    rt.addEventListener('click',()=>{campRev=!campRev;sync();});
