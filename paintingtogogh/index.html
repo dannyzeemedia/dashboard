@@ -3908,8 +3908,10 @@ function rmFilterCheck(M){
         const cls=!fc?'':opp?'opp':dup?'dupe':rec?'has':held?'holdok':'extra';
         const note=!fc?''
           :opp?('the opposite of the map’s “'+opp.opposes+'”')
-          :dup?(dup.redundant.kind==='identical'?'redundant — set twice on this flow'
-                :'redundant — the wider window already covers it')
+          :dup?(dup.redundant.kind==='identical'
+                ? 'redundant — identical to “'+(dup.redundant.same_as||'another filter')+'”'
+                : 'redundant — “'+(dup.redundant.same_as||'a wider window')
+                  +'” already covers this window')
           :rec?'':held
           ? ('on ice'+(rs[0].hold===true?'':' — '+rs[0].hold)) : 'not on the map';
         return {html:rmFcRow(cls+' grp',
@@ -4928,8 +4930,10 @@ function rmPopHtml(n,flow){
         const note=(r.opposes&&!r.hold)
             ?('The OPPOSITE of the map’s “'+r.opposes+'”')
           :(r.redundant&&!r.hold)
-            ?(r.redundant.kind==='identical'?'Redundant — set twice on this flow'
-              :'Redundant — the wider window already covers it')
+            ?(r.redundant.kind==='identical'
+              ? 'Redundant — identical to “'+(r.redundant.same_as||'another filter')+'”'
+              : 'Redundant — “'+(r.redundant.same_as||'a wider window')
+                +'” already covers this window')
           :r.recommended?'Prescribed'
           :r.hold?('On ice'+(r.hold===true?'':' — '+r.hold)):'Not on the map';
         const bank=(cls==='holdok')?iced:rows;
