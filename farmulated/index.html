@@ -3885,6 +3885,9 @@ function rmFilterCheck(M){
         (r.src?srcIcon(r.src):'')+orMark(r.prescribed),
         r.hold?('on ice'+(r.hold===true?'':' — '+r.hold))
           :r.cancelled_by?('set, but cancelled by “'+r.cancelled_by+'” in the same OR group')
+          :r.needs_not_set?('set only for profiles that HAVE ‘'+r.needs_not_set
+             +'’ — add an “is not set” branch, or everyone who never touched the '
+             +'provider is blocked')
           :r.logic==='and'?'set, but ANDed — the map wants OR'
           :r.logic==='or'?'OR, as prescribed':'',
         [r.prescribed], f.id,
@@ -4955,7 +4958,9 @@ function rmPopHtml(n,flow){
         rows.push(['miss',psrc(l)+esc(l),
           (pr&&pr.cancelled_by)
             ? 'Cancelled by “'+pr.cancelled_by+'” in the same OR group'
-            : 'Prescribed, not set',
+            : (pr&&pr.needs_not_set)
+              ? 'Set only where ‘'+pr.needs_not_set+'’ exists — needs an “is not set” branch'
+              : 'Prescribed, not set',
           false,l,false,'p:'+l]);
       });
       // present, but the flow ANDs what the map wants ORed — a stricter filter
