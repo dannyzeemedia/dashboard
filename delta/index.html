@@ -4138,8 +4138,11 @@ function rmFilterCheck(M){
       const pRows=(fc.rows||[]).filter(r=>r.present!==null&&!r.hold);
       const nOk=pRows.filter(r=>r.present===true).length;
       if(nOk<pRows.length)offspec++;
-      chips.push('<span class="rm-fcchip '+(nOk<pRows.length?'c':'g')+'">'
-        +nOk+'/'+pRows.length+' PRESCRIBED</span>');
+      chips.push(pRows.length
+        ? '<span class="rm-fcchip '+(nOk<pRows.length?'c':'g')+'">'
+          +nOk+'/'+pRows.length+' PRESCRIBED</span>'
+        : '<span class="rm-fcchip" title="The map prescribes no profile filters '
+          +'for this flow">NO FILTERS PRESCRIBED</span>');
       // Counted off the ROWS, not off precomputed lists. Danny hit a flow whose
       // chips said "7/7 prescribed, nothing else" while a live filter sat there
       // amber and unaccounted for: the data had a field the loaded renderer did
@@ -4300,16 +4303,25 @@ function rmFilterCheck(M){
   }).join('');
   const keys='<div class="rm-fckeys rm-fcgrid"><span>Flow</span><span>Trigger</span>'
     +'<span>Re-entry</span><span>Filter check</span></div>';
+  const bar=IS_OWNER
+    ? '<div class="rm-allbtns"><button type="button" data-respec '
+      +'title="Re-read the Flow Spec table and re-score every flow against it. '
+      +'Makes no Klaviyo calls, so it costs nothing and takes seconds.">'
+      +'⟳ Re-score to spec</button></div>'
+    : '';
   return rmGroupHtml('filtercheck','Filter check',
     (offspec?(offspec+' of '+flows.length+' flows off spec'):(flows.length+' live flows, all on spec'))
       +' · in journey order',
-    keys+inner,false);
+    bar+keys+inner,false);
 }
 function rmWireFilterCheck(){
   document.querySelectorAll('#map-coverage .rm-fchead').forEach(b=>
     b.addEventListener('click',()=>b.closest('.rm-fcflow').classList.toggle('open')));
   document.querySelectorAll('#map-coverage [data-fcsync]').forEach(b=>
     b.addEventListener('click',()=>rmResync(b)));
+  document.querySelectorAll('#map-coverage [data-respec]').forEach(b=>
+    b.addEventListener('click',()=>rmResync(b,{scope:'respec',
+      idle:'⟳ Re-score to spec',busy:'Re-scoring…'})));
   document.querySelectorAll('#map-coverage [data-draw]').forEach(a=>
     a.addEventListener('click',e=>{e.preventDefault();rmPick(a.dataset.draw);
       document.getElementById('map-stage').scrollIntoView({behavior:'smooth',block:'start'});}));
@@ -5563,19 +5575,23 @@ function rmFullscreen(on){
   setTimeout(rmFit,60);
 }
 let RM_SYNCING=false;
-async function rmResync(from){
+const rmStamp=m=>((m&&m.generated_at)||'')+'|'+((m&&m.respec_at)||'');
+async function rmResync(from,opts){
+  opts=opts||{};
+  const scope=opts.scope||'window';
   if(RM_SYNCING)return;
   const bar=document.getElementById('map-resync');
   const btn=from||bar;
   const lbl=from?from:document.getElementById('map-resync-t');
   const say=t=>{lbl.textContent=(from?'⟳ ':'')+t;};
-  const done=()=>{lbl.textContent=from?'⟳ Re-read filters':'Resync';};
+  const done=()=>{lbl.textContent=opts.idle||(from?'⟳ Re-read filters':'Resync');};
   const M=rmData(); if(!M)return;
-  const before=M.generated_at;
+  const before=rmStamp(M);
   const snap=rmSnapFilters();
   const openIds=[...document.querySelectorAll('#map-coverage .rm-fcflow.open')]
     .map(el=>el.dataset.flow);
-  RM_SYNCING=true; btn.disabled=true; if(bar)bar.disabled=true; say('Reading…');
+  RM_SYNCING=true; btn.disabled=true; if(bar)bar.disabled=true;
+  say(opts.busy||'Reading…');
   try{
     const {data:{session}}=await sb.auth.getSession();
     if(!session)throw new Error('signed out');
@@ -5584,7 +5600,9 @@ async function rmResync(from){
       method:'POST',
       headers:{'Content-Type':'application/json',
                'Authorization':'Bearer '+session.access_token},
-      body:JSON.stringify({client:ACTIVE,scope:'window',window:RM_RANGE})});
+      body:JSON.stringify(scope==='respec'
+        ?{client:ACTIVE,scope:'respec'}
+        :{client:ACTIVE,scope:'window',window:RM_RANGE})});
     if(!r.ok){
       const e=await r.json().catch(()=>({}));
       throw new Error(e.error||('sync could not start ('+r.status+')'));
@@ -5595,7 +5613,7 @@ async function rmResync(from){
       const {data}=await sb.from('client_series').select('data')
         .eq('client_slug',ACTIVE).limit(1);
       const fresh=data&&data[0]&&data[0].data;
-      if(fresh&&fresh.retention_map&&fresh.retention_map.generated_at!==before){
+      if(fresh&&fresh.retention_map&&rmStamp(fresh.retention_map)!==before){
         SERIES[ACTIVE]=fresh;
         renderMap();
         openIds.forEach(id=>{const el=document.querySelector(
@@ -5605,7 +5623,7 @@ async function rmResync(from){
         setTimeout(done,moved?4000:2500);
         return;
       }
-      say('Reading… '+((i+1)*4)+'s');
+      say((opts.busy||'Reading…')+' '+((i+1)*4)+'s');
     }
     say('No update after 3 min — the sync may have failed');
     setTimeout(done,7000);
