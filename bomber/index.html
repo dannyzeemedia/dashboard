@@ -3923,6 +3923,18 @@ function reState(rr){
   return rr.match===true?'has':rr.match===false?'miss':'na';
 }
 const RE_GLYPH={has:'\u2713',miss:'\u2715',holdok:'\u2715',na:'?'};
+// What the map asks for, in words. Not always a number of days: a slot can
+// prescribe only that re-entry be possible at all.
+function reWant(rr,short){
+  if(!rr)return null;
+  if(rr.prescribed_label)return short
+    ?rr.prescribed_label.replace(/^re-entry to be allowed$/,'any')
+      .replace(/^no re-entry$/,'none').replace(/^(\d+) days?$/,'$1d')
+    :rr.prescribed_label;
+  if(rr.prescribed_days==null)return null;
+  if(rr.prescribed_days===0)return short?'none':'no re-entry';
+  return short?(rr.prescribed_days+'d'):(rr.prescribed_days+' days');
+}
 function rmFcRow(cls,line,note,raw,flowId,canIce,isHold,key){
   const btn=(IS_OWNER&&canIce&&raw&&[].concat(raw).length)
     ? '<button class="pice" type="button" data-ice="'+(isHold?'off':'on')+'"'
@@ -4251,9 +4263,8 @@ function rmFilterCheck(M){
             (((fl.trigger_sources||{})[t])?srcIcon((fl.trigger_sources||{})[t]):'')
             +'<b>'+esc(t)+'</b>').join(', ')
           +((fl.triggers||[]).length?'':'<b>—</b>')+'</span>'
-        +'<span class="rm-fctrig">'+reMark+esc(re)+(reBad&&rr.prescribed_days!=null
-           ? ' · wants '+(rr.prescribed_days===0?'none'
-             :rr.prescribed_days+'d'):'')+'</span>'
+        +'<span class="rm-fctrig">'+reMark+esc(re)
+          +(reBad&&reWant(rr,true)?' · wants '+esc(reWant(rr,true)):'')+'</span>'
         +'<span class="rm-fcchips">'+chips.join('')+'</span>'
       +'</button>'
       +'<div class="rm-fcbody"><div class="rm-fcinner">'
@@ -4436,7 +4447,7 @@ function rmRow(c,byId){
       const bits=[];
       if(bad)bits.push('<span class="rm-fbad">'+bad+' filter'+(bad>1?'s':'')+' missing</span>');
       if(reSt==='miss')bits.push('<span class="rm-fbad">re-entry: '+esc(re.actual_label||'not set')
-        +', map wants '+(re.prescribed_days===0?'none':re.prescribed_days+' days')+'</span>');
+        +', map wants '+esc(reWant(re)||'something else')+'</span>');
       if(reSt==='holdok')bits.push('<span class="rm-fice">re-entry off spec, on ice</span>');
       filt=bits.length?bits.join('<br>'):'<span class="rm-fok">filters match</span>';
     }
@@ -5217,8 +5228,8 @@ function rmPopHtml(n,flow){
     if(re){
       const chk=fc&&fc.reentry, chkSt=reState(chk);
       let verdict='';
-      if(chk&&chk.prescribed_days!=null){
-        const want=chk.prescribed_days===0?'No re-entry':chk.prescribed_days+' days';
+      if(chk&&reWant(chk)){
+        const want=reWant(chk);
         verdict=chkSt==='has'
           ? '<span class="ptag g">MATCHES THE MAP</span>'
           : chkSt==='holdok'
@@ -5443,8 +5454,8 @@ function rmFilters(flow,cov){
     head='<div class="rm-re '+(st==='miss'?'bad':st==='holdok'?'ice':st==='na'?'unk':'ok')+'">'
       +'<span class="rm-remark '+(st||'na')+'">'+(RE_GLYPH[st]||'?')+'</span> '
       +'<b>Re-entry</b> '+esc(reLive.label)
-      +(re&&re.prescribed_days!=null
-        ? ' · map wants '+(re.prescribed_days===0?'no re-entry':re.prescribed_days+' days')
+      +(re&&reWant(re)
+        ? ' · map wants '+esc(reWant(re))
           +(st==='has'?' — matches'
             :st==='holdok'?' — off spec, on ice'+(re.hold===true?'':' ('+re.hold+')')
             :' — off spec')
