@@ -3491,15 +3491,31 @@ function rightSize(){
   // back so it can be re-applied at the cadence being tested
   const gRaw=idx.map(i=>(subsBase(i)||0)-(unsubBase(i)||0));
   const g0=gRaw.length?gRaw.reduce((a,b)=>a+b,0)/gRaw.length:0;
-  // fatigue slope from this account's own history
-  let beta=null;
-  if(use.length>=5){
+  // Fatigue slope from this account's own history — but only when the history
+  // can actually carry it, and never steeper than -0.8.
+  //
+  // Why the guards: on Dr. Woof's 6-month range the raw fit came out at -1.10.
+  // Since total revenue goes as n^(1+beta), anything at or past -1 means
+  // "revenue falls the more you send", and the model duly advised cutting 19
+  // campaigns a month to 1. That is not a finding, it is five noisy points: a
+  // big-revenue month with few sends (a promo, a season) reads exactly like
+  // fatigue to a log-log regression, and with five points nothing separates
+  // them. So: at least 8 complete months, R-squared of at least 0.3, and the
+  // slope clamped above -0.8 so the revenue curve still rises with diminishing
+  // returns rather than inverting.
+  let beta=null, r2=null, basis='assumed';
+  if(use.length>=8){
     const xs=use.map(i=>Math.log(csends[i])), ys=use.map(i=>Math.log(camp[i]/csends[i]));
     const mx=xs.reduce((a,b)=>a+b,0)/xs.length, my=ys.reduce((a,b)=>a+b,0)/ys.length;
-    let sxy=0,sxx=0;xs.forEach((x,k)=>{sxy+=(x-mx)*(ys[k]-my);sxx+=(x-mx)*(x-mx);});
-    if(sxx>1e-9){beta=Math.max(-1.2,Math.min(0,sxy/sxx));}
+    let sxy=0,sxx=0,syy=0;
+    xs.forEach((x,k)=>{sxy+=(x-mx)*(ys[k]-my);sxx+=(x-mx)*(x-mx);syy+=(ys[k]-my)*(ys[k]-my);});
+    if(sxx>1e-9&&syy>1e-9){
+      const raw=sxy/sxx;
+      r2=(sxy*sxy)/(sxx*syy);
+      if(r2>=0.3){beta=Math.max(-0.8,Math.min(0,raw));basis='measured';}
+    }
   }
-  if(beta===null)beta=-0.35;          // no readable history: a modest default
+  if(beta===null)beta=-0.35;          // not enough signal: a standard assumption
   const H=6, CHURN_VALUE=0.25;
   const seen=Math.max.apply(null,use.map(i=>csends[i]||0));
   const evidence=Math.max(Math.round(n0)+1,Math.round(seen));   // the busiest month actually run
@@ -3514,11 +3530,23 @@ function rightSize(){
     rows.push({n:n,rev:rev,perC:perC,un:un,net:net,cost:cost,score:rev-cost,
                extrapolated:n>evidence});
   }
-  const pick=rows.filter(r=>!r.extrapolated);
+  // The curve may keep rising to the busiest month ever run — on one account
+  // that meant "go from 16 sends to 31", off the back of a single month at 31.
+  // The recommendation is capped to a step: +25% of today's cadence, or two
+  // sends, whichever is larger. Re-read next month and step again.
+  const step=Math.max(2,Math.round(n0*0.25));
+  const ceiling=Math.min(evidence,Math.round(n0)+step);
+  const floor=Math.max(1,Math.round(n0)-step);
+  const pick=rows.filter(r=>!r.extrapolated&&r.n<=ceiling&&r.n>=floor);
   let best=pick[0];pick.forEach(r=>{if((RS_NET?r.score:r.rev)>(RS_NET?best.score:best.rev))best=r;});
+  // where the curve actually peaks, for the note
+  const unbounded=rows.filter(r=>!r.extrapolated);
+  let peak=unbounded[0];
+  unbounded.forEach(r=>{if((RS_NET?r.score:r.rev)>(RS_NET?peak.score:peak.rev))peak=r;});
   const now=rows[Math.max(0,Math.min(rows.length-1,Math.round(n0)-1))];
-  return {rows:rows,best:best,now:now,n0:n0,r0:r0,rpr:rpr,u0:u0,g0:g0,L:L,beta:beta,H:H,mo:mo,
-          evidence:evidence,churnValue:CHURN_VALUE,capped:best.n===evidence};
+  return {rows:rows,best:best,now:now,peak:peak,n0:n0,r0:r0,rpr:rpr,u0:u0,g0:g0,L:L,beta:beta,
+          H:H,mo:mo,evidence:evidence,churnValue:CHURN_VALUE,step:step,r2:r2,basis:basis,
+          capped:best.n===evidence,stepped:peak.n>best.n};
 }
 // the per-month campaign unsub rate, whichever shape the series carries
 function unsub_camp_arr(i){const S=SERIES[ACTIVE]||{};
@@ -3533,7 +3561,8 @@ function renderRightSize(){
   card.querySelectorAll('svg,.tip,.legend').forEach(n=>n.remove());
   const rec=document.getElementById('rs-rec'), cap=document.getElementById('rs-cap');
   const R=rightSize();
-  if(!R){cap.textContent='Needs at least three complete months with campaigns to size the cadence.';
+  if(!R){cap.textContent='This range holds fewer than three complete months with campaigns — '
+    +'too little to size a cadence. Widen the range.';
     rec.innerHTML='';return;}
   const W=760,H=250,PL=52,PR=54,PT=14,PB=34,iw=W-PL-PR,ih=H-PT-PB;
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`});
@@ -3561,8 +3590,8 @@ function renderRightSize(){
     const bx=x(R.evidence)+ (iw/R.rows.length)/2;
     svg.appendChild(el('line',{x1:bx,x2:bx,y1:PT,y2:PT+ih,stroke:'var(--axis)',
       'stroke-width':1,'stroke-dasharray':'3 4',opacity:.8}));
-    const lb=el('text',{class:'ax',x:bx+5,y:PT+11,'text-anchor':'start'});
-    lb.textContent='never run →';svg.appendChild(lb);
+    const lb=el('text',{class:'ax',x:bx-6,y:PT+11,'text-anchor':'end'});
+    lb.textContent='never sent this many →';svg.appendChild(lb);
   }
   let d='';R.rows.forEach((r,k)=>{d+=(k?'L':'M')+x(r.n)+' '+yn(r.net);});
   svg.appendChild(el('path',{d:d,fill:'none',stroke:'var(--good)','stroke-width':2,'stroke-linejoin':'round'}));
@@ -3574,8 +3603,23 @@ function renderRightSize(){
     t.textContent=r.n;svg.appendChild(t);});
   const nt=el('text',{class:'ax',x:(PL+W-PR)/2,y:H-4,'text-anchor':'middle'});
   nt.textContent='campaigns per month';svg.appendChild(nt);
-  {const t=el('text',{class:'ax',x:W-PR+8,y:yn(netMax)+4});t.textContent=nfmt(netMax);svg.appendChild(t);}
-  {const t=el('text',{class:'ax',x:W-PR+8,y:yn(netMin)+4});t.textContent=nfmt(netMin);svg.appendChild(t);}
+  for(let k=0;k<=4;k++){
+    const gv=netMin+(netMax-netMin)*k/4;
+    const t=el('text',{class:'ax',x:W-PR+8,y:yn(gv)+4,'text-anchor':'start'});
+    t.textContent=nfmt(gv);svg.appendChild(t);}
+
+  [[Math.round(R.n0),'var(--flow)','now'],[R.best.n,'var(--camp)','rec']].forEach(([n,col,kind])=>{
+    const row=R.rows.find(r=>r.n===n);if(!row)return;
+    const cx=x(n), cy=yn(row.net);
+    svg.appendChild(el('circle',{cx:cx,cy:cy,r:5,fill:'var(--surface)',stroke:col,'stroke-width':2.5}));
+    const lab=nfmt(row.net)+' subs/mo';
+    const tw=lab.length*5.6+12, lx=Math.min(W-PR-tw, Math.max(PL, cx-tw/2));
+    const up=kind==='rec'?-16:-16;
+    svg.appendChild(el('rect',{x:lx,y:cy+up-11,width:tw,height:17,rx:8,
+      fill:'var(--surface)',stroke:col,'stroke-opacity':.55,'stroke-width':1}));
+    const t=el('text',{x:lx+tw/2,y:cy+up+1,'text-anchor':'middle','font-size':10.5,
+      'font-weight':700,fill:col});
+    t.textContent=lab;svg.appendChild(t);});
   R.rows.forEach(r=>{
     const hit=el('rect',{x:x(r.n)-iw/R.rows.length/2,y:PT,width:iw/R.rows.length,height:ih,fill:'transparent'});
     hit.addEventListener('mousemove',e=>showTip(card,e,r.n+' campaign'+(r.n===1?'':'s')+' / month',[
@@ -3604,16 +3648,29 @@ function renderRightSize(){
   if(flat)head+=` <span class="rs-note">No send fatigue is detectable across `
     +`${R.mo} months — revenue per campaign has held as volume moved, so the ceiling here `
     +`is list health rather than diminishing returns.</span>`;
-  if(R.capped&&dn>0)head+=` <span class="rs-note">Capped at ${R.evidence} — the busiest month `
-    +`this account has actually run. Past that the curve is extrapolation, not evidence, `
-    +`so step up and re-read rather than jumping.</span>`;
+  head+=` <span class="rs-note">Net list growth goes from about `
+    +`${Math.round(R.now.net).toLocaleString()} to ${Math.round(R.best.net).toLocaleString()} `
+    +`subscribers a month (the green line, right axis).</span>`;
+  if(R.stepped)head+=` <span class="rs-note">The curve keeps climbing to ${R.peak.n} a month, `
+    +`but this is capped to a ${R.step}-send step you can actually take — a leap that size off `
+    +`one busy month in the history is not evidence. Take the step, then re-read.</span>`;
+  else if(R.capped&&dn>0)head+=` <span class="rs-note">Capped at ${R.evidence} — the busiest `
+    +`month this account has actually run. Past that the curve is extrapolation, not evidence.</span>`;
   rec.innerHTML='<div class="rs-head">'+head+'</div>';
   cap.innerHTML=`Revenue per campaign is ${kfmt(R.r0)} today at ${R.n0.toFixed(1)} sends a month `
     +`(${R.mo} complete months). Each send reaches about ${nfmt(R.L)} people at `
     +`${SYM+R.rpr.toFixed(3)} a head and costs about ${Math.round(R.u0).toLocaleString()} unsubscribes. `
-    +(Math.abs(R.beta)<0.05 ? `Revenue per send has not moved with volume across these months, so no `
-        + `fatigue is priced in. ` : `This account's fatigue slope is ${R.beta.toFixed(2)} — every 10% more `
-        + `sends moves revenue per send by about ${(R.beta*10).toFixed(1)}%. `)
+    +(R.basis==='measured'
+        ? (Math.abs(R.beta)<0.05
+            ? `Revenue per send has not moved with volume across these months, so no fatigue is priced in. `
+            : `Fatigue is measured at ${R.beta.toFixed(2)} across ${R.mo} months `
+              + `(R²&nbsp;${R.r2.toFixed(2)}) — every 10% more sends moves revenue per send by about `
+              + `${(R.beta*10).toFixed(1)}%. `)
+        : `Fatigue is not measurable here — ${R.mo} complete month${R.mo===1?'':'s'} `
+          + `${R.r2!=null?`with too weak a fit (R²&nbsp;${R.r2.toFixed(2)})`:`is too short a history`} `
+          + `to separate send volume from promotions and seasonality, so a standard `
+          + `${R.beta.toFixed(2)} diminishing-return assumption is used instead. Widen the range for a `
+          + `measured one. `)
     +`A lost subscriber is charged at the campaign revenue they would have `
     +`produced over ${R.H} months at the cadence shown, at ${Math.round(R.churnValue*100)}% of an average `
     +`subscriber's rate — someone who just opted out was the least engaged, and past six months the `
