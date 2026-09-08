@@ -1271,7 +1271,7 @@
               <div class="cap">Send count and total recipients side by side — volume context for the campaign-revenue line above.</div></div>
             <div class="card wide" id="c-rightsize"><h3>Campaign right-size</h3>
               <div class="mtwrap">
-                <button class="miniToggle" id="rsNetTog" aria-pressed="true" title="Charge each cadence for the subscribers its sends drive away: six months of what they would have spent, at a quarter of average, because someone who just unsubscribed was your least engaged reader"><span class="dot"></span>Net of churn cost</button>
+                <button class="miniToggle" id="rsNetTog" aria-pressed="false" title="Charge each cadence for the subscribers its sends drive away: six months of what they would have spent, at a quarter of average, because someone who just unsubscribed was your least engaged reader"><span class="dot"></span>Net of churn cost</button>
               </div>
               <details class="rs-fold" open><summary>Recommendation</summary>
                 <div id="rs-rec"></div></details>
@@ -3488,82 +3488,81 @@ function renderCamp(){const{cur}=windows();const cc=document.getElementById('c-c
 // And the model never recommends a cadence the account has never approached —
 // beyond the busiest month it has actually run, there is no evidence, only
 // extrapolation, and those cadences are drawn faded and cannot be chosen.
-let RS_NET=true;
+let RS_NET=false;
+// ---- Campaign Right Size -------------------------------------------------
+// What cadence has actually paid best for THIS account, read off its own last
+// twelve months. Nothing here is modelled except the churn charge.
+//
+// The first version fitted a fatigue curve — the slope of revenue per campaign
+// against sends per month — and used it to project cadences the account had
+// never run. It could not be made honest. Across all sixteen clients that
+// regression came back positive on eleven of them (revenue per campaign RISING
+// with volume) and explained less than a third of the variation on all but two,
+// because months are not an experiment: a month with more sends is usually a
+// promotional or seasonal month with a bigger list, and a log-log fit reads
+// that as the opposite of fatigue. It fell back to an assumed -0.35 for almost
+// everyone, so the recommendation was an assumption wearing measurement's
+// clothes. Danny's instruction: real data, not assumptions.
+//
+// So there is no curve. The account's twelve months are split into three
+// cadence bands — its quietest third, its middle third, its busiest third — and
+// each band reports what actually happened at that cadence. The recommendation
+// is whichever band earned most, and it can only ever point at a cadence the
+// account has really run. Where the cadence barely varies, the honest answer is
+// that its own history cannot separate the bands, and it says so.
+const RS_MONTHS=12;        // fixed window: a year, not whatever range is selected
+const RS_MIN_MONTHS=8;     // fewer than this and the bands are one month each
+const RS_H=6;              // months of forward value charged for a lost subscriber
+const RS_CHURN_VALUE=0.25; // ...at a quarter of average: they just opted out
+const RS_MIN_SPREAD=0.20;  // busiest band must out-send the quietest by this much
 function rightSize(){
-  const {cur}=windows();
-  const idx=[];for(let i=cur[0];i<=cur[1];i++){if(IP&&i===IP.idx)continue;idx.push(i);}  // complete months only
-  const use=idx.filter(i=>(csends[i]||0)>0&&(camp[i]||0)>0);
-  if(use.length<3)return null;
-  const S=use.reduce((a,i)=>a+csends[i],0), R=use.reduce((a,i)=>a+camp[i],0);
-  const Q=use.reduce((a,i)=>a+(crecip[i]||0),0);
-  if(!S||!R||!Q)return null;
-  const mo=use.length, n0=S/mo, r0=R/S, rpr=R/Q, L=Q/S;
-  // unsubs per campaign, from the campaign unsub RATE against recipients
-  const uPer=use.map(i=>((unsub_camp_arr(i)||0)/100)*((crecip[i]||0)/(csends[i]||1)))
-                .filter(v=>isFinite(v)&&v>=0);
-  const u0=uPer.length?uPer.reduce((a,b)=>a+b,0)/uPer.length:0;
-  // net list growth per month as measured, with today's campaign churn added
-  // back so it can be re-applied at the cadence being tested
-  const gRaw=idx.map(i=>(subsBase(i)||0)-(unsubBase(i)||0));
-  const g0=gRaw.length?gRaw.reduce((a,b)=>a+b,0)/gRaw.length:0;
-  // Fatigue slope from this account's own history — but only when the history
-  // can actually carry it, and never steeper than -0.8.
-  //
-  // Why the guards: on Dr. Woof's 6-month range the raw fit came out at -1.10.
-  // Since total revenue goes as n^(1+beta), anything at or past -1 means
-  // "revenue falls the more you send", and the model duly advised cutting 19
-  // campaigns a month to 1. That is not a finding, it is five noisy points: a
-  // big-revenue month with few sends (a promo, a season) reads exactly like
-  // fatigue to a log-log regression, and with five points nothing separates
-  // them. So: at least 8 complete months, R-squared of at least 0.3, and the
-  // slope clamped above -0.8 so the revenue curve still rises with diminishing
-  // returns rather than inverting.
-  let beta=null, r2=null, basis='assumed';
-  if(use.length>=8){
-    const xs=use.map(i=>Math.log(csends[i])), ys=use.map(i=>Math.log(camp[i]/csends[i]));
-    const mx=xs.reduce((a,b)=>a+b,0)/xs.length, my=ys.reduce((a,b)=>a+b,0)/ys.length;
-    let sxy=0,sxx=0,syy=0;
-    xs.forEach((x,k)=>{sxy+=(x-mx)*(ys[k]-my);sxx+=(x-mx)*(x-mx);syy+=(ys[k]-my)*(ys[k]-my);});
-    if(sxx>1e-9&&syy>1e-9){
-      const raw=sxy/sxx;
-      r2=(sxy*sxy)/(sxx*syy);
-      if(r2>=0.3){beta=Math.max(-0.8,Math.min(0,raw));basis='measured';}
-    }
-  }
-  if(beta===null)beta=-0.35;          // not enough signal: a standard assumption
-  const H=6, CHURN_VALUE=0.25;
-  const seen=Math.max.apply(null,use.map(i=>csends[i]||0));
-  const evidence=Math.max(Math.round(n0)+1,Math.round(seen));   // the busiest month actually run
-  const hi=Math.max(evidence+3,Math.round(n0*1.6));
-  const rows=[];
-  for(let n=1;n<=hi;n++){
-    const perC=r0*Math.pow(n/n0,beta);
-    const rev=n*perC;
-    const un=n*u0;
-    const net=g0+(n0-n)*u0;
-    const cost=un*(rpr*n)*H*CHURN_VALUE;
-    rows.push({n:n,rev:rev,perC:perC,un:un,net:net,cost:cost,score:rev-cost,
-               extrapolated:n>evidence});
-  }
-  // The curve may keep rising to the busiest month ever run — on one account
-  // that meant "go from 16 sends to 31", off the back of a single month at 31.
-  // The recommendation is capped to a step: +25% of today's cadence, or two
-  // sends, whichever is larger. Re-read next month and step again.
-  const step=Math.max(2,Math.round(n0*0.25));
-  const ceiling=Math.min(evidence,Math.round(n0)+step);
-  const floor=Math.max(1,Math.round(n0)-step);
-  const pick=rows.filter(r=>!r.extrapolated&&r.n<=ceiling&&r.n>=floor);
-  let best=pick[0];pick.forEach(r=>{if((RS_NET?r.score:r.rev)>(RS_NET?best.score:best.rev))best=r;});
-  // where the curve actually peaks, for the note
-  const unbounded=rows.filter(r=>!r.extrapolated);
-  let peak=unbounded[0];
-  unbounded.forEach(r=>{if((RS_NET?r.score:r.rev)>(RS_NET?peak.score:peak.rev))peak=r;});
-  const now=rows[Math.max(0,Math.min(rows.length-1,Math.round(n0)-1))];
-  return {rows:rows,best:best,now:now,peak:peak,n0:n0,r0:r0,rpr:rpr,u0:u0,g0:g0,L:L,beta:beta,
-          H:H,mo:mo,evidence:evidence,churnValue:CHURN_VALUE,step:step,r2:r2,basis:basis,
-          capped:best.n===evidence,stepped:peak.n>best.n};
+  const n=(MONTHS||[]).length;
+  if(!n)return null;
+  const closed=[];
+  for(let i=0;i<n;i++){if(IP&&i===IP.idx)continue;closed.push(i);}
+  const use=closed.slice(-RS_MONTHS).filter(i=>
+    (csends[i]||0)>0&&(camp[i]||0)>0&&(crecip[i]||0)>0);
+  if(use.length<RS_MIN_MONTHS)
+    return {short:true,have:use.length,need:RS_MIN_MONTHS,window:RS_MONTHS};
+  const pts=use.map(i=>({
+    i:i,m:MONTHS[i],
+    n:csends[i],rev:camp[i],recip:crecip[i],
+    perC:camp[i]/csends[i],
+    rpr:camp[i]/crecip[i],
+    // unsubscribes the campaigns themselves caused: the campaign unsub RATE
+    // against the people those campaigns reached
+    un:((unsub_camp_arr(i)||0)/100)*(crecip[i]||0),
+    net:(subsBase(i)||0)-(unsubBase(i)||0)
+  }));
+  const byN=pts.slice().sort((a,b)=>a.n-b.n||a.i-b.i);
+  const k=Math.floor(byN.length/3);
+  const groups=[byN.slice(0,k),byN.slice(k,byN.length-k),byN.slice(byN.length-k)];
+  const avg=(a,f)=>a.reduce((s,p)=>s+f(p),0)/a.length;
+  const bands=groups.map((a,bi)=>{
+    const sends=avg(a,p=>p.n), rev=avg(a,p=>p.rev), un=avg(a,p=>p.un);
+    const rpr=avg(a,p=>p.rpr);
+    // the only modelled number on the card: what the subscribers these sends
+    // drove away would have spent, six months out, at a quarter of average
+    const cost=un*(rpr*sends)*RS_H*RS_CHURN_VALUE;
+    return {band:bi,label:['Quietest third','Middle third','Busiest third'][bi],
+      months:a.map(p=>p.m),k:a.length,
+      lo:Math.min.apply(null,a.map(p=>p.n)),hi:Math.max.apply(null,a.map(p=>p.n)),
+      sends:sends,rev:rev,perC:avg(a,p=>p.perC),rpr:rpr,un:un,
+      net:avg(a,p=>p.net),cost:cost,score:rev-cost};
+  });
+  // today's cadence: the most recent three complete months
+  const last3=pts.slice(-3);
+  const n0=avg(last3,p=>p.n);
+  const nowBand=bands.find(b=>n0>=b.lo&&n0<=b.hi)
+    ||bands.reduce((a,b)=>Math.abs(b.sends-n0)<Math.abs(a.sends-n0)?b:a);
+  const val=b=>RS_NET?b.score:b.rev;
+  const best=bands.reduce((a,b)=>val(b)>val(a)?b:a);
+  const spread=bands[0].sends?bands[2].sends/bands[0].sends-1:0;
+  return {bands:bands,pts:pts,best:best,now:nowBand,n0:n0,mo:pts.length,
+    spread:spread,flat:spread<RS_MIN_SPREAD,
+    from:MONTHS[use[0]],to:MONTHS[use[use.length-1]],
+    H:RS_H,churnValue:RS_CHURN_VALUE};
 }
-// the per-month campaign unsub rate, whichever shape the series carries
 function unsub_camp_arr(i){const S=SERIES[ACTIVE]||{};
   const a=S.unsub_camp||[];return (i<a.length?a[i]:0)||0;}
 function subsBase(i){const S=SERIES[ACTIVE]||{};const a=S.subs||[];return (i<a.length?a[i]:0)||0;}
@@ -3571,129 +3570,186 @@ function unsubBase(i){const S=SERIES[ACTIVE]||{};
   const a=S.subs_unsub&&S.subs_unsub.length?S.subs_unsub:(S.unsub_count||[]);
   return (i<a.length?a[i]:0)||0;}
 
+// Two callout pills on one line collide as soon as their cadences are close —
+// Danny caught "3.1k subs/mo" sitting on top of "3.0k subs/mo". Lay them out
+// left to right, then push each one clear of the last and lift it a row if it
+// still cannot fit.
+function rsPlaceLabels(items,left,right){
+  const out=items.slice().sort((a,b)=>a.cx-b.cx);
+  let cursor=left;
+  out.forEach(it=>{
+    it.x=Math.max(cursor,Math.min(right-it.w,it.cx-it.w/2));
+    if(it.x<cursor){it.x=cursor;it.row=1;}
+    cursor=it.x+it.w+6;
+  });
+  // anything pushed past the right edge drops to a second row and re-lays out
+  const over=out.filter(it=>it.x+it.w>right);
+  if(over.length){
+    let c2=left;
+    over.forEach(it=>{it.row=1;it.x=Math.max(c2,Math.min(right-it.w,it.cx-it.w/2));c2=it.x+it.w+6;});
+  }
+  return out;
+}
 function renderRightSize(){
   const card=document.getElementById('c-rightsize');if(!card)return;
   card.querySelectorAll('svg,.tip,.legend').forEach(n=>n.remove());
   const rec=document.getElementById('rs-rec'), cap=document.getElementById('rs-cap');
   const R=rightSize();
-  if(!R){cap.textContent='This range holds fewer than three complete months with campaigns — '
-    +'too little to size a cadence. Widen the range.';
-    rec.innerHTML='';return;}
-  // PT leaves room under the top gridline for the "never sent this many" label;
-  // PB leaves the axis title clear of the legend beneath the chart
-  const W=760,H=262,PL=52,PR=54,PT=22,PB=50,iw=W-PL-PR,ih=H-PT-PB;
+  if(!R||R.short){
+    cap.textContent='A cadence recommendation needs a year of the account’s own months. '
+      +'This account has '+((R&&R.have)||0)+' complete month'+(((R&&R.have)||0)===1?'':'s')
+      +' with campaigns, and at least '+((R&&R.need)||RS_MIN_MONTHS)+' are needed before its '
+      +'quiet and busy months can be compared.';
+    rec.innerHTML='';return;
+  }
+  const W=760,H=286,PL=52,PR=58,PT=30,PB=66,iw=W-PL-PR,ih=H-PT-PB;
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`});
-  const maxRev=niceMax(Math.max.apply(null,R.rows.map(r=>Math.max(r.rev,r.score))));
-  const nets=R.rows.map(r=>r.net);
-  const netMax=niceMax(Math.max.apply(null,nets.concat([1]))), netMin=Math.min(0,Math.min.apply(null,nets));
-  const x=n=>PL+iw*(n-0.5)/R.rows.length, bw=Math.max(6,iw/R.rows.length-6);
+  const sends=R.pts.map(p=>p.n);
+  const nLo=Math.max(0,Math.min.apply(null,sends)-1), nHi=Math.max.apply(null,sends)+1;
+  const maxRev=niceMax(Math.max.apply(null,R.pts.map(p=>p.rev)
+    .concat(R.bands.map(b=>b.rev))));
+  const nets=R.bands.map(b=>b.net);
+  const netMax=niceMax(Math.max.apply(null,nets.concat([1])));
+  const netMin=Math.min(0,Math.min.apply(null,nets));
+  const x=v=>PL+iw*(v-nLo)/((nHi-nLo)||1);
   const y=v=>PT+ih-(v/maxRev)*ih;
   const yn=v=>PT+ih-((v-netMin)/((netMax-netMin)||1))*ih;
-  for(let k=0;k<=2;k++){const gv=maxRev*k/2;
+  for(let k=0;k<=3;k++){const gv=maxRev*k/3;
     svg.appendChild(el('line',{class:'gl',x1:PL,x2:W-PR,y1:y(gv),y2:y(gv)}));
-    const t=el('text',{class:'ax',x:PL-7,y:y(gv)+4,'text-anchor':'end'});t.textContent=kfmt(gv);svg.appendChild(t);}
-  R.rows.forEach(r=>{
-    const isBest=r.n===R.best.n, isNow=r.n===Math.round(R.n0);
-    const v=RS_NET?r.score:r.rev;
-    const top=y(Math.max(0,v));
-    svg.appendChild(el('rect',{x:x(r.n)-bw/2,y:top,width:bw,height:Math.max(PT+ih-top,0),rx:3,
-      fill:r.extrapolated?'none':isBest?'var(--camp)':isNow?'var(--flow)':'var(--surface-2)',
-      stroke:r.extrapolated?'var(--axis)':(isBest||isNow?'none':'var(--border)'),
-      'stroke-width':r.extrapolated?1.3:1,
-      'stroke-dasharray':r.extrapolated?'4 3':''}));
+    const t=el('text',{class:'ax',x:PL-7,y:y(gv)+4,'text-anchor':'end'});
+    t.textContent=kfmt(gv);svg.appendChild(t);}
+  // the account's actual months
+  R.pts.forEach(p=>{
+    svg.appendChild(el('circle',{cx:x(p.n),cy:y(p.rev),r:3.4,
+      fill:'var(--surface)',stroke:'var(--muted)','stroke-width':1.4,opacity:.9}));
   });
-  // where the account's own history stops
-  if(R.rows.some(r=>r.extrapolated)){
-    const bx=x(R.evidence)+ (iw/R.rows.length)/2;
-    svg.appendChild(el('line',{x1:bx,x2:bx,y1:PT,y2:PT+ih,stroke:'var(--axis)',
-      'stroke-width':1,'stroke-dasharray':'3 4',opacity:.8}));
-    const lb=el('text',{class:'ax',x:bx-6,y:PT+26,'text-anchor':'end'});
-    lb.textContent='never sent this many →';svg.appendChild(lb);
-  }
-  let d='';R.rows.forEach((r,k)=>{d+=(k?'L':'M')+x(r.n)+' '+yn(r.net);});
-  svg.appendChild(el('path',{d:d,fill:'none',stroke:'var(--good)','stroke-width':2,'stroke-linejoin':'round'}));
+  // band averages: revenue, and net list growth on the right axis
+  let dn='';R.bands.forEach((b,k)=>{dn+=(k?'L':'M')+x(b.sends)+' '+yn(b.net);});
+  svg.appendChild(el('path',{d:dn,fill:'none',stroke:'var(--good)','stroke-width':2,
+    'stroke-linejoin':'round'}));
+  // Two series share this plot on two different scales, so they must not look
+  // alike: revenue markers are solid and band-coloured, list-growth markers are
+  // green like the line they sit on. The first cut drew both as rings and they
+  // read as one series wherever they landed near each other.
+  R.bands.forEach(b=>{
+    const isBest=b===R.best, isNow=b===R.now;
+    svg.appendChild(el('circle',{cx:x(b.sends),cy:yn(b.net),r:3.5,
+      fill:'var(--good)',stroke:'var(--surface)','stroke-width':1.5}));
+    svg.appendChild(el('circle',{cx:x(b.sends),cy:y(RS_NET?b.score:b.rev),r:isBest||isNow?6.5:5,
+      fill:isBest?'var(--camp)':isNow?'var(--flow)':'var(--muted)',
+      stroke:'var(--surface)','stroke-width':2}));
+  });
+  // callouts for the two bands that matter, laid out so they cannot overlap
+  const revMarks=R.bands.map(b=>({x:x(b.sends),y:y(RS_NET?b.score:b.rev)}));
+  const pills=[];
+  [[R.now,'var(--flow)','now'],[R.best,'var(--camp)','rec']].forEach(([b,col,kind])=>{
+    if(kind==='rec'&&b===R.now)return;                 // one pill when they agree
+    const lab=nfmt(b.net)+' subs/mo';
+    pills.push({cx:x(b.sends),cy:yn(b.net),w:lab.length*5.6+14,lab:lab,col:col,row:0});
+  });
+  rsPlaceLabels(pills,PL,W-PR).forEach(it=>{
+    // A pill a fixed distance above its own marker can still land on the OTHER
+    // series' marker — on Dr Woof it sat right on top of the gold band dot.
+    let up=-16-(it.row?18:0);
+    const clash=off=>revMarks.some(m=>m.x>it.x-9&&m.x<it.x+it.w+9
+      &&Math.abs(m.y-(it.cy+off))<21);
+    if(clash(up)&&!clash(20))up=20;                    // flip below when it clashes
+    const ly=it.cy+up;
+    svg.appendChild(el('rect',{x:it.x,y:ly-11,width:it.w,height:17,rx:8,
+      fill:'var(--surface)',stroke:it.col,'stroke-opacity':.55,'stroke-width':1}));
+    const t=el('text',{x:it.x+it.w/2,y:ly+1,'text-anchor':'middle','font-size':10.5,
+      'font-weight':700,fill:it.col});
+    t.textContent=it.lab;svg.appendChild(t);
+    svg.appendChild(el('line',{x1:it.x+it.w/2,x2:it.cx,
+      y1:ly+(ly<it.cy?6:-11),y2:it.cy+(ly<it.cy?-5:5),
+      stroke:it.col,'stroke-width':1,'stroke-opacity':.45}));
+  });
   if(netMin<0)svg.appendChild(el('line',{x1:PL,x2:W-PR,y1:yn(0),y2:yn(0),
     stroke:'var(--crit)','stroke-width':1,'stroke-dasharray':'4 3',opacity:.6}));
-  R.rows.forEach(r=>{
-    if(r.n%2===0&&r.n!==R.best.n&&r.n!==Math.round(R.n0))return;
-    const t=el('text',{class:'ax',x:x(r.n),y:PT+ih+16,'text-anchor':'middle'});
-    t.textContent=r.n;svg.appendChild(t);});
-  const nt=el('text',{class:'ax',x:(PL+W-PR)/2,y:H-12,'text-anchor':'middle'});
+  // each band's cadence range as a bracket under the plot, so the months stay
+  // readable and two bands sharing a send count are still distinguishable
+  R.bands.forEach((b,bi)=>{
+    const x1=x(b.lo)-2, x2=x(b.hi)+2, yb=PT+ih+7+(bi%2?5:0);
+    const isBest=b===R.best, isNow=b===R.now;
+    svg.appendChild(el('rect',{x:x1,y:yb,width:Math.max(3,x2-x1),height:4,rx:2,
+      fill:isBest?'var(--camp)':isNow?'var(--flow)':'var(--axis)',
+      'fill-opacity':isBest||isNow?0.95:0.45}));
+  });
+  // x axis: whole campaigns per month
+  const stepN=Math.max(1,Math.ceil((nHi-nLo)/10));
+  for(let v=Math.ceil(nLo);v<=nHi;v+=stepN){
+    const t=el('text',{class:'ax',x:x(v),y:PT+ih+29,'text-anchor':'middle'});
+    t.textContent=v;svg.appendChild(t);}
+  const nt=el('text',{class:'ax',x:(PL+W-PR)/2,y:H-6,'text-anchor':'middle'});
   nt.textContent='campaigns per month';svg.appendChild(nt);
   for(let k=0;k<=4;k++){
     const gv=netMin+(netMax-netMin)*k/4;
     const t=el('text',{class:'ax',x:W-PR+8,y:yn(gv)+4,'text-anchor':'start'});
     t.textContent=nfmt(gv);svg.appendChild(t);}
-
-  [[Math.round(R.n0),'var(--flow)','now'],[R.best.n,'var(--camp)','rec']].forEach(([n,col,kind])=>{
-    const row=R.rows.find(r=>r.n===n);if(!row)return;
-    const cx=x(n), cy=yn(row.net);
-    svg.appendChild(el('circle',{cx:cx,cy:cy,r:5,fill:'var(--surface)',stroke:col,'stroke-width':2.5}));
-    const lab=nfmt(row.net)+' subs/mo';
-    const tw=lab.length*5.6+12, lx=Math.min(W-PR-tw, Math.max(PL, cx-tw/2));
-    const up=kind==='rec'?-16:-16;
-    svg.appendChild(el('rect',{x:lx,y:cy+up-11,width:tw,height:17,rx:8,
-      fill:'var(--surface)',stroke:col,'stroke-opacity':.55,'stroke-width':1}));
-    const t=el('text',{x:lx+tw/2,y:cy+up+1,'text-anchor':'middle','font-size':10.5,
-      'font-weight':700,fill:col});
-    t.textContent=lab;svg.appendChild(t);});
-  R.rows.forEach(r=>{
-    const hit=el('rect',{x:x(r.n)-iw/R.rows.length/2,y:PT,width:iw/R.rows.length,height:ih,fill:'transparent'});
-    hit.addEventListener('mousemove',e=>showTip(card,e,r.n+' campaign'+(r.n===1?'':'s')+' / month',[
-      ['Campaign revenue',r.rev,'var(--camp)',kfmt],
-      ['Revenue per campaign',r.perC,'var(--muted)',kfmt],
-      ['Unsubscribes',r.un,'var(--crit)',v=>Math.round(v).toLocaleString()],
-      ['Net list growth',r.net,'var(--good)',v=>Math.round(v).toLocaleString()],
-      ['12-mo value of those unsubs',-r.cost,'var(--muted)',kfmt],
-      ['Net of churn cost',r.score,'var(--ink)',kfmt]]));
+  // hover: the band under the pointer, and the months in it
+  R.bands.forEach(b=>{
+    const x1=x(b.lo-0.5), x2=x(b.hi+0.5);
+    const hit=el('rect',{x:x1,y:PT,width:Math.max(2,x2-x1),height:ih,fill:'transparent'});
+    hit.addEventListener('mousemove',e=>showTip(card,e,
+      b.label+' · '+b.lo+(b.hi!==b.lo?'–'+b.hi:'')+' sends, '+b.k+' month'+(b.k===1?'':'s'),[
+      ['Campaigns a month',b.sends,'var(--muted)',v=>v.toFixed(1)],
+      ['Campaign revenue a month',b.rev,'var(--camp)',kfmt],
+      ['Revenue per campaign',b.perC,'var(--muted)',kfmt],
+      ['Unsubscribes a month',b.un,'var(--crit)',v=>Math.round(v).toLocaleString()],
+      ['Net list growth a month',b.net,'var(--good)',v=>Math.round(v).toLocaleString()],
+      ['Churn charge (estimate)',-b.cost,'var(--muted)',kfmt],
+      ['Net of churn cost',b.score,'var(--ink)',kfmt]]));
     hit.addEventListener('mouseleave',()=>hideTip(card));
     svg.appendChild(hit);});
   card.appendChild(svg);
-  const lg=alegend([RS_NET?'Campaign revenue, net of churn cost':'Campaign revenue','var(--surface-2)'],
-    ['Recommended cadence','var(--camp)'],['Today','var(--flow)'],['Net list growth / mo','var(--good)']);
+  const lg=alegend([RS_NET?'Band average, net of churn cost':'Band average revenue','var(--muted)'],
+    ['Best band','var(--camp)'],['Today’s band','var(--flow)'],
+    ['One real month','var(--muted)'],['Net list growth / mo','var(--good)']);
   lg.style.margin='4px 0 2px';card.appendChild(lg);
-  const dn=R.best.n-Math.round(R.n0);
+
+  const dn2=R.best.sends-R.now.sends;
   const dRev=R.best.rev-R.now.rev, dNet=R.best.score-R.now.score, dUn=R.best.un-R.now.un;
-  const verb=dn>0?'Add':dn<0?'Cut':'Hold at';
-  const flat=Math.abs(R.beta)<0.05;
-  let head=dn===0
-    ? `<b>Today's cadence looks right.</b> ${Math.round(R.n0)} campaigns a month is the best net outcome this history supports.`
-    : `<b>${verb} ${Math.abs(dn)} campaign${Math.abs(dn)===1?'':'s'} a month</b> — ${Math.round(R.n0)} → ${R.best.n}. `
-      +`Campaign revenue ${dRev>=0?'up':'down'} about ${kfmt(Math.abs(dRev))} a month`
-      +`, ${dUn>=0?'costing':'saving'} roughly ${Math.abs(Math.round(dUn)).toLocaleString()} unsubscribes a month `
-      +`(${R.g0>0?Math.round(Math.abs(dUn)/R.g0*100)+'% of monthly list growth':'against no net list growth'})`
-      +`, ${dNet>=0?'net +':'net '}${kfmt(dNet)} a month after the churn charge.`;
-  if(flat)head+=` <span class="rs-note">No send fatigue is detectable across `
-    +`${R.mo} months — revenue per campaign has held as volume moved, so the ceiling here `
-    +`is list health rather than diminishing returns.</span>`;
-  head+=` <span class="rs-note">Net list growth goes from about `
-    +`${Math.round(R.now.net).toLocaleString()} to ${Math.round(R.best.net).toLocaleString()} `
-    +`subscribers a month (the green line, right axis).</span>`;
-  if(R.stepped)head+=` <span class="rs-note">The curve keeps climbing to ${R.peak.n} a month, `
-    +`but this is capped to a ${R.step}-send step you can actually take — a leap that size off `
-    +`one busy month in the history is not evidence. Take the step, then re-read.</span>`;
-  else if(R.capped&&dn>0)head+=` <span class="rs-note">Capped at ${R.evidence} — the busiest `
-    +`month this account has actually run. Past that the curve is extrapolation, not evidence.</span>`;
+  let head;
+  if(R.flat){
+    head=`<b>This account’s own months can’t answer this yet.</b> Its busiest third `
+      +`averages ${R.bands[2].sends.toFixed(1)} campaigns a month against `
+      +`${R.bands[0].sends.toFixed(1)} in its quietest — a ${Math.round(R.spread*100)}% `
+      +`difference, too little to tell cadence apart from everything else that moved. `
+      +`To get an answer, run a deliberately busier or quieter quarter and re-read this.`;
+  }else if(R.best===R.now){
+    head=`<b>Today’s cadence looks right.</b> At about ${R.now.sends.toFixed(0)} campaigns a `
+      +`month this account has earned more than in either its quieter or its busier months.`;
+  }else{
+    const verb=dn2>0?'Send more':'Send fewer';
+    head=`<b>${verb}: about ${R.now.sends.toFixed(0)} → ${R.best.sends.toFixed(0)} campaigns a `
+      +`month.</b> In the ${R.best.k} month${R.best.k===1?'':'s'} it actually ran that cadence it `
+      +`earned about ${kfmt(R.best.rev)} a month against ${kfmt(R.now.rev)} at today’s `
+      +`— ${dRev>=0?'up':'down'} ${kfmt(Math.abs(dRev))} a month, `
+      +`${dUn>=0?'costing':'saving'} about ${Math.abs(Math.round(dUn)).toLocaleString()} `
+      +`unsubscribes a month, ${dNet>=0?'net +':'net '}${kfmt(dNet)} after the churn charge.`;
+  }
+  head+=` <span class="rs-note">Net list growth runs about `
+    +`${Math.round(R.now.net).toLocaleString()} a month at today’s cadence and `
+    +`${Math.round(R.best.net).toLocaleString()} at the best band (the green line, right axis).</span>`;
   rec.innerHTML='<div class="rs-head">'+head+'</div>';
-  cap.innerHTML=`Revenue per campaign is ${kfmt(R.r0)} today at ${R.n0.toFixed(1)} sends a month `
-    +`(${R.mo} complete months). Each send reaches about ${nfmt(R.L)} people at `
-    +`${SYM+R.rpr.toFixed(3)} a head and costs about ${Math.round(R.u0).toLocaleString()} unsubscribes. `
-    +(R.basis==='measured'
-        ? (Math.abs(R.beta)<0.05
-            ? `Revenue per send has not moved with volume across these months, so no fatigue is priced in. `
-            : `Fatigue is measured at ${R.beta.toFixed(2)} across ${R.mo} months `
-              + `(R²&nbsp;${R.r2.toFixed(2)}) — every 10% more sends moves revenue per send by about `
-              + `${(R.beta*10).toFixed(1)}%. `)
-        : `Fatigue is not measurable here — ${R.mo} complete month${R.mo===1?'':'s'} `
-          + `${R.r2!=null?`with too weak a fit (R²&nbsp;${R.r2.toFixed(2)})`:`is too short a history`} `
-          + `to separate send volume from promotions and seasonality, so a standard `
-          + `${R.beta.toFixed(2)} diminishing-return assumption is used instead. Widen the range for a `
-          + `measured one. `)
-    +`A lost subscriber is charged at the campaign revenue they would have `
-    +`produced over ${R.H} months at the cadence shown, at ${Math.round(R.churnValue*100)}% of an average `
-    +`subscriber's rate — someone who just opted out was the least engaged, and past six months the `
-    +`counterfactual is guesswork. Nothing from flows is counted, so the case for sending more is the `
-    +`conservative one. Cadences past ${R.evidence} a month are drawn dashed: this account has never run them.`;
+  cap.innerHTML=`Read off this account’s own ${R.mo} complete months, ${R.from} to ${R.to} `
+    +`— a fixed year, so this card does not move when you change the range above. `
+    +`Those months are split into the account’s quietest, middle and busiest thirds by `
+    +`campaigns sent, and each band shows what actually happened: `
+    +`${R.bands.map(b=>`${b.lo}${b.hi!==b.lo?'–'+b.hi:''} sends → ${kfmt(b.rev)}`).join(', ')}. `
+    +`Every hollow dot is one real month. Nothing is projected, and no cadence this account has `
+    +`never run can be recommended. `
+    +`The one estimate is the churn charge: a lost subscriber is charged the campaign revenue they `
+    +`would have produced over ${R.H} months at that cadence, at ${Math.round(R.churnValue*100)}% of an `
+    +`average subscriber’s rate, because someone who just opted out was the least engaged and past `
+    +`six months the counterfactual is guesswork. `
+    +(RS_NET
+       ? `It is ON right now, so the ranking above is measured revenue minus an estimate — the `
+         +`charge is ${Math.round(R.best.cost/R.best.rev*100)}% of the best band’s revenue. `
+         +`Turn it off to rank on measured revenue alone.`
+       : `It is OFF by default, so the recommendation above rests on measured revenue only. `
+         +`Turn it on to see what the audience burn would cost.`)
+    +` Nothing from flows is counted, so the case for sending more is the conservative one.`;
 }
 
 const FMIX_PAL=['var(--flow)','var(--camp)','var(--aqua)','var(--good)','#7c6cf0','#e2749b','#4bb3a6','#c9922a','#8a94a6'];
