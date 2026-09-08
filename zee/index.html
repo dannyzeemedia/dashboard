@@ -3976,7 +3976,7 @@ function rmSnapFilters(){
     (fc.rows||[]).forEach(r=>{st['p:'+r.prescribed]=
       r.hold?'hold':r.present===false?'miss':r.present?'has':'na';});
     (fc.actual||[]).forEach(r=>{st['a:'+(r.sig||r.line)]=
-      r.recommended?'has':r.hold?'holdok':r.opposes?'opp'
+      r.suspect?'opp':r.recommended?'has':r.hold?'holdok':r.opposes?'opp'
       :r.redundant?'dupe':'extra';});
     out[f.id]=st;
   });
@@ -4115,6 +4115,10 @@ function rmFilterCheck(M){
       if(nOpp)chips.push('<span class="rm-fcchip c" title="'+nOpp
         +' filter(s) doing the opposite of what the map prescribes">'+nOpp
         +' BACKWARDS</span>');
+      const nSus=live.filter(r=>r.suspect&&!r.hold).length;
+      if(nSus)chips.push('<span class="rm-fcchip c" title="'+nSus
+        +' filter(s) that cannot do what they look like they do — a broken '
+        +'condition, or a flag tested as a date">'+nSus+' BROKEN</span>');
       const nDup=live.filter(r=>r.redundant&&!r.hold&&!r.opposes).length;
       if(nDup)chips.push('<span class="rm-fcchip w" title="'+nDup
         +' filter(s) another filter on this flow already covers">'+nDup+' REDUNDANT</span>');
@@ -4164,8 +4168,12 @@ function rmFilterCheck(M){
         const auto=held&&rs.every(a=>a.hold_auto);
         const dup=rs.find(a=>a&&a.redundant&&!a.hold);
         const opp=rs.find(a=>a&&a.opposes&&!a.hold);
-        const cls=!fc?'':opp?'opp':dup?'dupe':rec?'has':held?'holdok':'extra';
+        // a broken condition outranks everything else on the row: it can be
+        // matched to a prescribed filter and still admit nobody
+        const sus=rs.find(a=>a&&a.suspect&&!a.hold);
+        const cls=!fc?'':sus?'opp':opp?'opp':dup?'dupe':rec?'has':held?'holdok':'extra';
         const note=!fc?''
+          :sus?sus.suspect.why
           :opp?('the opposite of the map’s “'+opp.opposes+'”')
           :dup?(dup.redundant.kind==='identical'
                 ? 'redundant — identical to “'+(dup.redundant.same_as||'another filter')+'”'
@@ -5183,10 +5191,12 @@ function rmPopHtml(n,flow){
       const gseen={}, iced=[];
       (fc.actual||[]).forEach(r=>{
         const gi=(r.group==null?'l'+rows.length:r.group);
-        const cls=(r.opposes&&!r.hold)?'opp'
+        const cls=(r.suspect&&!r.hold)?'opp'
+          :(r.opposes&&!r.hold)?'opp'
           :(r.redundant&&!r.hold)?'dupe'
           :r.recommended?'has':r.hold?'holdok':'extra';
-        const note=(r.opposes&&!r.hold)
+        const note=(r.suspect&&!r.hold)?r.suspect.why
+          :(r.opposes&&!r.hold)
             ?('The OPPOSITE of the map’s “'+r.opposes+'”')
           :(r.redundant&&!r.hold)
             ?(r.redundant.kind==='identical'
