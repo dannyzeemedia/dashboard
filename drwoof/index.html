@@ -4331,7 +4331,8 @@ function renderMap(){
   const sB=core.reduce((a,c)=>a+c.built.sms,0),   sP=core.reduce((a,c)=>a+(c.prescribed.sms||0),0);
   const withLead=M.coverage.filter(c=>c.filter_check);
   const filtMiss=withLead.reduce((a,c)=>a+c.filter_check.missing.length,0);
-  const reMiss=withLead.filter(c=>reState(c.filter_check.reentry)==='miss').length;
+  const reMiss=(M.flows||[]).filter(f=>f.filter_check
+    &&reState(f.filter_check.reentry)==='miss').length;
   const dups=M.flows.filter(f=>f.duplicate&&f.status==='live').length;
   const small='font-size:17px;font-weight:600;color:var(--muted)';
   const band=[
@@ -4339,7 +4340,8 @@ function renderMap(){
     ['SMS depth', '<span'+(sB?'':' style="color:var(--crit)"')+'>'+sB+'<small style="'+small+'">/'+sP+'</small></span>',
      sB?'core SMS steps in place':'no SMS anywhere in the account'],
     ['Filters off-spec', '<span'+(filtMiss?' style="color:var(--warn)"':'')+'>'+filtMiss+'</span>',
-     reMiss?(reMiss+' flows also on the wrong re-entry window'):'prescribed filters not found on the live flow'],
+     reMiss?(reMiss+(reMiss>1?' flows':' flow')+' also on the wrong re-entry window')
+       :'prescribed filters not found on the live flow'],
     ['Live duplicates', '<span'+(dups?' style="color:var(--warn)"':'')+'>'+dups+'</span>',
      dups?'test copies sending alongside originals':'no shadow copies sending'],
   ];
