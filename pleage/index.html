@@ -894,6 +894,7 @@
   .rm-filt{font-size:11.5px;line-height:1.45}
   .rm-fbad{color:var(--crit);font-weight:600}
   .rm-fok{color:var(--good);font-weight:600}
+  .rm-fice{color:var(--ice-no);font-weight:600}
   .rm-fnone{color:var(--muted)}
   .rm-note{font-size:12px;color:var(--ink2);text-align:right;font-variant-numeric:tabular-nums}
 
@@ -977,6 +978,10 @@
     background:color-mix(in srgb,var(--crit) 8%,transparent);color:var(--ink)}
   .rm-re.ok{border-color:color-mix(in srgb,var(--good) 40%,var(--border));
     background:color-mix(in srgb,var(--good) 7%,transparent)}
+  .rm-re.unk{border-color:color-mix(in srgb,var(--warn) 40%,var(--border));
+    background:color-mix(in srgb,var(--warn) 8%,transparent);color:var(--ink)}
+  .rm-re.ice{border-color:color-mix(in srgb,var(--ice-no) 45%,var(--border));
+    background:color-mix(in srgb,var(--ice-no) 8%,transparent);color:var(--ink2)}
   .rm-fcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
   .rm-fh{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
     color:var(--muted);margin-bottom:8px}
@@ -997,6 +1002,15 @@
   .rm-flist li.holdok::before{content:"✓";color:var(--ice-ok)}
   .rm-flist li.holdok em{font-style:normal;font-size:11px;color:var(--ice-ok)}
   .rm-flist li.hold em{font-style:normal;font-size:11px;color:var(--ice-no)}
+  .rm-flist li.unk{color:var(--ink);background:color-mix(in srgb,var(--warn) 10%,transparent)}
+  .rm-flist li.unk::before{content:"?";color:var(--warn)}
+  .rm-flist li.unk em{font-style:normal;font-size:11px;color:var(--warn)}
+  /* the same verdict, small, in the flow header's re-entry column */
+  .rm-remark{display:inline-block;width:13px;font-weight:800;font-size:11px}
+  .rm-remark.has{color:var(--good)}
+  .rm-remark.miss{color:var(--crit)}
+  .rm-remark.na{color:var(--warn)}
+  .rm-remark.holdok{color:var(--ice-no)}
   .rm-flist li.andor{color:var(--ink);background:color-mix(in srgb,var(--warn) 12%,transparent)}
   .rm-flist li.andor::before{content:"!";color:var(--warn)}
   .rm-flist li.andor em{font-style:normal;font-size:11px;color:var(--warn)}
@@ -1108,6 +1122,7 @@
     border-top:1px solid var(--border)}
   .rm-pop .preentry{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
     font-size:13px;color:var(--ink);margin-bottom:2px}
+  .rm-pop .ptag.i{color:var(--ice-no);background:color-mix(in srgb,var(--ice-no) 13%,transparent)}
   .rm-pop .ptag.c{color:var(--crit);background:color-mix(in srgb,var(--crit) 13%,transparent)}
   .rm-pop .pmix{list-style:none;margin:0 0 13px;padding:0;display:flex;
     flex-direction:column;gap:7px;font-size:12px;line-height:1.45}
@@ -3896,6 +3911,18 @@ function rmGroupHtml(key,label,count,inner,dflt){
 // ---- Filter check: every live flow's trigger and filters in one place, so a
 // filter review needs no trips into the flow graph. Same three-state reading as
 // the graph's pop-up, and the same ❄ control.
+// Re-entry is not a profile filter, so it has no filter line of its own. This
+// is the line the pipeline, this page and the filter-hold function all agree an
+// ice on a flow's re-entry window is written against.
+const RE_LINE='Re-entry window';
+// verdict class for a flow's re-entry window: matches / off spec / not
+// prescribed / off spec but deliberately accepted
+function reState(rr){
+  if(!rr)return null;
+  if(rr.state)return rr.state;
+  return rr.match===true?'has':rr.match===false?'miss':'na';
+}
+const RE_GLYPH={has:'\u2713',miss:'\u2715',holdok:'\u2715',na:'?'};
 function rmFcRow(cls,line,note,raw,flowId,canIce,isHold,key){
   const btn=(IS_OWNER&&canIce&&raw&&[].concat(raw).length)
     ? '<button class="pice" type="button" data-ice="'+(isHold?'off':'on')+'"'
@@ -3975,6 +4002,8 @@ function rmSnapFilters(){
     const st={};
     (fc.rows||[]).forEach(r=>{st['p:'+r.prescribed]=
       r.hold?'hold':r.present===false?'miss':r.present?'has':'na';});
+    const rs=reState(fc.reentry);
+    if(rs)st['p:'+RE_LINE]=(rs==='holdok'?'hold':rs==='na'?'unk':rs);
     (fc.actual||[]).forEach(r=>{st['a:'+(r.sig||r.line)]=
       r.suspect?'opp':r.recommended?'has':r.hold?'holdok':r.opposes?'opp'
       :r.redundant?'dupe':'extra';});
@@ -3982,12 +4011,13 @@ function rmSnapFilters(){
   });
   return out;
 }
-const RM_STATES=['has','miss','extra','hold','holdok','dupe','andor','opp'];
+const RM_STATES=['has','miss','extra','hold','holdok','dupe','andor','opp','unk'];
 const RM_STATE_NOW=li=>RM_STATES.find(c=>li.classList.contains(c))||'na';
 // Each state's own colour, as rgba so it can be animated: --fc-from is where the
 // row was, --fc-to where it lands, --fc-hot a saturated pass on the way through.
 const FC_TOKEN={has:'--good',miss:'--crit',extra:'--warn',dupe:'--warn',
-                andor:'--warn',opp:'--crit',hold:'--ice-no',holdok:'--ice-ok'};
+                andor:'--warn',opp:'--crit',hold:'--ice-no',holdok:'--ice-ok',
+                unk:'--warn'};
 function rmRgba(col,a){
   const c=(col||'').trim();
   let m=c.match(/^#?([0-9a-f]{6})$/i);
@@ -4128,19 +4158,31 @@ function rmFilterCheck(M){
         +'not on ice">'+nX+' EXTRA</span>');
       if((fc.logic_off||[]).length)
         chips.push('<span class="rm-fcchip w">'+fc.logic_off.length+' AND/OR</span>');
-      if(fc.reentry&&fc.reentry.match===false)
+      if(reState(fc.reentry)==='miss')
         chips.push('<span class="rm-fcchip c">RE-ENTRY OFF</span>');
     }else{
       chips.push('<span class="rm-fcchip">NOT ON THE MAP</span>');
     }
     chips.push('<span class="rm-fcchip">'+((fl.groups||fl.lines||[]).length)+' SET</span>');
 
+    // the flow's re-entry verdict, needed by both the prescribed column and the
+    // header strip below, so it is worked out before either is built
+    const rr=fc&&fc.reentry, reSt=reState(rr);
     // prescribed column: held rows last, ANDed-instead-of-OR flagged
     let left='';
     if(fc){
       const rows=(fc.rows||[]).filter(r=>!/re-?entry/i.test(r.prescribed||''))
         .slice().sort((a,b)=>(a.hold?1:0)-(b.hold?1:0));
-      left=rows.map(r=>rmFcRow(
+      // Re-entry leads the prescribed column: it is the one requirement that is
+      // a trigger setting rather than a filter, and it is iceable like the rest.
+      const reLi=reSt?rmFcRow(
+        reSt==='holdok'?'hold':reSt==='na'?'unk':reSt,
+        '<b>Re-entry</b> '+esc(rr.actual_label||'not set'),
+        reSt==='holdok'?('on ice'+(rr.hold===true?'':' — '+rr.hold)):(rr.why||''),
+        [RE_LINE], f.id, reSt!=='has', reSt==='holdok', 'p:'+RE_LINE):'';
+      // iced rows sit at the bottom of the list, the same as every other one
+      // Danny has decided is fine — so re-entry only leads when it still matters
+      left=(reSt==='holdok'?'':reLi)+rows.map(r=>rmFcRow(
         r.hold?'hold':r.logic==='and'?'andor':r.present===false?'miss':r.present?'has':'',
         (r.src?srcIcon(r.src):'')+orMark(r.prescribed),
         r.hold?('on ice'+(r.hold===true?'':' — '+r.hold))
@@ -4152,7 +4194,8 @@ function rmFilterCheck(M){
           :r.logic==='or'?'OR, as prescribed':'',
         [r.prescribed], f.id,
         (r.hold&&!((fc.held||[]).find(h=>h.line===r.prescribed)||{}).auto)||r.present===false,
-        !!r.hold, 'p:'+r.prescribed)).join('');
+        !!r.hold, 'p:'+r.prescribed)).join('')
+        +(reSt==='holdok'?reLi:'');
     }else{
       left='<li class="dim">Not on the retention map, so nothing is prescribed.</li>';
     }
@@ -4193,7 +4236,12 @@ function rmFilterCheck(M){
     }else{
       right='<li class="dim">No flow filters set.</li>';
     }
-    const reBad=fc&&fc.reentry&&fc.reentry.match===false;
+    const reBad=reSt==='miss'||reSt==='holdok';
+    const reMark=reSt
+      ? '<span class="rm-remark '+reSt+'" title="'+esc(
+          (reSt==='holdok'?'On ice — '+(rr.hold===true?'accepted':rr.hold)+'. ':'')
+          +(rr.why||''))+'">'+RE_GLYPH[reSt]+'</span> '
+      : '';
     return '<div class="rm-fcflow" data-flow="'+esc(f.id)+'">'
       +'<button class="rm-fchead rm-fcgrid" type="button">'
         +'<span class="rm-fcnm"><span class="chev">▸</span>'
@@ -4203,9 +4251,9 @@ function rmFilterCheck(M){
             (((fl.trigger_sources||{})[t])?srcIcon((fl.trigger_sources||{})[t]):'')
             +'<b>'+esc(t)+'</b>').join(', ')
           +((fl.triggers||[]).length?'':'<b>—</b>')+'</span>'
-        +'<span class="rm-fctrig">'+esc(re)+(reBad&&fc.reentry.prescribed_days!=null
-           ? ' · map wants '+(fc.reentry.prescribed_days===0?'no re-entry'
-             :fc.reentry.prescribed_days+' days'):'')+'</span>'
+        +'<span class="rm-fctrig">'+reMark+esc(re)+(reBad&&rr.prescribed_days!=null
+           ? ' · wants '+(rr.prescribed_days===0?'none'
+             :rr.prescribed_days+'d'):'')+'</span>'
         +'<span class="rm-fcchips">'+chips.join('')+'</span>'
       +'</button>'
       +'<div class="rm-fcbody"><div class="rm-fcinner">'
@@ -4272,7 +4320,7 @@ function renderMap(){
   const sB=core.reduce((a,c)=>a+c.built.sms,0),   sP=core.reduce((a,c)=>a+(c.prescribed.sms||0),0);
   const withLead=M.coverage.filter(c=>c.filter_check);
   const filtMiss=withLead.reduce((a,c)=>a+c.filter_check.missing.length,0);
-  const reMiss=withLead.filter(c=>c.filter_check.reentry&&c.filter_check.reentry.match===false).length;
+  const reMiss=withLead.filter(c=>reState(c.filter_check.reentry)==='miss').length;
   const dups=M.flows.filter(f=>f.duplicate&&f.status==='live').length;
   const small='font-size:17px;font-weight:600;color:var(--muted)';
   const band=[
@@ -4371,7 +4419,7 @@ function rmRow(c,byId){
     : '<div class="rm-meters"><span class="rm-mnum" style="color:var(--muted)">'+rmPresence(c)+'</span></div>';
   // issues per flow: missing filters + off-spec re-entry, from its own check
   const probs=f=>{const q=f.filter_check;if(!q)return null;
-    return (q.missing||[]).length+((q.reentry&&q.reentry.match===false)?1:0);};
+    return (q.missing||[]).length+((reState(q.reentry)==='miss')?1:0);};
   let filt='<span class="rm-fnone">—</span>';
   if(multi){
     const checked=nest.map(f=>({f,n:probs(f)})).filter(x=>x.n!=null);
@@ -4384,12 +4432,12 @@ function rmRow(c,byId){
   }else{
     const fc=c.filter_check;
     if(fc){
-      const bad=fc.missing.length, re=fc.reentry;
-      const reBad=re&&re.match===false;
+      const bad=fc.missing.length, re=fc.reentry, reSt=reState(re);
       const bits=[];
       if(bad)bits.push('<span class="rm-fbad">'+bad+' filter'+(bad>1?'s':'')+' missing</span>');
-      if(reBad)bits.push('<span class="rm-fbad">re-entry: '+esc(re.actual_label||'not set')
+      if(reSt==='miss')bits.push('<span class="rm-fbad">re-entry: '+esc(re.actual_label||'not set')
         +', map wants '+(re.prescribed_days===0?'none':re.prescribed_days+' days')+'</span>');
+      if(reSt==='holdok')bits.push('<span class="rm-fice">re-entry off spec, on ice</span>');
       filt=bits.length?bits.join('<br>'):'<span class="rm-fok">filters match</span>';
     }
   }
@@ -5167,13 +5215,17 @@ function rmPopHtml(n,flow){
     // API — separate from the "has not been in this flow" profile filter.
     let reBlock='';
     if(re){
-      const chk=fc&&fc.reentry;
+      const chk=fc&&fc.reentry, chkSt=reState(chk);
       let verdict='';
       if(chk&&chk.prescribed_days!=null){
         const want=chk.prescribed_days===0?'No re-entry':chk.prescribed_days+' days';
-        verdict=chk.match===true
+        verdict=chkSt==='has'
           ? '<span class="ptag g">MATCHES THE MAP</span>'
+          : chkSt==='holdok'
+          ? '<span class="ptag i">ON ICE · MAP WANTS '+esc(want.toUpperCase())+'</span>'
           : '<span class="ptag c">MAP WANTS '+esc(want.toUpperCase())+'</span>';
+      }else if(chkSt==='na'){
+        verdict='<span class="ptag w">NOT PRESCRIBED ON THE MAP</span>';
       }
       const lg=(flow&&flow.filters&&flow.filters.legacy_reentry)||[];
       reBlock='<div class="psec">Re-entry criteria</div>'
@@ -5387,12 +5439,15 @@ function rmFilters(flow,cov){
   const reLive=(flow.filters&&flow.filters.reentry)||null;
   let head='';
   if(reLive){
-    const bad=re&&re.match===false;
-    head='<div class="rm-re '+(bad?'bad':'ok')+'">'
+    const st=reState(re);
+    head='<div class="rm-re '+(st==='miss'?'bad':st==='holdok'?'ice':st==='na'?'unk':'ok')+'">'
+      +'<span class="rm-remark '+(st||'na')+'">'+(RE_GLYPH[st]||'?')+'</span> '
       +'<b>Re-entry</b> '+esc(reLive.label)
       +(re&&re.prescribed_days!=null
         ? ' · map wants '+(re.prescribed_days===0?'no re-entry':re.prescribed_days+' days')
-          +(bad?' — off spec':' — matches')
+          +(st==='has'?' — matches'
+            :st==='holdok'?' — off spec, on ice'+(re.hold===true?'':' ('+re.hold+')')
+            :' — off spec')
         : ' · not prescribed on the map')
       +'</div>';
   }
