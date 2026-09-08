@@ -3564,7 +3564,9 @@ function renderRightSize(){
   if(!R){cap.textContent='This range holds fewer than three complete months with campaigns — '
     +'too little to size a cadence. Widen the range.';
     rec.innerHTML='';return;}
-  const W=760,H=250,PL=52,PR=54,PT=14,PB=34,iw=W-PL-PR,ih=H-PT-PB;
+  // PT leaves room under the top gridline for the "never sent this many" label;
+  // PB leaves the axis title clear of the legend beneath the chart
+  const W=760,H=262,PL=52,PR=54,PT=22,PB=50,iw=W-PL-PR,ih=H-PT-PB;
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`});
   const maxRev=niceMax(Math.max.apply(null,R.rows.map(r=>Math.max(r.rev,r.score))));
   const nets=R.rows.map(r=>r.net);
@@ -3590,7 +3592,7 @@ function renderRightSize(){
     const bx=x(R.evidence)+ (iw/R.rows.length)/2;
     svg.appendChild(el('line',{x1:bx,x2:bx,y1:PT,y2:PT+ih,stroke:'var(--axis)',
       'stroke-width':1,'stroke-dasharray':'3 4',opacity:.8}));
-    const lb=el('text',{class:'ax',x:bx-6,y:PT+11,'text-anchor':'end'});
+    const lb=el('text',{class:'ax',x:bx-6,y:PT+26,'text-anchor':'end'});
     lb.textContent='never sent this many →';svg.appendChild(lb);
   }
   let d='';R.rows.forEach((r,k)=>{d+=(k?'L':'M')+x(r.n)+' '+yn(r.net);});
@@ -3601,7 +3603,7 @@ function renderRightSize(){
     if(r.n%2===0&&r.n!==R.best.n&&r.n!==Math.round(R.n0))return;
     const t=el('text',{class:'ax',x:x(r.n),y:PT+ih+16,'text-anchor':'middle'});
     t.textContent=r.n;svg.appendChild(t);});
-  const nt=el('text',{class:'ax',x:(PL+W-PR)/2,y:H-4,'text-anchor':'middle'});
+  const nt=el('text',{class:'ax',x:(PL+W-PR)/2,y:H-12,'text-anchor':'middle'});
   nt.textContent='campaigns per month';svg.appendChild(nt);
   for(let k=0;k<=4;k++){
     const gv=netMin+(netMax-netMin)*k/4;
@@ -3632,8 +3634,9 @@ function renderRightSize(){
     hit.addEventListener('mouseleave',()=>hideTip(card));
     svg.appendChild(hit);});
   card.appendChild(svg);
-  card.appendChild(alegend([RS_NET?'Campaign revenue, net of churn cost':'Campaign revenue','var(--surface-2)'],
-    ['Recommended cadence','var(--camp)'],['Today','var(--flow)'],['Net list growth / mo','var(--good)']));
+  const lg=alegend([RS_NET?'Campaign revenue, net of churn cost':'Campaign revenue','var(--surface-2)'],
+    ['Recommended cadence','var(--camp)'],['Today','var(--flow)'],['Net list growth / mo','var(--good)']);
+  lg.style.margin='4px 0 2px';card.appendChild(lg);
   const dn=R.best.n-Math.round(R.n0);
   const dRev=R.best.rev-R.now.rev, dNet=R.best.score-R.now.score, dUn=R.best.un-R.now.un;
   const verb=dn>0?'Add':dn<0?'Cut':'Hold at';
