@@ -1012,6 +1012,21 @@
   .pg-ask p:last-child{margin-bottom:0}
   .pg-ask .pg-more{color:var(--ink2);font-size:12.5px;padding-top:11px;
     border-top:1px solid color-mix(in srgb,var(--border) 70%,transparent)}
+  .pg-more-card{margin:22px 0 0;padding:18px 20px;border-radius:12px;
+    border:1px solid color-mix(in srgb,var(--good) 32%,var(--border));
+    background:color-mix(in srgb,var(--good) 4%,transparent)}
+  .pg-more-card .pg-ghead{border-bottom-color:color-mix(in srgb,var(--good) 22%,var(--border))}
+  .pg-opps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;
+    margin:16px 0 0}
+  .pg-opp h4{margin:2px 0 7px;font-size:13px;color:var(--ink);line-height:1.35}
+  .pg-opp p{margin:0;font-size:12.5px;line-height:1.6;color:var(--ink2)}
+  .pg-oppn{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--good)}
+  /* full width, like the three columns above it: a 74ch cap here left the
+     divider stopping two thirds of the way across a full-width card */
+  .pg-close{margin:18px 0 0;padding-top:14px;font-size:12.5px;line-height:1.6;
+    color:var(--ink);
+    border-top:1px solid color-mix(in srgb,var(--good) 22%,var(--border))}
   .rm-fcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
   .rm-fh{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
     color:var(--muted);margin-bottom:8px}
@@ -3813,6 +3828,7 @@ function progressData(){
     // which is an extension, not a gap, and is worded that way.
     const st=!c.lead?'none':(p&&b>=p)?'done':b>0?'partly':'none';
     return {key:c.key,label:c.label,group:c.group,built:b,prescribed:p,state:st,
+            smsBuilt:(c.built&&c.built.sms)||0,smsPrescribed:(c.prescribed&&c.prescribed.sms)||0,
             lead:(M.flows||[]).find(f=>f.id===c.lead)||null,
             revenue:c.revenue||0};
   };
@@ -3840,6 +3856,51 @@ function progressData(){
     flowFirst:at(S.flow,mi),campFirst:at(S.camp,mi),
     unsubFirst:at(S.unsub,mi),unsubNow:at(S.unsub,last),
     lastMonth:(S.months||[])[last]};
+}
+// What is still unbuilt, sized so it can actually be quoted. Deliberately its
+// own card: as a greyed-out paragraph under the rescope pitch it read as an
+// apology for unfinished work rather than as an offer.
+function pgMore(R){
+  const live=R.slots.filter(x=>x.lead);
+  const un=R.slots.filter(x=>!x.lead);
+  const depthE=live.reduce((a,x)=>a+Math.max(0,x.prescribed-x.built),0);
+  const smsPre=R.slots.reduce((a,x)=>a+(x.smsPrescribed||0),0);
+  const smsBuilt=R.slots.reduce((a,x)=>a+(x.smsBuilt||0),0);
+  const unE=un.reduce((a,x)=>a+x.prescribed,0);
+  const thin=live.filter(x=>x.prescribed>x.built)
+                 .sort((a,b)=>(b.prescribed-b.built)-(a.prescribed-a.built));
+  const items=[];
+  if(depthE)items.push({
+    n:depthE+' more emails',
+    h:'Finish the sequences already earning',
+    p:'The flows below run shorter than the map prescribes. '
+      +thin.slice(0,3).map(x=>esc(x.label)+' is '+x.built+' of '+x.prescribed).join(', ')
+      +(thin.length>3?', and '+(thin.length-3)+' more':'')
+      +'. These are the cheapest wins on the list: the trigger, the audience and the '
+      +'design system all exist, so each new step is written and built onto a flow that '
+      +'is already converting.'});
+  if(un.length)items.push({
+    n:un.length+' flows · '+unE+' emails',
+    h:'The flows that do not exist yet',
+    p:un.map(x=>esc(x.label)+(x.prescribed?' ('+x.prescribed+')':'')).join(', ')
+      +'. Every one of these is a moment we are currently not speaking to at all — a '
+      +'birthday, a VIP’s second year, a lapsed browser worth one last try.'});
+  if(smsPre>smsBuilt)items.push({
+    n:(smsPre-smsBuilt)+' SMS steps',
+    h:'An SMS programme, which does not exist',
+    p:'The framework asks for '+smsPre+' SMS steps across these flows and '+smsBuilt
+      +' '+(smsBuilt===1?'is':'are')+' built. SMS sits inside the flows that already work, '
+      +'so it is added to proven sequences rather than started from nothing. It is the '
+      +'single largest untouched channel in the account.'});
+  if(!items.length)return '';
+  return '<div class="pg-more-card"><div class="pg-ghead"><h3>What is still on the table</h3>'
+    +'<span class="pg-gsum">additional scope, not a swap</span></div>'
+    +'<div class="pg-opps">'+items.map(it=>
+      '<div class="pg-opp"><div class="pg-oppn">'+it.n+'</div>'
+      +'<h4>'+it.h+'</h4><p>'+it.p+'</p></div>').join('')+'</div>'
+    +'<p class="pg-close">None of this is part of the rescope above, and none of it is '
+    +'assumed. Tell us which of the three you want and we will scope and quote it '
+    +'separately.</p></div>';
 }
 function renderProgress(){
   const R=progressData();
@@ -3948,12 +4009,7 @@ function renderProgress(){
       +sendAvg.toFixed(0)+' sends a month — and that is a program only '
       +campMonths.length+' months old, at a send rate we have deliberately kept low while the '
       +'flows were being built. It is the part of the account with the most room left in it.</p>'
-      +'<p class="pg-more"><b>And if you want to keep building.</b> '+R.notStarted+' flows in the '
-      +'framework are still untouched — '
-      +R.slots.filter(x=>x.state==='none').slice(0,4).map(x=>esc(x.label)).join(', ')
-      +(R.notStarted>4?' and others':'')+' — plus the remaining depth on the sequences already '
-      +'live. That is additional scope rather than a swap, and it is entirely up to you '
-      +'whether we take it on.</p></div>';
+      +'</div>'+pgMore(R);
   }else{ask.innerHTML='';}
 }
 // mlabel already exists for the month axes; only the long date is new here
