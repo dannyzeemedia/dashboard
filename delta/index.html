@@ -982,51 +982,6 @@
     background:color-mix(in srgb,var(--warn) 8%,transparent);color:var(--ink)}
   .rm-re.ice{border-color:color-mix(in srgb,var(--ice-no) 45%,var(--border));
     background:color-mix(in srgb,var(--ice-no) 8%,transparent);color:var(--ink2)}
-  /* ---- Progress report ---- */
-  .pg-group{margin:22px 0 0}
-  .pg-ghead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;
-    padding-bottom:8px;border-bottom:1px solid var(--border)}
-  .pg-ghead h3{margin:0;font-size:14px}
-  .pg-gsum{font-size:11.5px;color:var(--muted)}
-  .pg-list{list-style:none;margin:0;padding:0}
-  .pg-list li{display:grid;grid-template-columns:118px minmax(140px,1.1fr) 108px minmax(160px,1.4fr);
-    gap:12px;align-items:center;padding:9px 4px;font-size:12.5px;
-    border-bottom:1px solid color-mix(in srgb,var(--border) 55%,transparent)}
-  .pg-list li:last-child{border-bottom:0}
-  .pg-nm{font-weight:600;color:var(--ink)}
-  .pg-steps{color:var(--ink2);font-variant-numeric:tabular-nums}
-  .pg-flow{color:var(--muted);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .pg-list li.none .pg-nm{color:var(--ink2)}
-  .pg-chip{font-size:9.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;
-    padding:3px 8px;border-radius:20px;text-align:center;white-space:nowrap}
-  .pg-chip.done{color:var(--good);background:color-mix(in srgb,var(--good) 13%,transparent)}
-  .pg-chip.partly{color:var(--flow);background:color-mix(in srgb,var(--flow) 12%,transparent)}
-  .pg-chip.none{color:var(--muted);background:color-mix(in srgb,var(--muted) 12%,transparent)}
-  .pg-na{font-size:11.5px;line-height:1.6;color:var(--muted);margin:20px 0 0;
-    padding:11px 13px;border:1px solid var(--border);border-radius:9px}
-  .pg-ask{margin:24px 0 0;padding:18px 20px;border-radius:12px;
-    border:1px solid color-mix(in srgb,var(--flow) 30%,var(--border));
-    background:color-mix(in srgb,var(--flow) 5%,transparent)}
-  .pg-ask h3{margin:0 0 10px;font-size:14px}
-  .pg-ask p{margin:0 0 11px;font-size:13px;line-height:1.65;color:var(--ink);max-width:74ch}
-  .pg-ask p:last-child{margin-bottom:0}
-  .pg-ask .pg-more{color:var(--ink2);font-size:12.5px;padding-top:11px;
-    border-top:1px solid color-mix(in srgb,var(--border) 70%,transparent)}
-  .pg-more-card{margin:22px 0 0;padding:18px 20px;border-radius:12px;
-    border:1px solid color-mix(in srgb,var(--good) 32%,var(--border));
-    background:color-mix(in srgb,var(--good) 4%,transparent)}
-  .pg-more-card .pg-ghead{border-bottom-color:color-mix(in srgb,var(--good) 22%,var(--border))}
-  .pg-opps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;
-    margin:16px 0 0}
-  .pg-opp h4{margin:2px 0 7px;font-size:13px;color:var(--ink);line-height:1.35}
-  .pg-opp p{margin:0;font-size:12.5px;line-height:1.6;color:var(--ink2)}
-  .pg-oppn{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
-    color:var(--good)}
-  /* full width, like the three columns above it: a 74ch cap here left the
-     divider stopping two thirds of the way across a full-width card */
-  .pg-close{margin:18px 0 0;padding-top:14px;font-size:12.5px;line-height:1.6;
-    color:var(--ink);
-    border-top:1px solid color-mix(in srgb,var(--good) 22%,var(--border))}
   .rm-fcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
   .rm-fh{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
     color:var(--muted);margin-bottom:8px}
@@ -1254,7 +1209,6 @@
       <button role="tab" aria-selected="true" data-view="dash">Dashboard</button>
       <button role="tab" aria-selected="false" data-view="reports">Reports</button>
       <button role="tab" aria-selected="false" data-view="map">Retention Map</button>
-      <button role="tab" aria-selected="false" data-view="progress">Progress</button>
     </div>
     <button class="themeBtn" id="refreshBtn" style="display:none" title="Reload for the latest version, staying on this client and tab">⟳ Refresh</button>
     <button class="themeBtn" id="themeBtn">◑ Theme</button>
@@ -1454,19 +1408,6 @@
     <div id="map-issues"></div>
   </section>
 
-  <section class="view wrap" id="view-progress" hidden>
-    <div class="eyebrow" id="pg-eyebrow">Where the engagement stands</div>
-    <div class="view-h"><h2 id="pg-title">Progress report</h2></div>
-    <p class="view-sub" id="pg-sub"></p>
-    <div class="rm-band" id="pg-band"></div>
-    <div id="pg-build"></div>
-    <div class="grid" style="margin-top:22px">
-      <div class="card wide" id="c-pgrev"><h3>What the build is producing</h3>
-        <div class="cap" id="pgrev-cap"></div></div>
-    </div>
-    <div id="pg-ask"></div>
-  </section>
-
   <section class="view wrap" id="view-audit" hidden>
     <div class="eyebrow" id="audit-eyebrow">Account audit</div>
     <div class="view-h" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><h2 id="audit-title">Account audit</h2>
@@ -1662,13 +1603,9 @@ function switchTo(slug){ACTIVE=slug;
   const hasReports=reps.length>0 || !!(SERIES[slug]&&(SERIES[slug].reports||[]).length) || !!A;
   // Retention map: only for clients we have actually mapped (client_series.data.retention_map).
   const hasMap=!!(SERIES[slug]&&SERIES[slug].retention_map&&(SERIES[slug].retention_map.flows||[]).length);
-  // Progress needs both halves: the config that says what the engagement is,
-  // and the map it is measured against.
-  const hasProg=!!(SERIES[slug]&&SERIES[slug].progress)&&hasMap;
-  seg.hidden=!(hasReports||hasMap||hasProg);
+  seg.hidden=!(hasReports||hasMap);
   [...seg.children].forEach(x=>{const v=x.dataset.view;
-    x.hidden=(v==='reports'&&!hasReports)||(v==='map'&&!hasMap)
-            ||(v==='progress'&&!hasProg);});
+    x.hidden=(v==='reports'&&!hasReports)||(v==='map'&&!hasMap);});
   const msel=document.getElementById('boardMonth');
   if(msel){msel.innerHTML=reps.map((rr,i)=>'<option value="'+i+'">'+esc(rr.month_label||rr.month||'')+'</option>').join('');msel.value='0';}
   // Every client opens on the Dashboard; the audit lives one click away in
@@ -1677,7 +1614,6 @@ function switchTo(slug){ACTIVE=slug;
   document.getElementById('view-dash').hidden=false;
   document.getElementById('view-board').hidden=true;
   document.getElementById('view-reports').hidden=true;   // shown by openAudit / tab click
-  document.getElementById('view-progress').hidden=true;
   document.getElementById('view-audit').hidden=true;
   document.getElementById('view-map').hidden=true;
   updateVidBtn();
@@ -3804,223 +3740,6 @@ function renderRightSize(){
     +` Nothing from flows is counted, so the case for sending more is the conservative one.`;
 }
 
-// ---- Progress report ------------------------------------------------------
-// What the engagement has actually delivered, measured against the retention
-// map framework, and what it is producing. Everything here is computed from
-// data already on the row — retention_map.coverage for the build-out and the
-// monthly arrays for the money — so there is no second pipeline to drift. The
-// only thing the client config carries is what cannot be derived: when the
-// engagement started, what the retainer is, and which framework groups apply
-// to this store (a scrubs retailer has no subscription or affiliate programme,
-// and counting those slots as "missing" would misrepresent the work).
-const PG_GROUPS={core:'Core flows',advanced:'Advanced flows',
-                 subscription:'Subscription flows',superfiliate:'Affiliate flows'};
-function progressData(){
-  const S=SERIES[ACTIVE]||{}, P=S.progress, M=S.retention_map;
-  if(!P||!M||!(M.coverage||[]).length)return null;
-  const inScope=new Set(P.scope_groups||['core','advanced']);
-  const cov=(M.coverage||[]).filter(c=>inScope.has(c.group));
-  const na=(M.coverage||[]).filter(c=>!inScope.has(c.group));
-  const slot=c=>{
-    const b=(c.built&&c.built.email)||0, p=(c.prescribed&&c.prescribed.email)||0;
-    // "delivered" means the flow is live and running the sequence the framework
-    // asks for. "partly" means live and earning but not yet to full depth —
-    // which is an extension, not a gap, and is worded that way.
-    const st=!c.lead?'none':(p&&b>=p)?'done':b>0?'partly':'none';
-    return {key:c.key,label:c.label,group:c.group,built:b,prescribed:p,state:st,
-            smsBuilt:(c.built&&c.built.sms)||0,smsPrescribed:(c.prescribed&&c.prescribed.sms)||0,
-            lead:(M.flows||[]).find(f=>f.id===c.lead)||null,
-            revenue:c.revenue||0};
-  };
-  const slots=cov.map(slot);
-  const groups=[...inScope].filter(g=>slots.some(x=>x.group===g))
-    .map(g=>({key:g,label:PG_GROUPS[g]||g,slots:slots.filter(x=>x.group===g)}));
-  const live=(M.flows||[]).filter(f=>f.status==='live'&&!f.duplicate);
-  // money, from the engagement's start month onward
-  const mi=Math.max(0,(S.months||[]).indexOf(P.started));
-  const idx=[];for(let i=mi;i<(S.months||[]).length;i++)idx.push(i);
-  const last=idx[idx.length-1];
-  const at=(a,i)=>((a||[])[i]||0);
-  const emailNow=at(S.flow,last)+at(S.camp,last);
-  const storeNow=at(S.store,last);
-  return {P:P,M:M,groups:groups,na:na,slots:slots,
-    flowsLive:live.length,
-    built:slots.reduce((a,x)=>a+x.built,0),
-    prescribed:slots.reduce((a,x)=>a+x.prescribed,0),
-    done:slots.filter(x=>x.state==='done').length,
-    partly:slots.filter(x=>x.state==='partly').length,
-    notStarted:slots.filter(x=>x.state==='none').length,
-    idx:idx,months:(S.months||[]),
-    flowNow:at(S.flow,last),campNow:at(S.camp,last),emailNow:emailNow,
-    storeNow:storeNow,share:storeNow?emailNow/storeNow:0,
-    flowFirst:at(S.flow,mi),campFirst:at(S.camp,mi),
-    unsubFirst:at(S.unsub,mi),unsubNow:at(S.unsub,last),
-    lastMonth:(S.months||[])[last]};
-}
-// What is still unbuilt, sized so it can actually be quoted. Deliberately its
-// own card: as a greyed-out paragraph under the rescope pitch it read as an
-// apology for unfinished work rather than as an offer.
-function pgMore(R){
-  const live=R.slots.filter(x=>x.lead);
-  const un=R.slots.filter(x=>!x.lead);
-  const depthE=live.reduce((a,x)=>a+Math.max(0,x.prescribed-x.built),0);
-  const smsPre=R.slots.reduce((a,x)=>a+(x.smsPrescribed||0),0);
-  const smsBuilt=R.slots.reduce((a,x)=>a+(x.smsBuilt||0),0);
-  const unE=un.reduce((a,x)=>a+x.prescribed,0);
-  const thin=live.filter(x=>x.prescribed>x.built)
-                 .sort((a,b)=>(b.prescribed-b.built)-(a.prescribed-a.built));
-  const items=[];
-  if(depthE)items.push({
-    n:depthE+' more emails',
-    h:'Finish the sequences already earning',
-    p:'The flows below run shorter than the map prescribes. '
-      +thin.slice(0,3).map(x=>esc(x.label)+' is '+x.built+' of '+x.prescribed).join(', ')
-      +(thin.length>3?', and '+(thin.length-3)+' more':'')
-      +'. These are the cheapest wins on the list: the trigger, the audience and the '
-      +'design system all exist, so each new step is written and built onto a flow that '
-      +'is already converting.'});
-  if(un.length)items.push({
-    n:un.length+' flows · '+unE+' emails',
-    h:'The flows that do not exist yet',
-    p:un.map(x=>esc(x.label)+(x.prescribed?' ('+x.prescribed+')':'')).join(', ')
-      +'. Every one of these is a moment we are currently not speaking to at all — a '
-      +'birthday, a VIP’s second year, a lapsed browser worth one last try.'});
-  if(smsPre>smsBuilt)items.push({
-    n:(smsPre-smsBuilt)+' SMS steps',
-    h:'An SMS programme, which does not exist',
-    p:'The framework asks for '+smsPre+' SMS steps across these flows and '+smsBuilt
-      +' '+(smsBuilt===1?'is':'are')+' built. SMS sits inside the flows that already work, '
-      +'so it is added to proven sequences rather than started from nothing. It is the '
-      +'single largest untouched channel in the account.'});
-  if(!items.length)return '';
-  return '<div class="pg-more-card"><div class="pg-ghead"><h3>What is still on the table</h3>'
-    +'<span class="pg-gsum">additional scope, not a swap</span></div>'
-    +'<div class="pg-opps">'+items.map(it=>
-      '<div class="pg-opp"><div class="pg-oppn">'+it.n+'</div>'
-      +'<h4>'+it.h+'</h4><p>'+it.p+'</p></div>').join('')+'</div>'
-    +'<p class="pg-close">None of this is part of the rescope above, and none of it is '
-    +'assumed. Tell us which of the three you want and we will scope and quote it '
-    +'separately.</p></div>';
-}
-function renderProgress(){
-  const R=progressData();
-  const band=document.getElementById('pg-band');
-  const build=document.getElementById('pg-build');
-  const ask=document.getElementById('pg-ask');
-  const card=document.getElementById('c-pgrev');
-  if(!R){band.innerHTML='';build.innerHTML='';ask.innerHTML='';return;}
-  const P=R.P, sym=SYM;
-  document.getElementById('pg-title').textContent='Progress report';
-  document.getElementById('pg-sub').textContent=
-    'What has been built since '+mlabel(P.started)+', measured against the retention map, '
-    +'and what it is producing now. Every figure is this account’s own.';
-  const tiles=[
-    ['Flows live',R.flowsLive,'built and sending'],
-    ['Email revenue',kfmt(R.emailNow),'in '+mlabel(R.lastMonth)+', from '
-      +(R.flowFirst+R.campFirst?kfmt(R.flowFirst+R.campFirst):sym+'0')+' in '+mlabel(P.started)],
-    ['Share of store revenue',(R.share*100).toFixed(0)+'%',
-      'of all '+mlabel(R.lastMonth)+' revenue came through email'],
-    ['Framework steps built',R.built+'<small style="color:var(--muted)">/'+R.prescribed+'</small>',
-      'of the in-scope sequence'],
-  ];
-  band.innerHTML=tiles.map(t=>'<div><div class="k">'+t[0]+'</div><div class="v">'+t[1]
-    +'</div><div class="n">'+t[2]+'</div></div>').join('');
-
-  const chip=st=>st==='done'?'<span class="pg-chip done">Delivered</span>'
-    :st==='partly'?'<span class="pg-chip partly">Live, extending</span>'
-    :'<span class="pg-chip none">Not started</span>';
-  build.innerHTML=R.groups.map(g=>{
-    const done=g.slots.filter(x=>x.state==='done').length;
-    const live=g.slots.filter(x=>x.state!=='none').length;
-    return '<div class="pg-group"><div class="pg-ghead"><h3>'+esc(g.label)+'</h3>'
-      +'<span class="pg-gsum">'+live+' of '+g.slots.length+' live'
-      +(done<live?' · '+done+' at full depth':'')+'</span></div>'
-      +'<ul class="pg-list">'+g.slots.map(x=>
-        '<li class="'+x.state+'">'+chip(x.state)
-        +'<span class="pg-nm">'+esc(x.label)+'</span>'
-        +'<span class="pg-steps">'+(x.prescribed?x.built+' of '+x.prescribed+' emails':'—')+'</span>'
-        +'<span class="pg-flow">'+(x.lead?esc(x.lead.name):'<em>no flow yet</em>')+'</span>'
-        +'</li>').join('')+'</ul></div>';
-  }).join('')
-  +(R.na.length?'<p class="pg-na"><b>Not counted:</b> '
-     +Object.entries(P.not_applicable||{}).map(([k,v])=>
-        (PG_GROUPS[k]||k).toLowerCase()+' ('+esc(v)+')').join(', ')
-     +'. Those '+R.na.length+' framework slots are excluded from every count on this page, '
-     +'because a store without those products has nothing for them to do.</p>':'');
-
-  // revenue since the engagement started
-  card.querySelectorAll('svg,.tip,.legend').forEach(n=>n.remove());
-  const W=760,H=250,PL=58,PR=16,PT=20,PB=44,iw=W-PL-PR,ih=H-PT-PB;
-  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`});
-  const S=SERIES[ACTIVE]||{};
-  const vals=R.idx.map(i=>(S.flow[i]||0)+(S.camp[i]||0));
-  const mx=niceMax(Math.max.apply(null,vals.concat([1])));
-  const bw=Math.max(8,iw/R.idx.length-10), x=k=>PL+iw*(k+0.5)/R.idx.length;
-  const y=v=>PT+ih-(v/mx)*ih;
-  for(let k=0;k<=3;k++){const gv=mx*k/3;
-    svg.appendChild(el('line',{class:'gl',x1:PL,x2:W-PR,y1:y(gv),y2:y(gv)}));
-    const t=el('text',{class:'ax',x:PL-8,y:y(gv)+4,'text-anchor':'end'});
-    t.textContent=kfmt(gv);svg.appendChild(t);}
-  R.idx.forEach((i,k)=>{
-    const f=S.flow[i]||0, c=S.camp[i]||0;
-    const hf=ih*(f/mx), hc=ih*(c/mx);
-    svg.appendChild(el('rect',{x:x(k)-bw/2,y:PT+ih-hf,width:bw,height:Math.max(hf,0),rx:3,
-      fill:'var(--flow)'}));
-    svg.appendChild(el('rect',{x:x(k)-bw/2,y:PT+ih-hf-hc,width:bw,height:Math.max(hc,0),rx:3,
-      fill:'var(--camp)'}));
-    const t=el('text',{class:'ax',x:x(k),y:PT+ih+16,'text-anchor':'middle'});
-    t.textContent=mlabel(R.months[i]);svg.appendChild(t);
-    const hit=el('rect',{x:x(k)-iw/R.idx.length/2,y:PT,width:iw/R.idx.length,height:ih,fill:'transparent'});
-    hit.addEventListener('mousemove',e=>showTip(card,e,mlabel(R.months[i]),[
-      ['Flow revenue',f,'var(--flow)',kfmt],
-      ['Campaign revenue',c,'var(--camp)',kfmt],
-      ['Total email',f+c,'var(--ink)',kfmt],
-      ['Store revenue',S.store[i]||0,'var(--muted)',kfmt]]));
-    hit.addEventListener('mouseleave',()=>hideTip(card));
-    svg.appendChild(hit);
-  });
-  card.appendChild(svg);
-  const lg=alegend(['Flows','var(--flow)'],['Campaigns','var(--camp)']);
-  lg.style.margin='4px 0 2px';card.appendChild(lg);
-  document.getElementById('pgrev-cap').textContent=
-    'Klaviyo-attributed revenue by month since '+mlabel(P.started)+'. Flows are the build; '
-    +'campaigns are the weekly sends running on top of them.';
-
-  // the ask
-  const ret=P.retainer||{};
-  const money=v=>sym+Math.round(v).toLocaleString();
-  if(P.ask==='rescope'){
-    const campMonths=R.idx.filter(i=>(S.csends[i]||0)>0);
-    const campAvg=campMonths.length
-      ? campMonths.reduce((a,i)=>a+(S.camp[i]||0),0)/campMonths.length : 0;
-    const sendAvg=campMonths.length
-      ? campMonths.reduce((a,i)=>a+(S.csends[i]||0),0)/campMonths.length : 0;
-    ask.innerHTML='<div class="pg-ask"><h3>Where we’d like to take it from here</h3>'
-      +'<p>The build phase has done its job. '+R.flowsLive+' flows are live and, in '
-      +mlabel(R.lastMonth)+', flows alone returned '+money(R.flowNow)+' against '
-      +(R.flowFirst?money(R.flowFirst):'nothing')+' in '+mlabel(P.started)+'. '
-      +'Every flow in the core framework is running, and '
-      +R.done+' of the '+R.slots.length+' in-scope sequences are built to the full depth the '
-      +'map prescribes.</p>'
-      +'<p>The '+money(ret.amount||0)+' a month that funded that build finishes on '
-      +pgDate(ret.ends)+'. Rather than end it, we’d like to point the same budget at the '
-      +'weekly campaigns we’ve been running alongside the build. Over the months they’ve '
-      +'been sending, campaigns have averaged '+money(campAvg)+' a month off about '
-      +sendAvg.toFixed(0)+' sends a month — and that is a program only '
-      +campMonths.length+' months old, at a send rate we have deliberately kept low while the '
-      +'flows were being built. It is the part of the account with the most room left in it.</p>'
-      +'</div>'+pgMore(R);
-  }else{ask.innerHTML='';}
-}
-// mlabel already exists for the month axes; only the long date is new here
-function pgDate(d){
-  if(!d)return '';
-  const M=['January','February','March','April','May','June','July','August',
-           'September','October','November','December'];
-  const p=String(d).split('-');
-  return p.length>2?(+p[2])+' '+M[+p[1]-1]+' '+p[0]:d;
-}
-
 const FMIX_PAL=['var(--flow)','var(--camp)','var(--aqua)','var(--good)','#7c6cf0','#e2749b','#4bb3a6','#c9922a','#8a94a6'];
 function renderFlowMix(){const{cur}=windows();const cc=document.getElementById('c-flowmix');if(!cc)return;
   cc.querySelectorAll('svg,.tip').forEach(n=>n.remove());
@@ -4121,11 +3840,9 @@ function wireControls(){
     document.getElementById('view-audit').hidden=true;
     document.getElementById('view-reports').hidden=v!=='reports';
     document.getElementById('view-map').hidden=v!=='map';
-    document.getElementById('view-progress').hidden=v!=='progress';
     if(v!=='map'&&RM_FULL)rmFullscreen(false);
     if(v==='reports'){REPORT_OPEN=null;renderReports();}
     if(v==='map'){renderMap();}
-    if(v==='progress'){renderProgress();}
     updateVidBtn();});
   document.getElementById('boardMonth').addEventListener('change',e=>{const reps=REPORTS[ACTIVE]||[];REPORT=reps[+e.target.value]||reps[0]||null;renderBoard();});
   document.getElementById('curTog').addEventListener('click',e=>{inProgress=!inProgress;e.currentTarget.setAttribute('aria-pressed',inProgress);applyMode();renderDash();});
@@ -5309,7 +5026,10 @@ function rmDraw(){
       // name + subject
       const tx=p.x+52, nmR=px0-8;
       rmText(g,tx,p.y+26,rmTrunc(n.name||(isSms?'SMS':'Email'),Math.max(50,nmR-tx),13,650),13,650,P.ink,1,'-.005em','start');
-      rmText(g,tx,p.y+41,rmTrunc(n.subject||n.preview||'',R0-tx,11,400),11,400,P.dim,1,null,'start');
+      // clear the status pill, same as the name above it. Truncating to the full
+      // card width let a long subject run under the LIVE chip.
+      rmText(g,tx,p.y+42,rmTrunc(n.subject||n.preview||'',Math.max(50,nmR-tx),11,400),
+             11,400,P.dim,1,null,'start');
       g.appendChild(sv('line',{x1:p.x,y1:p.y+52,x2:p.x+p.w,y2:p.y+52,stroke:P.rule,'stroke-width':1}));
 
       if(RM_PERF){

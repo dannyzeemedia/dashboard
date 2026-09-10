@@ -5026,7 +5026,10 @@ function rmDraw(){
       // name + subject
       const tx=p.x+52, nmR=px0-8;
       rmText(g,tx,p.y+26,rmTrunc(n.name||(isSms?'SMS':'Email'),Math.max(50,nmR-tx),13,650),13,650,P.ink,1,'-.005em','start');
-      rmText(g,tx,p.y+41,rmTrunc(n.subject||n.preview||'',R0-tx,11,400),11,400,P.dim,1,null,'start');
+      // clear the status pill, same as the name above it. Truncating to the full
+      // card width let a long subject run under the LIVE chip.
+      rmText(g,tx,p.y+42,rmTrunc(n.subject||n.preview||'',Math.max(50,nmR-tx),11,400),
+             11,400,P.dim,1,null,'start');
       g.appendChild(sv('line',{x1:p.x,y1:p.y+52,x2:p.x+p.w,y2:p.y+52,stroke:P.rule,'stroke-width':1}));
 
       if(RM_PERF){
