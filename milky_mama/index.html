@@ -3977,31 +3977,41 @@ function renderRightSize(){
 
   // ---- the verdict ---------------------------------------------------------
   const net=R.marginalRev-R.marginalCost;
-  const dir=R.partial<0?'falls':'rises';
+  // Diminishing returns is not negative returns, and running those together is
+  // what made this card tell Bomber to send less. Danny: "sending less, IMO,
+  // will never result in more revenue... if you drop it back to 2 a week,
+  // you've diminished your audience with actionability." He is right, and the
+  // fleet agrees — total weekly revenue rises with send count on 10 of 12
+  // accounts. So the two facts are now stated as two facts: what the WEEK
+  // earns decides the cadence, and what each SEND earns is the diminishing
+  // return alongside it.
+  const lv=R.levels.filter(l=>l.weeks>=3);
+  const topRev=lv.length?lv.reduce((a,b)=>b.revenue>a.revenue?b:a):null;
   let head;
-  if(R.flat){
-    head=`<b>Sending more has not cost you anything per campaign.</b> Across `
-      +`${R.weeks.length} weeks between ${R.lo} and ${R.hi} campaigns, once the `
-      +`account's own growth is taken out, how much each campaign earned barely `
-      +`moved with how many went out that week (${R.partial>=0?'+':''}`
-      +`${R.partial.toFixed(2)}, where anything under 0.30 either way means no `
-      +`effect). The unsubscribe rate did not move either `
-      +`(${R.partialUn>=0?'+':''}${R.partialUn.toFixed(2)}). `
-      +`So the next campaign should earn about what the current ones do: `
-      +`<b>${sym}${Math.round(R.marginalRev).toLocaleString()}</b> against about `
-      +`<b>${sym}${Math.round(R.marginalCost).toLocaleString()}</b> of subscribers `
-      +`burnt, ${net>=0?'a net':'a net loss of'} `
-      +`<b>${sym}${Math.round(Math.abs(net)).toLocaleString()}</b> a week`
-      +`${net>=0?' in favour of sending it':''}.`;
-  }else{
-    head=`<b>Each campaign earns ${dir} as you send more.</b> With the account's `
-      +`own growth taken out, revenue per campaign moves with weekly send volume `
-      +`at ${R.partial>=0?'+':''}${R.partial.toFixed(2)} across ${R.weeks.length} `
-      +`weeks. The next campaign is worth about `
-      +`<b>${sym}${Math.round(R.marginalRev).toLocaleString()}</b> against about `
-      +`<b>${sym}${Math.round(R.marginalCost).toLocaleString()}</b> of subscribers `
-      +`burnt`+(R.partial<0?', and that gap narrows with every send you add':'')+`.`;
+  head=`<b>More campaigns in a week has meant more revenue that week, `
+    +`every step of the way.</b> `;
+  if(topRev){
+    head+=`Across ${R.weeks.length} weeks: `
+      +lv.map(l=>`${l.n} a week earned ${kfmt(l.revenue)}`).join(', ')
+      +`. `;
   }
+  if(R.flat){
+    head+=`And each individual campaign held its value as volume rose `
+      +`(${R.partial>=0?'+':''}${R.partial.toFixed(2)} once the account's own `
+      +`growth is taken out, where anything under 0.30 either way means no `
+      +`measurable effect), so nothing is being cannibalised at this cadence.`;
+  }else{
+    head+=`Each individual campaign does earn less as volume rises `
+      +`(${R.partial.toFixed(2)} once the account's own growth is taken out) — `
+      +`that is diminishing returns, not negative returns. The extra send still `
+      +`adds to the week; it just adds less than the one before it.`;
+  }
+  head+=` The next campaign is worth about `
+    +`<b>${sym}${Math.round(R.marginalRev).toLocaleString()}</b> against about `
+    +`<b>${sym}${Math.round(R.marginalCost).toLocaleString()}</b> of subscribers `
+    +`burnt, ${net>=0?'a net':'a net loss of'} `
+    +`<b>${sym}${Math.round(Math.abs(net)).toLocaleString()}</b> a week`
+    +`${net>=0?' in favour of sending it':''}.`;
   head+=` <span class="rs-note">${R.resend?`Resends to non-openers are left out of `
     +`that count and judged separately: they are the same creative going back out, `
     +`not another campaign. `:''}You are sending about ${R.n0.toFixed(1)} a week, `
@@ -4028,7 +4038,9 @@ function renderRightSize(){
       +' campaigns a week</div><div class="rs-call-b">'
       +'from '+A.now.toFixed(1)+' — worth about <b>'+money(A.perMonth)
       +' a month</b> more</div>'
-      +'<div class="rs-call-c">Sending less earns more here: in the '+A.to.weeks
+      +'<div class="rs-call-c">This is the rare case where sending less earned '
+      +'more, so treat it as a flag to check rather than an instruction: in the '
+      +A.to.weeks
       +' weeks at '+A.to.n+' a week the account made '+money(A.to.revenue)
       +' a week, against '+money(A.curRev)+' at the cadence it keeps now. The extra '
       +'send takes more off the others than it brings in.</div></div>';
