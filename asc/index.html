@@ -982,6 +982,31 @@
     background:color-mix(in srgb,var(--warn) 8%,transparent);color:var(--ink)}
   .rm-re.ice{border-color:color-mix(in srgb,var(--ice-no) 45%,var(--border));
     background:color-mix(in srgb,var(--ice-no) 8%,transparent);color:var(--ink2)}
+  /* ---- Live tests ---- */
+  .lt-tab{width:100%;border-collapse:collapse;font-size:12px;
+    font-variant-numeric:tabular-nums}
+  .lt-tab th{text-align:left;font-size:9px;font-weight:800;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--muted);padding:0 10px 7px 0;
+    border-bottom:1px solid var(--border)}
+  .lt-tab td{padding:9px 10px 9px 0;color:var(--ink2);vertical-align:top;
+    border-bottom:1px solid color-mix(in srgb,var(--border) 55%,transparent)}
+  .lt-tab tr:last-child td{border-bottom:0}
+  .lt-fl{color:var(--muted);font-size:11.5px;max-width:190px}
+  .lt-ms{color:var(--ink);font-weight:600;max-width:210px}
+  .lt-dt{display:block;font-weight:400;font-size:10.5px;color:var(--muted);margin-top:2px}
+  .lt-ar{font-size:11.5px;white-space:nowrap}
+  .lt-n{white-space:nowrap}
+  .lt-win{color:var(--good);font-weight:800}
+  .lt-lk a{text-decoration:none;font-size:13px;color:var(--flow)}
+  .lt-st{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.03em;
+    padding:3px 9px;border-radius:20px;white-space:nowrap}
+  .lt-st.conclusive{color:var(--good);background:color-mix(in srgb,var(--good) 13%,transparent)}
+  .lt-st.leading{color:var(--flow);background:color-mix(in srgb,var(--flow) 12%,transparent)}
+  .lt-st.slow{color:var(--warn);background:color-mix(in srgb,var(--warn) 15%,transparent)}
+  .lt-st.early{color:var(--muted);background:color-mix(in srgb,var(--muted) 13%,transparent)}
+  .lt-st.idle{color:var(--crit);background:color-mix(in srgb,var(--crit) 11%,transparent)}
+  .lt-foot{font-size:11px;line-height:1.6;color:var(--muted);margin:14px 0 0;
+    padding-top:11px;border-top:1px solid var(--border)}
   .rm-fcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
   .rm-fh{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
     color:var(--muted);margin-bottom:8px}
@@ -1123,6 +1148,22 @@
   .rm-pop .preentry{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
     font-size:13px;color:var(--ink);margin-bottom:2px}
   .rm-pop .ptag.i{color:var(--ice-no);background:color-mix(in srgb,var(--ice-no) 13%,transparent)}
+  .rm-pop .abt{margin:9px 0 0}
+  .rm-pop .abtab{width:100%;border-collapse:collapse;font-size:11px;
+    font-variant-numeric:tabular-nums}
+  .rm-pop .abtab th{text-align:right;font-size:9px;font-weight:800;letter-spacing:.05em;
+    text-transform:uppercase;color:var(--muted);padding:0 0 5px;border-bottom:1px solid var(--border)}
+  .rm-pop .abtab th:first-child,.rm-pop .abtab td:first-child{text-align:left}
+  .rm-pop .abtab td{text-align:right;padding:5px 0;color:var(--ink2);
+    border-bottom:1px solid color-mix(in srgb,var(--border) 55%,transparent)}
+  .rm-pop .abtab td.win{color:var(--good);font-weight:800}
+  .rm-pop .abv{font-size:11.5px;line-height:1.55;margin:9px 0 0;padding:8px 10px;
+    border-radius:8px;color:var(--ink)}
+  .rm-pop .abv.conclusive{background:color-mix(in srgb,var(--good) 12%,transparent)}
+  .rm-pop .abv.leading{background:color-mix(in srgb,var(--flow) 10%,transparent)}
+  .rm-pop .abv.slow{background:color-mix(in srgb,var(--warn) 13%,transparent)}
+  .rm-pop .abv.early{background:color-mix(in srgb,var(--muted) 11%,transparent);
+    color:var(--ink2)}
   .rm-pop .ptag.c{color:var(--crit);background:color-mix(in srgb,var(--crit) 13%,transparent)}
   .rm-pop .pmix{list-style:none;margin:0 0 13px;padding:0;display:flex;
     flex-direction:column;gap:7px;font-size:12px;line-height:1.45}
@@ -4154,6 +4195,65 @@ function rmFlashChanges(prev){
   },360);
   return n;
 }
+// ---- Live tests -----------------------------------------------------------
+// Every A/B test the account is running, in one list: which flow and message it
+// sits on, what each arm has actually done, and how close it is to a call.
+//
+// Klaviyo picks the winner on unique clicks — all 280 live tests across the
+// fleet are set that way — so order rate and revenue per recipient sit beside
+// it. And the conclusion column says "too early" rather than inventing a date:
+// with no orders on an arm there is nothing to project from.
+function rmLiveTests(M){
+  const rows=[];
+  (M.flows||[]).forEach(f=>(f.nodes||[]).forEach(n=>{
+    const a=n.ab; if(!a)return;
+    rows.push({flow:f.name,flowId:f.id,node:n,ab:a,
+               live:a.experiment_status==='live'});
+  }));
+  if(!rows.length)return '';
+  rows.sort((x,y)=>(y.live-x.live)||x.flow.localeCompare(y.flow));
+  const nLive=rows.filter(r=>r.live).length;
+  const body=rows.map(r=>{
+    const t=(r.ab.test)||null, st=t?t.state:(r.live?'early':'idle');
+    const arms=(t&&t.arms)||[];
+    const cell=(v,win)=>'<span'+(win?' class="lt-win"':'')+'>'+v+'</span>';
+    const armTxt=arms.length
+      ? arms.map(v=>shortArm(v.name).replace('Variation ','')+' '
+          +(v.delivered||0).toLocaleString()).join(' · ')
+      : '—';
+    const por=arms.length?arms.map(v=>cell(v.por.toFixed(2)+'%',
+                                  t&&t.por_leader===v.name)).join(' / '):'—';
+    const rpr=arms.length?arms.map(v=>cell(SYM+v.rpr.toFixed(3),
+                                  t&&t.rpr_leader===v.name)).join(' / '):'—';
+    const label=!r.live?'Not running'
+      :st==='conclusive'?'Conclusive · '+shortArm(t.winner)
+      :st==='leading'?shortArm(t.leader)+' ahead · ~'+t.days_left+'d to 90%'
+      :st==='slow'?shortArm(t.leader)+' ahead · not on this traffic'
+      :'Too early to tell';
+    const cls=!r.live?'idle':st;
+    return '<tr><td class="lt-fl">'+esc(r.flow)+'</td>'
+      +'<td class="lt-ms">'+esc(r.node.name||'—')
+      +(r.ab.started?'<span class="lt-dt">started '+esc(String(r.ab.started).slice(0,10))
+        +(t&&t.days_in?' · '+t.days_in+'d':'')+'</span>':'')+'</td>'
+      +'<td class="lt-ar">'+esc(armTxt)+'</td>'
+      +'<td class="lt-n">'+por+'</td><td class="lt-n">'+rpr+'</td>'
+      +'<td><span class="lt-st '+cls+'">'+esc(label)+'</span></td>'
+      +'<td class="lt-lk">'+(r.node.msg_id
+        ?'<a href="https://www.klaviyo.com/email/flow/'+encodeURIComponent(r.node.msg_id)
+         +'/reports/variations" target="_blank" rel="noopener">↗</a>':'')+'</td></tr>';
+  }).join('');
+  const inner='<table class="lt-tab"><thead><tr><th>Flow</th><th>Message</th>'
+    +'<th>Arms · sent</th><th>Order rate</th><th>Rev / recip</th>'
+    +'<th>Where it is at</th><th></th></tr></thead><tbody>'+body+'</tbody></table>'
+    +'<p class="lt-foot">Klaviyo is set to pick the winner on <b>unique clicks</b> on '
+    +'every one of these. Order rate and revenue per recipient are shown so you can see '
+    +'whether the click winner is also the money winner. “Conclusive” means 90% '
+    +'confidence on order rate at the sends each arm has had, not statistical '
+    +'significance on clicks.</p>';
+  return rmGroupHtml('livetests','Live tests',
+    nLive+' running'+(rows.length>nLive?' · '+(rows.length-nLive)+' built but stopped':''),
+    inner,false);
+}
 function rmFilterCheck(M){
   const orMark=t=>esc(t).replace(/ OR /g,' <span class="rm-join or">OR</span> ');
   // Order follows the retention map itself — welcome, site, browse, cart,
@@ -4416,7 +4516,8 @@ function renderMap(){
       return rmGroupHtml(g[0],g[1],built+' of '+rows.length+' built',
         rows.map(c=>rmRow(c,byId)).join(''));
     }).join('')
-    +rmFilterCheck(M);
+    +rmFilterCheck(M)
+    +rmLiveTests(M);
   // headings collapse, and remember it per client
   document.querySelectorAll('#map-coverage .rm-glab').forEach(b=>
     b.addEventListener('click',()=>{
@@ -5269,6 +5370,56 @@ async function rmIceSend(node,flow,lines,reason,off,btn){
   }finally{ RM_ICING=false; }
 }
 
+// Where a live test has actually got to, on the money metrics. Klaviyo picks
+// its winner on unique clicks (all 280 live tests on the fleet are set that
+// way), so Placed Order Rate and revenue per recipient are shown alongside it
+// rather than instead of it.
+//
+// The conclusion line is deliberately blunt about not knowing: with no orders
+// on an arm there is nothing to project from, and it says "too early to tell"
+// instead of a days number. Estimating from the parent message's historical
+// order rate produced "778 days" for a test two days old with zero orders,
+// which is a fact about a different thing entirely.
+function abTestBlock(a,n){
+  const t=a.test;
+  if(!t)return '<p class="pnote">Per-arm numbers arrive with the next full sync '
+    +'of this account.</p>';
+  const arms=t.arms||[];
+  if(!arms.length)return '<p class="pnote">The arms have not reported yet.</p>';
+  const lead=(k,nm)=>nm&&arms.length>1?(nm===k?' <b>leads</b>':''):'';
+  const rows=arms.map(v=>{
+    const nm=(v.name||'').replace(/^.*Variation\s*/i,'Variation ');
+    return '<tr><td>'+esc(nm)+'</td>'
+      +'<td>'+(v.delivered||0).toLocaleString()+'</td>'
+      +'<td>'+(v.orders||0)+'</td>'
+      +'<td'+(t.por_leader===v.name?' class="win"':'')+'>'+(v.por||0).toFixed(2)+'%</td>'
+      // rmMoney rounds to whole units, which turns a 0.995 RPR into 1
+      +'<td'+(t.rpr_leader===v.name?' class="win"':'')+'>'+SYM+(v.rpr||0).toFixed(3)+'</td>'
+      +'<td>'+(v.click||0).toFixed(1)+'%</td></tr>';}).join('');
+  const st=t.state;
+  const verdict=st==='conclusive'
+      ? '<b>Conclusive at 90%.</b> '+esc(shortArm(t.winner))+' wins on order rate.'
+    :st==='leading'
+      ? '<b>'+esc(shortArm(t.leader))+' is ahead.</b> About '+t.days_left+' more day'
+        +(t.days_left===1?'':'s')+' at '+t.per_day+' recipients an arm a day before that '
+        +'is conclusive at 90% ('+t.have_per_arm.toLocaleString()+' of '
+        +t.need_per_arm.toLocaleString()+' an arm).'
+    :st==='slow'
+      ? '<b>'+esc(shortArm(t.leader))+' is ahead, but not conclusively.</b> At '+t.per_day
+        +' recipients an arm a day this difference needs '+t.need_per_arm.toLocaleString()
+        +' an arm, which this step will not reach in any useful time. Judge it on clicks, '
+        +'or test the whole sequence at once so the traffic pools.'
+      : '<b>Too early to tell.</b> '+esc(t.why||'not enough data yet')
+        +(t.days_in?', '+t.days_in+' days in':'')+'.';
+  return '<div class="abt"><table class="abtab"><thead><tr><th>Arm</th><th>Sent</th>'
+    +'<th>Orders</th><th>Order rate</th><th>Rev / recip</th><th>Clicks</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody></table>'
+    +'<p class="abv '+st+'">'+verdict+'</p>'
+    +(n.msg_id?'<p class="pnote"><a href="https://www.klaviyo.com/email/flow/'
+      +encodeURIComponent(n.msg_id)+'/reports/variations" target="_blank" '
+      +'rel="noopener">↗ Test overview in Klaviyo</a></p>':'')+'</div>';
+}
+const shortArm=nm=>(nm||'').replace(/^.*Variation\s*/i,'Variation ')||'The leader';
 function rmPopHtml(n,flow){
   const k=rmKind(n);
   const why=rmWhy(n);
@@ -5480,7 +5631,7 @@ function rmPopHtml(n,flow){
       +(a.started?', started '+esc(String(a.started).slice(0,10)):', never started')+'</div>'
       +'<ul class="plist">'+(a.variations||[]).map(v=>'<li>'+esc(v.name||'Variation')
         +(v.share!=null?' — '+Math.round(v.share*100)+'%':'')+', '+esc(v.status||'')+'</li>').join('')
-      +'</ul>';
+      +'</ul>'+abTestBlock(a,n);
   }
   const mf=n.msg_filters||[];
   const mfHtml=mf.length
