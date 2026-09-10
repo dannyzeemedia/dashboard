@@ -1007,6 +1007,21 @@
   .lt-st.idle{color:var(--crit);background:color-mix(in srgb,var(--crit) 11%,transparent)}
   .lt-foot{font-size:11px;line-height:1.6;color:var(--muted);margin:14px 0 0;
     padding-top:11px;border-top:1px solid var(--border)}
+  /* progress report: the delivery record, drawn */
+  .pgd-row{display:grid;grid-template-columns:132px 1fr 62px 104px;gap:14px;
+    align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
+  .pgd-nm{font-size:12px;font-weight:700;color:var(--ink)}
+  .pgd-pips{display:flex;gap:4px;flex-wrap:wrap}
+  .pgd-pip{width:15px;height:15px;border-radius:4px;background:var(--flow);display:inline-block}
+  .pgd-pip.off{background:color-mix(in srgb,var(--ink) 10%,transparent)}
+  .pgd-ct{font-size:11.5px;font-weight:700;color:var(--good);text-align:right;
+    font-variant-numeric:tabular-nums}
+  .pgd-dt{font-size:10.5px;color:var(--muted);text-align:right;
+    font-variant-numeric:tabular-nums}
+  .pgd-foot{display:flex;justify-content:space-between;align-items:baseline;margin:11px 0 0}
+  .pgd-foot b{font-size:13px}
+  .pgd-foot span{font-size:11.5px;color:var(--muted)}
+  @media print{.pgd-pip{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
   .rm-fcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
   .rm-fh{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
     color:var(--muted);margin-bottom:8px}
@@ -2225,8 +2240,7 @@ function renderReports(){
     const oneoff=[];
     if(aud)oneoff.push(card(aud.title||'Account audit', aud.date_range||'', aud.summary||'One-off account audit of the email & SMS program.', ' data-kind="audit"'));
     list.forEach(r=>oneoff.push(card(r.title, r.date_range, r.summary,
-      r.href ? ' data-kind="link" data-href="'+esc(r.href)+'"'
-             : ' data-kind="custom" data-id="'+esc(r.id)+'"')));
+      ' data-kind="custom" data-id="'+esc(r.id)+'"')));
     if(oneoff.length){
       html+='<div class="rep-group">One-Off</div><div class="rep-list">'+oneoff.join('')+'</div>';
     }
@@ -2234,9 +2248,6 @@ function renderReports(){
     body.querySelectorAll('.rep-card').forEach(c=>c.addEventListener('click',()=>{
       if(c.dataset.kind==='monthly'){openMonthlyReport();}
       else if(c.dataset.kind==='audit'){openAudit();}
-      // a report that is its own page (rendered by the pipeline, prints to PDF
-      // from the browser) rather than a block-rendered one
-      else if(c.dataset.kind==='link'){window.open(c.dataset.href,'_blank','noopener');}
       else{REPORT_OPEN=c.dataset.id;renderReports();window.scrollTo({top:0});}
     }));
     return;
@@ -2291,6 +2302,65 @@ function repChart(host,name,data){
   const svg=(w,h)=>{const s=el('svg',{viewBox:'0 0 '+w+' '+h,width:'100%'});s.style.display='block';s.style.maxWidth=w+'px';s.style.margin='0 auto';return s;};
   const ON='var(--flow)',OFF='var(--camp)',ACC='var(--aqua)';
   const money=v=>'A$'+Math.round(v).toLocaleString();
+  // ---- progress report ----
+  // Delivery record: one square per email that was scoped, filled when it is
+  // live. Drawn rather than described, so ten full rows read at a glance.
+  if(name==='pgdelivery'){
+    const rows=data.rows||[];
+    const wrapEl=document.createElement('div');wrapEl.className='pgd';
+    wrapEl.innerHTML=rows.map(r=>{
+      const pips=Array.from({length:r.promised},(_,i)=>
+        '<i class="pgd-pip'+(i<r.delivered?'':' off')+'"></i>').join('');
+      return '<div class="pgd-row"><span class="pgd-nm">'+esc(r.flow)+'</span>'
+        +'<span class="pgd-pips">'+pips+'</span>'
+        +'<span class="pgd-ct">'+r.delivered+' / '+r.promised+'</span>'
+        +'<span class="pgd-dt">'+esc(r.span||'')+'</span></div>';}).join('')
+      +'<div class="pgd-foot"><b>'+(data.delivered||0)+' of '+(data.promised||0)
+      +' emails live · '+(data.promised?Math.round(data.delivered/data.promised*100):0)
+      +'%</b><span>one square per email that was scoped</span></div>';
+    host.appendChild(wrapEl);return;
+  }
+  // Flows beside campaigns, not stacked, over a soft area of the two combined.
+  if(name==='pgrev'){
+    const ms=data.months||[], fl=data.flow||[], cp=data.camp||[];
+    const W=680,H=290,L=62,R=16,PT=24,PB=42,iw=W-L-R,ih=H-PT-PB;
+    const tot=ms.map((_,i)=>(fl[i]||0)+(cp[i]||0));
+    const top=niceMax(Math.max.apply(null,tot.concat([1])));
+    const nb=ms.length, band=iw/nb;
+    const y=v=>PT+ih-(Math.max(0,v)/top)*ih, xc=k=>L+band*(k+0.5);
+    const sy=svg(W,H);
+    for(let g=0;g<=3;g++){const gv=top*g/3;
+      sy.appendChild(el('line',{x1:L,x2:W-R,y1:y(gv),y2:y(gv),stroke:'var(--border)','stroke-width':1}));
+      const t=el('text',{x:L-8,y:y(gv)+3,'text-anchor':'end',fill:'var(--muted)',
+        'font-size':10.5,'font-family':'system-ui'});t.textContent=kfmt(gv);sy.appendChild(t);}
+    const pts=ms.map((_,k)=>xc(k).toFixed(1)+','+y(tot[k]).toFixed(1)).join(' ');
+    sy.appendChild(el('polygon',{points:xc(0).toFixed(1)+','+(PT+ih)+' '+pts+' '
+      +xc(nb-1).toFixed(1)+','+(PT+ih),fill:'var(--flow)','fill-opacity':0.14}));
+    sy.appendChild(el('polyline',{points:pts,fill:'none',stroke:'var(--flow)',
+      'stroke-width':1.5,'stroke-opacity':0.5}));
+    const bw=Math.min(24,band*0.28);
+    ms.forEach((m,k)=>{
+      [[fl[k]||0,'var(--flow)',-bw/2-2],[cp[k]||0,'var(--camp)',bw/2+2]].forEach(([v,c,off])=>{
+        const hh=ih*(v/top);
+        sy.appendChild(el('rect',{x:xc(k)+off-bw/2,y:PT+ih-hh,width:bw,
+          height:Math.max(hh,0.6),rx:3,fill:c}));});
+      const t=el('text',{x:xc(k),y:PT+ih+15,'text-anchor':'middle',fill:'var(--muted)',
+        'font-size':10,'font-family':'system-ui'});t.textContent=m;sy.appendChild(t);
+      const tv=el('text',{x:xc(k),y:y(tot[k])-7,'text-anchor':'middle',fill:'var(--ink2)',
+        'font-size':10,'font-weight':700,'font-family':'system-ui'});
+      tv.textContent=kfmt(tot[k]);sy.appendChild(tv);
+      const hit=el('rect',{x:L+band*k,y:PT,width:band,height:ih,fill:'transparent'});
+      hit.addEventListener('mousemove',e=>showTip(host,e,m,[
+        ['Flow revenue',fl[k]||0,'var(--flow)',kfmt],
+        ['Campaign revenue',cp[k]||0,'var(--camp)',kfmt],
+        ['Total email',tot[k],'var(--ink)',kfmt]]));
+      hit.addEventListener('mouseleave',()=>hideTip(host));
+      sy.appendChild(hit);});
+    host.appendChild(sy);
+    const lg=alegend(['Automated flows','var(--flow)'],['Campaigns','var(--camp)']);
+    lg.style.margin='6px 0 0';host.appendChild(lg);
+    return;
+  }
   if(name==='revenue'){
     const W=680,H=300,L=64,R=20,PT=24,PB=44,iw=W-L-R,ih=H-PT-PB;
     const vals=[['SMS on ✓',data.on,ON],['SMS off ✗',data.off,OFF]];const mx=Math.max(data.on,data.off)*1.15;
