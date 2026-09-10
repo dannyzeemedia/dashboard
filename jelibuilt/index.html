@@ -1022,6 +1022,25 @@
   .pgd-foot b{font-size:13px}
   .pgd-foot span{font-size:11.5px;color:var(--muted)}
   @media print{.pgd-pip{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  /* the right-size call to action */
+  .rs-call{margin:0 0 14px;padding:16px 18px;border-radius:12px;
+    border:1px solid var(--border);border-left:4px solid var(--flow);
+    background:color-mix(in srgb,var(--flow) 6%,transparent)}
+  .rs-call.go{border-left-color:var(--good);
+    background:color-mix(in srgb,var(--good) 7%,transparent)}
+  .rs-call.back{border-left-color:var(--warn);
+    background:color-mix(in srgb,var(--warn) 8%,transparent)}
+  .rs-call.hold{border-left-color:var(--muted);
+    background:color-mix(in srgb,var(--muted) 7%,transparent)}
+  .rs-call-a{font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--ink);
+    line-height:1.25}
+  .rs-call-b{font-size:14px;color:var(--ink2);margin-top:5px}
+  .rs-call-c{font-size:12.5px;line-height:1.6;color:var(--ink2);margin-top:10px;
+    padding-top:10px;border-top:1px solid color-mix(in srgb,var(--border) 70%,transparent)}
+  .rs-how{font-size:11.5px;line-height:1.6;color:var(--ink2);margin:10px 0 0;
+    padding:10px 12px;border-radius:9px;background:var(--surface-2);
+    border:1px solid var(--border)}
+  .rs-how b{color:var(--ink)}
   .rm-fcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
   .rm-fh{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
     color:var(--muted);margin-bottom:8px}
@@ -3723,9 +3742,55 @@ function rightSize(){
   const subWeekly=rprNow*now;
   const marginalCost=unsPerSend*subWeekly*RS_WEEKS_PER_H*RS_CHURN_VALUE;
   const flat=Math.abs(partial)<RS_STRONG;
+  const flatOf=v=>Math.abs(v)<RS_STRONG;
+  const rpsNowOf=a=>a.reduce((x,w)=>x+w.rev_per_send,0)/a.length;
   const spread=levels.length>1
     ?(levels[levels.length-1].n/levels[0].n-1):0;
-  return {weeks:wk,peaks:peaks,levels:levels,n0:now,
+  // ---- the recommendation ------------------------------------------------
+  // Danny: "there is no legit recommendation. just a reading of what's going
+  // on." Right. So this turns the finding into a call.
+  //
+  // Three rules keep it honest, all learned from getting it wrong earlier:
+  //   * compare LEVEL TO LEVEL, never a level against the last few weeks. Both
+  //     averages then span the same year, so the account's growth cancels out.
+  //     Comparing a cadence's all-time average against recent weeks made four
+  //     accounts look like they should send LESS purely because the list is
+  //     bigger now than it was.
+  //   * a cadence needs 4+ weeks behind it to be recommended. Dr Woof's best
+  //     week-revenue sits at 7 sends on 3 weeks; recommending a jump from 2 to
+  //     7 off that is the "leap off one busy month" mistake.
+  //   * cap the move at 2 sends a week. It is a step you can take and re-read,
+  //     not a destination.
+  const MINW=4, STEP=2;
+  const solid={};
+  levels.forEach(l=>{if(l.weeks>=MINW)solid[l.n]=l;});
+  const nr=Math.round(now);
+  const keys=Object.keys(solid).map(Number);
+  let advice=null;
+  if(keys.length){
+    const near=v=>solid[keys.reduce((a,b)=>Math.abs(b-v)<Math.abs(a-v)?b:a)];
+    // What the account earns at its CURRENT MIX, on the same year's evidence:
+    // the last eight weeks each priced at its own cadence's average. Rounding
+    // the mean cadence to an integer was wrong — Tipaw averages 2.5 a week, and
+    // rounding to 3 reported "hold at 3" while it was actually leaving the gap
+    // between 2 and 3 on the table.
+    const curRev=last8.reduce((a,w)=>a+(solid[w.sends]||near(w.sends)).revenue,0)
+                 /last8.length;
+    const cand=keys.filter(k=>Math.abs(k-now)<=STEP).map(k=>solid[k]);
+    const best=cand.reduce((a,b)=>b.revenue>a.revenue?b:a,cand[0]);
+    const perMonth=(best.revenue-curRev)*4.33;
+    const hi=Math.max.apply(null,sends);
+    const gap=best.n-now;
+    if(gap>0.2&&perMonth>0)
+      advice={kind:'more',to:best,now:now,curRev:curRev,perMonth:perMonth};
+    else if(gap<-0.2&&perMonth>0)
+      advice={kind:'less',to:best,now:now,curRev:curRev,perMonth:perMonth};
+    else if(flatOf(partial)&&now>=hi-0.2)
+      advice={kind:'test',hi:hi,now:now,
+              perMonth:rpsNowOf(last8)*4.33};      // one extra send a week
+    else advice={kind:'hold',to:best,now:now,curRev:curRev};
+  }
+  return {advice:advice,weeks:wk,peaks:peaks,levels:levels,n0:now,
     rpsNow:rpsNow,recNow:recNow,unNow:unNow,rprNow:rprNow,
     marginalRev:rpsNow,marginalCost:marginalCost,
     partial:partial,partialUn:partialUn,rTime:rTime,flat:flat,spread:spread,
@@ -3821,8 +3886,10 @@ function renderRightSize(){
     svg.appendChild(el('line',{class:'gl',x1:ox+PL,x2:ox+PW-PR,y1:y2(gv),y2:y2(gv)}));
     const t=el('text',{class:'ax',x:ox+PL-7,y:y2(gv)+4,'text-anchor':'end'});
     t.textContent=kfmt(gv);svg.appendChild(t);}
+  // Palette, not semantic red. --crit made this bar the same alarm colour on
+  // every account regardless of brand; --aqua is the client's own third colour.
   const bars=[['It earns',R.marginalRev,'var(--camp)'],
-              ['It costs',R.marginalCost,'var(--crit)']];
+              ['It costs',R.marginalCost,'var(--aqua)']];
   const bw2=Math.min(96,(PW-PL-PR)/2*0.62);
   bars.forEach((b,k)=>{
     const cx2=ox+PL+(PW-PL-PR)*(k+0.5)/2;
@@ -3840,6 +3907,16 @@ function renderRightSize(){
   card.appendChild(svg);
   const lg=alegend(['One week','var(--camp)'],['Average at that cadence','var(--ink2)'],
     ['Where you are now','var(--flow)']);
+  // The scatter is unreadable without this, and it was buried in a collapsed
+  // section: "interesting, but with no explanation it can just look messy."
+  const how=document.createElement('p');
+  how.className='rs-how';
+  how.innerHTML='<b>Reading the left chart:</b> one dot per week. How far right it '
+    +'sits is how many campaigns went out that week; how high it sits is what each '
+    +'one earned. The dark line joins the average at each cadence, so a line that '
+    +'slopes down means each campaign earns less the more you send in a week. The '
+    +'dashed line is where you are now.';
+  card.appendChild(how);
   lg.style.margin='4px 0 2px';card.appendChild(lg);
 
   // ---- the verdict ---------------------------------------------------------
@@ -3876,7 +3953,45 @@ function renderRightSize(){
     +(R.peaks.length?` ${R.peaks.length} promotional week${R.peaks.length===1?'':'s'} `
       +`sit outside this, deliberately: letting a Black Friday anchor the trend is `
       +`how a cadence chart flatters itself.`:'')+`</span>`;
-  rec.innerHTML='<div class="rs-head">'+head+'</div>';
+  const A=R.advice, money=v=>sym+Math.round(Math.abs(v)).toLocaleString();
+  let call='';
+  if(A&&A.kind==='more'){
+    call='<div class="rs-call go"><div class="rs-call-a">Make '+A.to.n
+      +' campaigns a week the floor</div><div class="rs-call-b">'
+      +'you average '+A.now.toFixed(1)+' — worth about <b>'+money(A.perMonth)
+      +' a month</b> more</div>'
+      +'<div class="rs-call-c">In the '+A.to.weeks+' weeks this account ran '+A.to.n
+      +' a week it earned '+money(A.to.revenue)+' a week, against '
+      +money(A.curRev)+' at the cadence it actually keeps. Both are averaged over '
+      +'the same year, so this is not just the list being bigger now. Move one '
+      +'step, give it a month, read it again.</div></div>';
+  }else if(A&&A.kind==='less'){
+    call='<div class="rs-call back"><div class="rs-call-a">Pull back to '+A.to.n
+      +' campaigns a week</div><div class="rs-call-b">'
+      +'from '+A.now.toFixed(1)+' — worth about <b>'+money(A.perMonth)
+      +' a month</b> more</div>'
+      +'<div class="rs-call-c">Sending less earns more here: in the '+A.to.weeks
+      +' weeks at '+A.to.n+' a week the account made '+money(A.to.revenue)
+      +' a week, against '+money(A.curRev)+' at the cadence it keeps now. The extra '
+      +'send takes more off the others than it brings in.</div></div>';
+  }else if(A&&A.kind==='test'){
+    call='<div class="rs-call go"><div class="rs-call-a">Test '+(A.hi+1)+' to '
+      +(A.hi+2)+' campaigns a week</div><div class="rs-call-b">a further send is '
+      +'worth about <b>'+money(A.perMonth)+' a month</b> if it holds</div>'
+      +'<div class="rs-call-c">Nothing in this account\u2019s year says sending more '
+      +'costs you anything per campaign, and '+A.hi+' a week is the most it has ever '
+      +'run. So the ceiling is untested rather than reached. Add one send a week for '
+      +'a month and this card will tell you whether it held.</div></div>';
+  }else if(A){
+    call='<div class="rs-call hold"><div class="rs-call-a">Hold at '
+      +A.now.toFixed(1)+' campaigns a week</div><div class="rs-call-b">of the '
+      +'cadences this account has actually run, this earns the most</div>'
+      +'<div class="rs-call-c">Backed by '+A.to.weeks+' weeks at '
+      +money(A.to.revenue)+' a week. Sending more or less than this has measurably '
+      +'earned less, so the next gain is in what the campaigns say, not how many '
+      +'go out.</div></div>';
+  }
+  rec.innerHTML=call+'<div class="rs-head">'+head+'</div>';
   cap.innerHTML=`Weekly, not monthly, and that is the whole point: monthly gave this `
     +`card twelve numbers and on most accounts revenue tracked the calendar harder than `
     +`it tracked send volume, so it could not tell the two apart. `
