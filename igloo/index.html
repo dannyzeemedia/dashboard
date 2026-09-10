@@ -3643,97 +3643,91 @@ function renderRightSize(){
       +'quiet and busy months can be compared.';
     rec.innerHTML='';return;
   }
-  // Three labelled columns, not a curve on a continuous axis, and not two
-  // scales sharing one plot. The first cut put campaign revenue on the left
-  // axis and net list growth on the right, in the same box: the two series
-  // interleaved, the green line dipped and rose in a way that implied a
-  // relationship it was not measuring, and a band's AVERAGE sat below
-  // individual months from that same band, which reads as a contradiction.
-  // Columns for the three cadence bands, with each real month dotted onto its
-  // own column, cannot be read as a trend line. List growth gets its own strip
-  // underneath, sharing the x positions and nothing else.
-  const W=760,PL=64,PR=20,PT=26,GAP=26,BH=170,SH=54,LAB=40;
-  const H=PT+BH+GAP+SH+LAB;
-  const iw=W-PL-PR;
+  // TWO charts, side by side, sharing one set of cadence bands: money on the
+  // left, list on the right. Danny, third pass: "this chart remains very
+  // confusing. If you need to, break it out between two charts side by side.
+  // just make their conclusions link up."
+  //
+  // What was confusing was one plot carrying two different questions. Revenue
+  // bars with the real months dotted on top invited "why is that dot above the
+  // bar" (it is a month above its own band's average), and the net-subs strip
+  // crammed underneath shared an x-axis with nothing else in common. Split in
+  // two, each panel answers one question and states its own answer, and a
+  // single line underneath says whether the two agree.
+  //
+  // The month dots now sit on a min-max whisker, so a dot above the bar top
+  // reads as the spread it is rather than as an error.
+  const PW=372,GAPX=16,H=286,PL=52,PR=14,PT=30,PB=64;
+  const W=PW*2+GAPX, ih=H-PT-PB;
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`});
-  const cw=iw/R.bands.length, bw=Math.min(120,cw*0.52);
-  const cx=k=>PL+cw*(k+0.5);
-  const maxRev=niceMax(Math.max.apply(null,R.pts.map(p=>p.rev)
-    .concat(R.bands.map(b=>RS_NET?b.score:b.rev))));
-  const y=v=>PT+BH-(v/maxRev)*BH;
-  for(let k=0;k<=3;k++){const gv=maxRev*k/3;
-    svg.appendChild(el('line',{class:'gl',x1:PL,x2:W-PR,y1:y(gv),y2:y(gv)}));
-    const t=el('text',{class:'ax',x:PL-8,y:y(gv)+4,'text-anchor':'end'});
-    t.textContent=kfmt(gv);svg.appendChild(t);}
-  R.bands.forEach((b,k)=>{
-    const isBest=b===R.best, isNow=b===R.now;
-    const v=RS_NET?b.score:b.rev, top=y(Math.max(0,v));
-    svg.appendChild(el('rect',{x:cx(k)-bw/2,y:top,width:bw,height:Math.max(PT+BH-top,0),rx:4,
-      fill:isBest?'var(--camp)':isNow?'var(--flow)':'var(--surface-2)',
-      stroke:isBest||isNow?'none':'var(--border)','stroke-width':1}));
-    // every month that made this average, dotted across its own column. A dot
-    // sitting above its own bar is not a glitch: that month earned more than
-    // the band's average, and seeing the spread is the point of drawing them.
-    const ms=R.pts.filter(p=>p.n>=b.lo&&p.n<=b.hi).sort((a,c)=>a.n-c.n);
-    const dark=isBest||isNow;
-    let hiDot=top;
-    ms.forEach((p,j)=>{
-      const spread=Math.min(bw*0.34,10*(ms.length-1)/2);
-      const px=cx(k)+(ms.length>1?(-spread+2*spread*j/(ms.length-1)):0);
-      const py=y(p.rev);
-      hiDot=Math.min(hiDot,py);
-      // a dot inside a dark bar needs the light stroke, or it disappears
-      svg.appendChild(el('circle',{cx:px,cy:py,r:3.2,
-        fill:dark&&py>top?'none':'var(--surface)',
-        stroke:dark&&py>top?'var(--surface)':'var(--ink2)','stroke-width':1.5}));
+  const nb=R.bands.length;
+  const panel=(ox,vals,maxv,col,title,fmt,dots)=>{
+    const iw=PW-PL-PR, cw=iw/nb, bw=Math.min(84,cw*0.5);
+    const cx=k=>ox+PL+cw*(k+0.5);
+    const y=v=>PT+ih-(Math.max(0,v)/maxv)*ih;
+    const t=el('text',{x:ox+PL,y:PT-14,'font-size':11,'font-weight':800,
+      fill:'var(--ink2)','letter-spacing':'.02em'});
+    t.textContent=title;svg.appendChild(t);
+    for(let g=0;g<=3;g++){const gv=maxv*g/3;
+      svg.appendChild(el('line',{class:'gl',x1:ox+PL,x2:ox+PW-PR,y1:y(gv),y2:y(gv)}));
+      const lt=el('text',{class:'ax',x:ox+PL-7,y:y(gv)+4,'text-anchor':'end'});
+      lt.textContent=fmt(gv);svg.appendChild(lt);}
+    R.bands.forEach((b,k)=>{
+      const isBest=b===R.best, isNow=b===R.now;
+      const v=vals(b), top=y(v);
+      svg.appendChild(el('rect',{x:cx(k)-bw/2,y:top,width:bw,
+        height:Math.max(PT+ih-top,1),rx:4,
+        fill:isBest?col:isNow?'var(--flow)':'var(--surface-2)',
+        stroke:isBest||isNow?'none':'var(--border)','stroke-width':1}));
+      let lab=top-8;
+      if(dots){
+        const ms=dots(b);
+        if(ms.length>1){
+          const lo=Math.min.apply(null,ms), hi=Math.max.apply(null,ms);
+          svg.appendChild(el('line',{x1:cx(k),x2:cx(k),y1:y(lo),y2:y(hi),
+            stroke:'var(--ink2)','stroke-width':1,'stroke-opacity':.5}));
+          lab=Math.min(lab,y(hi)-8);
+        }
+        ms.forEach(m=>svg.appendChild(el('circle',{cx:cx(k),cy:y(m),r:3,
+          fill:'var(--surface)',stroke:'var(--ink2)','stroke-width':1.4})));
+      }
+      const vt=el('text',{x:cx(k),y:lab,'text-anchor':'middle','font-size':11.5,
+        'font-weight':800,fill:isBest?col:isNow?'var(--flow)':'var(--ink2)'});
+      vt.textContent=fmt(v);svg.appendChild(vt);
+      const x1=el('text',{x:cx(k),y:PT+ih+17,'text-anchor':'middle','font-size':11,
+        'font-weight':700,fill:'var(--ink)'});
+      x1.textContent=b.lo+(b.hi!==b.lo?'–'+b.hi:'');svg.appendChild(x1);
+      const tag=isBest?(isNow?'today · best':'best'):isNow?'today':'';
+      const x2=el('text',{class:'ax',x:cx(k),y:PT+ih+31,'text-anchor':'middle'});
+      x2.textContent=tag;svg.appendChild(x2);
+      const hit=el('rect',{x:ox+PL+cw*k,y:PT,width:cw,height:ih,fill:'transparent'});
+      hit.addEventListener('mousemove',e=>showTip(card,e,
+        b.lo+(b.hi!==b.lo?'–'+b.hi:'')+' campaigns a month · '+b.k+' month'+(b.k===1?'':'s'),[
+        ['Campaign revenue a month',b.rev,'var(--camp)',kfmt],
+        ['Revenue per campaign',b.perC,'var(--muted)',kfmt],
+        ['Net new subscribers a month',b.net,'var(--good)',v=>Math.round(v).toLocaleString()],
+        ['Unsubscribes a month',b.un,'var(--crit)',v=>Math.round(v).toLocaleString()],
+        ['Churn charge (estimate)',-b.cost,'var(--muted)',kfmt],
+        ['Net of churn cost',b.score,'var(--ink)',kfmt]]));
+      hit.addEventListener('mouseleave',()=>hideTip(card));
+      svg.appendChild(hit);
     });
-    // the value, clear of the bar AND of the highest month on it
-    const vt=el('text',{x:cx(k),y:Math.min(top,hiDot)-8,'text-anchor':'middle','font-size':12,
-      'font-weight':800,fill:isBest?'var(--camp)':isNow?'var(--flow)':'var(--ink2)'});
-    vt.textContent=kfmt(v);svg.appendChild(vt);
-  });
-  // list growth strip: same columns, its own baseline, labelled in words
-  const sTop=PT+BH+GAP;
-  const gMax=Math.max.apply(null,R.bands.map(b=>Math.abs(b.net)).concat([1]));
-  const gy=v=>sTop+SH-(Math.max(0,v)/gMax)*SH;
-  svg.appendChild(el('line',{x1:PL,x2:W-PR,y1:sTop+SH,y2:sTop+SH,
-    stroke:'var(--border)','stroke-width':1}));
-  const gl=el('text',{class:'ax',x:PL-8,y:sTop+SH-SH/2,'text-anchor':'end'});
-  gl.textContent='net subs';svg.appendChild(gl);
-  R.bands.forEach((b,k)=>{
-    const top=gy(b.net);
-    svg.appendChild(el('rect',{x:cx(k)-bw/2,y:top,width:bw,height:Math.max(sTop+SH-top,1),rx:3,
-      fill:'var(--good)','fill-opacity':b===R.best?0.9:0.45}));
-    const t=el('text',{x:cx(k),y:top-5,'text-anchor':'middle','font-size':10.5,
-      'font-weight':700,fill:'var(--good)'});
-    t.textContent=nfmt(b.net)+' / mo';svg.appendChild(t);
-  });
-  // one label row for both charts
-  R.bands.forEach((b,k)=>{
-    const t1=el('text',{x:cx(k),y:sTop+SH+18,'text-anchor':'middle','font-size':11.5,
-      'font-weight':700,fill:'var(--ink)'});
-    t1.textContent=b.lo+(b.hi!==b.lo?'–'+b.hi:'')+' campaigns';svg.appendChild(t1);
-    const tag=b===R.best?(b===R.now?'today · best':'best'):b===R.now?'today':'';
-    const t2=el('text',{class:'ax',x:cx(k),y:sTop+SH+32,'text-anchor':'middle'});
-    t2.textContent=b.k+' month'+(b.k===1?'':'s')+(tag?' · '+tag:'');svg.appendChild(t2);
-  });
-  R.bands.forEach((b,k)=>{
-    const hit=el('rect',{x:PL+cw*k,y:PT,width:cw,height:BH+GAP+SH,fill:'transparent'});
-    hit.addEventListener('mousemove',e=>showTip(card,e,
-      b.label+' · '+b.lo+(b.hi!==b.lo?'–'+b.hi:'')+' campaigns, '+b.k+' month'+(b.k===1?'':'s'),[
-      ['Campaigns a month',b.sends,'var(--muted)',v=>v.toFixed(1)],
-      ['Campaign revenue a month',b.rev,'var(--camp)',kfmt],
-      ['Revenue per campaign',b.perC,'var(--muted)',kfmt],
-      ['Unsubscribes a month',b.un,'var(--crit)',v=>Math.round(v).toLocaleString()],
-      ['Net list growth a month',b.net,'var(--good)',v=>Math.round(v).toLocaleString()],
-      ['Churn charge (estimate)',-b.cost,'var(--muted)',kfmt],
-      ['Net of churn cost',b.score,'var(--ink)',kfmt]]));
-    hit.addEventListener('mouseleave',()=>hideTip(card));
-    svg.appendChild(hit);});
+    const ax=el('text',{class:'ax',x:ox+PL+iw/2,y:H-8,'text-anchor':'middle'});
+    ax.textContent='campaigns a month';svg.appendChild(ax);
+  };
+  const revOf=b=>RS_NET?b.score:b.rev;
+  const maxRev=niceMax(Math.max.apply(null,R.pts.map(p=>p.rev)
+    .concat(R.bands.map(revOf))));
+  const maxNet=niceMax(Math.max.apply(null,R.bands.map(b=>Math.abs(b.net)).concat([1])));
+  panel(0,revOf,maxRev,'var(--camp)',
+    RS_NET?'Campaign revenue a month, net of churn':'Campaign revenue a month',
+    v=>kfmt(v), b=>R.pts.filter(p=>p.n>=b.lo&&p.n<=b.hi).map(p=>p.rev));
+  panel(PW+GAPX,b=>b.net,maxNet,'var(--good)','Net new subscribers a month',
+    v=>nfmt(v), null);
   card.appendChild(svg);
-  const lg=alegend([RS_NET?'Campaign revenue a month, net of churn cost':'Campaign revenue a month','var(--surface-2)'],
-    ['Best band','var(--camp)'],['Today’s band','var(--flow)'],
-    ['One real month','var(--ink2)'],['Net new subscribers a month','var(--good)']);
+  const lg=alegend([RS_NET?'Band average, net of churn cost':'Band average','var(--surface-2)'],
+    ['Best on revenue','var(--camp)'],['Today’s cadence','var(--flow)'],
+    ['One real month, with the band’s range','var(--ink2)']);
   lg.style.margin='4px 0 2px';card.appendChild(lg);
 
   const dRev=R.best.rev-R.now.rev, dNet=R.best.score-R.now.score, dUn=R.best.un-R.now.un;
@@ -3756,18 +3750,33 @@ function renderRightSize(){
       +`${dUn>=0?'costing':'saving'} about ${Math.abs(Math.round(dUn)).toLocaleString()} `
       +`unsubscribes a month, ${dNet>=0?'net +':'net '}${kfmt(dNet)} after the churn charge.`;
   }
-  head+=` <span class="rs-note">The lower strip is net new subscribers a month in those same `
-    +`months: about ${Math.round(R.now.net).toLocaleString()} at today’s cadence and `
-    +`${Math.round(R.best.net).toLocaleString()} at the best band. It is context, not the `
-    +`recommendation — list growth is driven by acquisition far more than by send volume.</span>`;
+  // Link the two panels: each answers its own question, and this says whether
+  // the answers agree. That is the whole reason for splitting them.
+  const bestNet=R.bands.reduce((a,b)=>b.net>a.net?b:a);
+  const agree=bestNet===R.best;
+  const band=b=>b.lo+(b.hi!==b.lo?'–'+b.hi:'')+' campaigns';
+  head+=` <span class="rs-note"><b>Both charts point the same way.</b> `
+    .replace('Both charts point the same way.', agree
+      ? 'Both charts point the same way.'
+      : 'The two charts disagree.')
+    + (agree
+        ? `${band(R.best)} earned the most (${kfmt(R.best.rev)} a month) and grew the list `
+          +`fastest (${Math.round(R.best.net).toLocaleString()} net subscribers a month). `
+        : `${band(R.best)} earned the most, but the list grew fastest at `
+          +`${band(bestNet)} (${Math.round(bestNet.net).toLocaleString()} against `
+          +`${Math.round(R.best.net).toLocaleString()} a month). `)
+    + `Read the list panel as context rather than as the recommendation: net growth is `
+    + `driven by acquisition far more than by how often you send.</span>`;
   rec.innerHTML='<div class="rs-head">'+head+'</div>';
   cap.innerHTML=`Read off this account’s own ${R.mo} complete months, ${R.from} to ${R.to} `
     +`— a fixed year, so this card does not move when you change the range above. `
     +`Those months are sorted by how many campaigns went out and split into three groups: the `
-    +`account’s quietest third, middle third and busiest third. Each column is one group, its `
-    +`height is the average campaign revenue those months actually produced, and every hollow `
-    +`dot on it is one of those real months. Nothing is projected, and no cadence this account `
-    +`has never run can be recommended. `
+    +`account’s quietest third, middle third and busiest third. Both charts use those same `
+    +`three groups, so the columns line up: the left one is what each cadence earned, the `
+    +`right one is what the list did at that cadence. On the left, every hollow dot is one `
+    +`real month and the line through them is that group’s range, so a dot above the column `
+    +`is simply a month better than its own group’s average. Nothing is projected, and no `
+    +`cadence this account has never run can be recommended. `
     +`The one estimate is the churn charge: a lost subscriber is charged the campaign revenue they `
     +`would have produced over ${R.H} months at that cadence, at ${Math.round(R.churnValue*100)}% of an `
     +`average subscriber’s rate, because someone who just opted out was the least engaged and past `
@@ -5921,6 +5930,19 @@ async function loadAndRender(){ try{
   try{const vp=new URLSearchParams(location.search).get('v');   // deep-link to a view: ?v=reports|audit|dash (board → Reports > Monthly report)
     if(vp==='board'||vp==='audit'){const rt=[...document.querySelectorAll('#viewSeg button')].find(b=>b.dataset.view==='reports'&&!b.hidden);if(rt){rt.click();if(vp==='board')openMonthlyReport();else openAudit();}}
     else if(vp){const btn=[...document.querySelectorAll('#viewSeg button')].find(b=>b.dataset.view===vp&&!b.hidden);if(btn)btn.click();}}catch(e){}
+  // Consume the Refresh button's intent, then take it OUT of the address bar.
+  // ?c= and ?v= are meant to survive exactly one reload — the press that set
+  // them — and they deliberately beat the favourite. Leaving them in the URL
+  // made that permanent: one Refresh on Tipaw's retention map and every later
+  // reload replayed c=tipaw&v=map, so a favourited client could never open
+  // again. The comment on the Refresh button always claimed a plain Ctrl+R
+  // returns to the favourite; now it actually does.
+  try{const q=new URLSearchParams(location.search);
+    if(['c','v','r'].some(k=>q.has(k))){
+      ['c','v','r'].forEach(k=>q.delete(k));
+      const rest=q.toString();
+      history.replaceState(null,'',location.pathname+(rest?'?'+rest:'')+location.hash);
+    }}catch(e){}
   }catch(e){document.getElementById('app').innerHTML='<div class="wrap" style="padding:60px 24px;color:var(--crit)">Dashboard failed to render: '+((e&&e.message)||e)+'</div>';console.error(e);}
 }
 async function showWrongAccount(folder){
