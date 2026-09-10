@@ -3676,6 +3676,11 @@ function renderCamp(){const{cur}=windows();const cc=document.getElementById('c-c
 //                                fixes it, and that is a programme change
 //   frequency is per-segment   → not available from this data; not claimed
 const RS_MIN_WEEKS=20;       // fewer and the detrended test is noise
+// A resend earning less than this share of a real campaign's revenue per
+// person is not paying for the goodwill it spends. Bounds set from the fleet:
+// Dr Woof sits at 23%, Tipaw at 185%. There is no universal answer, which is
+// exactly why the card measures it per account instead of assuming one.
+const RS_RESEND_OK=0.60, RS_RESEND_POOR=0.35;
 const RS_STRONG=0.30;        // |partial r| below this is "no effect in range"
 const RS_H=6, RS_CHURN_VALUE=0.25;
 function rsCorr(xs,ys){
@@ -3790,7 +3795,34 @@ function rightSize(){
               perMonth:rpsNowOf(last8)*4.33};      // one extra send a week
     else advice={kind:'hold',to:best,now:now,curRev:curRev};
   }
-  return {advice:advice,weeks:wk,peaks:peaks,levels:levels,n0:now,
+  // ---- resends, in their own bucket --------------------------------------
+  // Danny: "those aren't really campaigns... they're just resends to
+  // non-openers." Right, and they were being counted as campaigns, which
+  // inflated the cadence and dragged revenue-per-campaign down. They are
+  // separated upstream now; this is where the card judges them.
+  //
+  // The fair comparison is revenue per PERSON, not per send: a resend goes to
+  // the non-openers only, so it reaches a fraction of the audience by design
+  // and would always look bad per send.
+  const rsWeeks=wk.filter(w=>w.resends>0);
+  let resend=null;
+  if(rsWeeks.length>=4){
+    const sum=(a,f)=>a.reduce((x,w)=>x+f(w),0);
+    const rsRec=sum(rsWeeks,w=>w.rs_recipients), rsRev=sum(rsWeeks,w=>w.rs_revenue);
+    const rsUn=sum(rsWeeks,w=>w.rs_unsubs);
+    const cRec=sum(wk,w=>w.recipients), cRev=sum(wk,w=>w.revenue);
+    const cUn=sum(wk,w=>w.unsubs);
+    const rsRpr=rsRec?rsRev/rsRec:0, cRpr=cRec?cRev/cRec:0;
+    const nRs=sum(wk,w=>w.resends), nSend=sum(wk,w=>w.sends);
+    const share=(nRs+nSend)?nRs/(nRs+nSend):0;
+    const ratio=cRpr?rsRpr/cRpr:0;
+    resend={n:nRs,perWeek:nRs/wk.length,share:share,rpr:rsRpr,campRpr:cRpr,
+            ratio:ratio,revPerWeek:rsRev/wk.length,
+            unrate:rsRec?rsUn/rsRec*100:0,campUnrate:cRec?cUn/cRec*100:0,
+            weeks:rsWeeks.length,
+            verdict:ratio>=RS_RESEND_OK?'good':ratio<RS_RESEND_POOR?'poor':'thin'};
+  }
+  return {resend:resend,advice:advice,weeks:wk,peaks:peaks,levels:levels,n0:now,
     rpsNow:rpsNow,recNow:recNow,unNow:unNow,rprNow:rprNow,
     marginalRev:rpsNow,marginalCost:marginalCost,
     partial:partial,partialUn:partialUn,rTime:rTime,flat:flat,spread:spread,
@@ -3946,7 +3978,9 @@ function renderRightSize(){
       +`<b>${sym}${Math.round(R.marginalCost).toLocaleString()}</b> of subscribers `
       +`burnt`+(R.partial<0?', and that gap narrows with every send you add':'')+`.`;
   }
-  head+=` <span class="rs-note">You are sending about ${R.n0.toFixed(1)} a week, `
+  head+=` <span class="rs-note">${R.resend?`Resends to non-openers are left out of `
+    +`that count and judged separately: they are the same creative going back out, `
+    +`not another campaign. `:''}You are sending about ${R.n0.toFixed(1)} a week, `
     +`and this account has run between ${R.lo} and ${R.hi}. Nothing here says what `
     +`happens past ${R.hi} — it has never been tried, so that is a test to run, not `
     +`a number to read off.`
@@ -3991,7 +4025,52 @@ function renderRightSize(){
       +'earned less, so the next gain is in what the campaigns say, not how many '
       +'go out.</div></div>';
   }
-  rec.innerHTML=call+'<div class="rs-head">'+head+'</div>';
+  // ---- the resend call, if the account sends them ------------------------
+  const RS=R.resend;
+  let rsCall='';
+  if(RS){
+    const pct=Math.round(RS.ratio*100);
+    const perWeek=RS.perWeek;
+    // If they were dropped, how many real campaigns would the same revenue buy
+    // back? Priced at what a real campaign actually earns on this account.
+    const swap=R.marginalRev?RS.revPerWeek/R.marginalRev:0;
+    const replace=Math.max(1,Math.round(perWeek-swap));
+    if(RS.verdict==='poor'){
+      rsCall='<div class="rs-call back"><div class="rs-call-a">Cut the follow-ups '
+        +'and put the room into real campaigns</div>'
+        +'<div class="rs-call-b">'+perWeek.toFixed(1)+' resends a week earning '
+        +pct+'% of what a campaign earns per person</div>'
+        +'<div class="rs-call-c">'+RS.n+' of the last year’s sends were resends to '
+        +'non-openers — '+Math.round(RS.share*100)+'% of everything that went out. '
+        +'They bring in '+money(RS.revPerWeek)+' a week between them, which is what '
+        +(swap<1?'less than one':swap.toFixed(1))+' real campaign earns here. '
+        +'Dropping them and adding <b>'+replace+' proper campaign'
+        +(replace===1?'':'s')+' a week</b> puts the same volume in front of people '
+        +'with something new to say, at '+money(R.marginalRev*replace)+' a week on '
+        +'current numbers. They also cost '+RS.unrate.toFixed(3)+'% in opt-outs '
+        +'against '+RS.campUnrate.toFixed(3)+'% for a campaign, so the goodwill is '
+        +'being spent either way.</div></div>';
+    }else if(RS.verdict==='good'){
+      rsCall='<div class="rs-call go"><div class="rs-call-a">The follow-ups are '
+        +'earning their keep — keep them</div>'
+        +'<div class="rs-call-b">'+pct+'% of a campaign’s revenue per person, at '
+        +'no creative cost</div>'
+        +'<div class="rs-call-c">'+RS.n+' resends over the year, '
+        +perWeek.toFixed(1)+' a week, bringing '+money(RS.revPerWeek)+' a week. '
+        +'They are counted separately from the cadence above, because a resend to '
+        +'non-openers is not a campaign and should not be judged as one.</div></div>';
+    }else{
+      rsCall='<div class="rs-call hold"><div class="rs-call-a">The follow-ups are '
+        +'marginal</div><div class="rs-call-b">'+pct+'% of a campaign’s revenue '
+        +'per person</div>'
+        +'<div class="rs-call-c">'+RS.n+' over the year at '+perWeek.toFixed(1)
+        +' a week, worth '+money(RS.revPerWeek)+' a week. Not clearly wasted, not '
+        +'clearly paying — worth trying a month without them and reading this '
+        +'again. They are counted separately from the cadence above either '
+        +'way.</div></div>';
+    }
+  }
+  rec.innerHTML=call+rsCall+'<div class="rs-head">'+head+'</div>';
   cap.innerHTML=`Weekly, not monthly, and that is the whole point: monthly gave this `
     +`card twelve numbers and on most accounts revenue tracked the calendar harder than `
     +`it tracked send volume, so it could not tell the two apart. `
