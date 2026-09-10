@@ -3804,23 +3804,47 @@ function rightSize(){
   // The fair comparison is revenue per PERSON, not per send: a resend goes to
   // the non-openers only, so it reaches a fraction of the audience by design
   // and would always look bad per send.
-  const rsWeeks=wk.filter(w=>w.resends>0);
+  const sum=(a,f)=>a.reduce((x,w)=>x+f(w),0);
+  const nRs=sum(wk,w=>w.resends), nSend=sum(wk,w=>w.sends);
   let resend=null;
-  if(rsWeeks.length>=4){
-    const sum=(a,f)=>a.reduce((x,w)=>x+f(w),0);
-    const rsRec=sum(rsWeeks,w=>w.rs_recipients), rsRev=sum(rsWeeks,w=>w.rs_revenue);
-    const rsUn=sum(rsWeeks,w=>w.rs_unsubs);
-    const cRec=sum(wk,w=>w.recipients), cRev=sum(wk,w=>w.revenue);
-    const cUn=sum(wk,w=>w.unsubs);
+  if(nRs>0){
+    // Volume and recency, both. Danny: "tipaw has like... 3 resends. that's
+    // not enough to make a judgement on. you need to also take that and
+    // recency of resends into account."
+    //
+    // He is right twice over. Tipaw's resends came out at 185% of a campaign's
+    // revenue per person off TWO sends, which is an anecdote wearing a verdict's
+    // clothes. And an account that sent a batch of resends last spring and
+    // stopped should not be told what to do about a programme it no longer runs.
+    //
+    // So: enough sends and enough people behind the number before it is called
+    // anything, and the number itself measured on the recent window when that
+    // window has enough in it, so an old batch cannot set today's verdict.
+    const RECENT_WKS=13, MIN_N=8, MIN_REC=5000, MIN_RECENT=3;
+    const recent=wk.slice(-RECENT_WKS);
+    const nRecent=sum(recent,w=>w.resends);
+    const window=(sum(wk.slice(-26),w=>w.resends)>=MIN_N)?wk.slice(-26):wk;
+    const rsRec=sum(window,w=>w.rs_recipients), rsRev=sum(window,w=>w.rs_revenue);
+    const rsUn=sum(window,w=>w.rs_unsubs);
+    const cRec=sum(window,w=>w.recipients), cRev=sum(window,w=>w.revenue);
+    const cUn=sum(window,w=>w.unsubs);
     const rsRpr=rsRec?rsRev/rsRec:0, cRpr=cRec?cRev/cRec:0;
-    const nRs=sum(wk,w=>w.resends), nSend=sum(wk,w=>w.sends);
-    const share=(nRs+nSend)?nRs/(nRs+nSend):0;
     const ratio=cRpr?rsRpr/cRpr:0;
-    resend={n:nRs,perWeek:nRs/wk.length,share:share,rpr:rsRpr,campRpr:cRpr,
-            ratio:ratio,revPerWeek:rsRev/wk.length,
+    const nWin=sum(window,w=>w.resends);
+    const enough=nWin>=MIN_N&&rsRec>=MIN_REC;
+    const current=nRecent>=MIN_RECENT;
+    const verdict=!current?'stopped':!enough?'toofew'
+      :ratio>=RS_RESEND_OK?'good':ratio<RS_RESEND_POOR?'poor':'thin';
+    // the last week one actually went out, so "stopped" can say when
+    let lastWk=null;
+    for(let i=wk.length-1;i>=0;i--){if(wk[i].resends>0){lastWk=wk[i].week;break;}}
+    resend={n:nRs,nWindow:nWin,nRecent:nRecent,recipients:rsRec,
+            perWeek:nRecent/RECENT_WKS,share:(nRs+nSend)?nRs/(nRs+nSend):0,
+            rpr:rsRpr,campRpr:cRpr,ratio:ratio,
+            revPerWeek:rsRev/window.length,
             unrate:rsRec?rsUn/rsRec*100:0,campUnrate:cRec?cUn/cRec*100:0,
-            weeks:rsWeeks.length,
-            verdict:ratio>=RS_RESEND_OK?'good':ratio<RS_RESEND_POOR?'poor':'thin'};
+            lastWeek:lastWk,windowWeeks:window.length,minN:MIN_N,
+            verdict:verdict};
   }
   return {resend:resend,advice:advice,weeks:wk,peaks:peaks,levels:levels,n0:now,
     rpsNow:rpsNow,recNow:recNow,unNow:unNow,rprNow:rprNow,
@@ -4040,8 +4064,9 @@ function renderRightSize(){
         +'and put the room into real campaigns</div>'
         +'<div class="rs-call-b">'+perWeek.toFixed(1)+' resends a week earning '
         +pct+'% of what a campaign earns per person</div>'
-        +'<div class="rs-call-c">'+RS.n+' of the last year’s sends were resends to '
-        +'non-openers — '+Math.round(RS.share*100)+'% of everything that went out. '
+        +'<div class="rs-call-c">'+RS.nWindow+' resends to non-openers over the '
+        +'last '+RS.windowWeeks+' weeks — '+Math.round(RS.share*100)+'% of '
+        +'everything that went out. '
         +'They bring in '+money(RS.revPerWeek)+' a week between them, which is what '
         +(swap<1?'less than one':swap.toFixed(1))+' real campaign earns here. '
         +'Dropping them and adding <b>'+replace+' proper campaign'
@@ -4055,19 +4080,39 @@ function renderRightSize(){
         +'earning their keep — keep them</div>'
         +'<div class="rs-call-b">'+pct+'% of a campaign’s revenue per person, at '
         +'no creative cost</div>'
-        +'<div class="rs-call-c">'+RS.n+' resends over the year, '
-        +perWeek.toFixed(1)+' a week, bringing '+money(RS.revPerWeek)+' a week. '
+        +'<div class="rs-call-c">'+RS.nWindow+' resends over the last '
+        +RS.windowWeeks+' weeks, '+perWeek.toFixed(1)+' a week, bringing '
+        +money(RS.revPerWeek)+' a week. '
         +'They are counted separately from the cadence above, because a resend to '
         +'non-openers is not a campaign and should not be judged as one.</div></div>';
+    }else if(RS.verdict==='stopped'){
+      rsCall='<div class="rs-call hold"><div class="rs-call-a">You have stopped '
+        +'sending follow-ups</div><div class="rs-call-b">'+RS.n+' over the year, '
+        +'the last one '+(RS.lastWeek?'the week of '+RS.lastWeek:'a while ago')
+        +'</div>'
+        +'<div class="rs-call-c">Nothing to act on, and no verdict offered: this '
+        +'is a programme the account no longer runs, so what it earned back then '
+        +'says nothing about what it would earn now. They are excluded from the '
+        +'cadence count above either way. Start sending them again and this will '
+        +'judge them once there are enough to judge.</div></div>';
+    }else if(RS.verdict==='toofew'){
+      rsCall='<div class="rs-call hold"><div class="rs-call-a">Too few follow-ups '
+        +'to call</div><div class="rs-call-b">'+RS.n+' in the last year, reaching '
+        +Math.round(RS.recipients).toLocaleString()+' people</div>'
+        +'<div class="rs-call-c">It takes about '+RS.minN+' resends and a few '
+        +'thousand recipients before the number means anything. On what little '
+        +'there is they earn '+pct+'% of what a campaign earns per person, which '
+        +'is worth knowing and not worth acting on. They are excluded from the '
+        +'cadence count above regardless, because a resend to non-openers is not '
+        +'a campaign.</div></div>';
     }else{
       rsCall='<div class="rs-call hold"><div class="rs-call-a">The follow-ups are '
         +'marginal</div><div class="rs-call-b">'+pct+'% of a campaign’s revenue '
-        +'per person</div>'
-        +'<div class="rs-call-c">'+RS.n+' over the year at '+perWeek.toFixed(1)
-        +' a week, worth '+money(RS.revPerWeek)+' a week. Not clearly wasted, not '
-        +'clearly paying — worth trying a month without them and reading this '
-        +'again. They are counted separately from the cadence above either '
-        +'way.</div></div>';
+        +'per person, across '+RS.nWindow+' of them</div>'
+        +'<div class="rs-call-c">'+perWeek.toFixed(1)+' a week lately, worth '
+        +money(RS.revPerWeek)+' a week. Not clearly wasted, not clearly paying — '
+        +'worth trying a month without them and reading this again. They are '
+        +'counted separately from the cadence above either way.</div></div>';
     }
   }
   rec.innerHTML=call+rsCall+'<div class="rs-head">'+head+'</div>';
