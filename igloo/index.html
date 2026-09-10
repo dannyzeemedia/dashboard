@@ -1636,6 +1636,20 @@ function buildSwitcher(){const b=document.getElementById('brand');b.innerHTML=''
     wrap.appendChild(btn);});
   b.appendChild(wrap);}
 function switchTo(slug){ACTIVE=slug;
+  // Keep the address bar honest. The folder in the path is only an entry point;
+  // switching client never touched it, so Danny sat on /tipaw/ while looking at
+  // Australian Scrubs — and once the stale ?c= params were stripped, /tipaw/
+  // stayed as the clean URL for every client. Only rewritten when the current
+  // folder is itself a client folder: a group folder (/igloo/) and the Zee home
+  // are deliberate entry points and stay put.
+  try{
+    const parts=location.pathname.replace(/\/index\.html?$/i,'').replace(/\/+$/,'').split('/');
+    const cur=parts[parts.length-1];
+    if(cur&&cur!==slug&&SERIES[cur]&&SERIES[slug]){
+      parts[parts.length-1]=slug;
+      history.replaceState(null,'',parts.join('/')+'/'+location.search+location.hash);
+    }
+  }catch(e){}
   const reps=REPORTS[slug]||[];REPORT=reps[0]||null;
   hydrate(SERIES[slug]);applyPalette();buildSwitcher();buildMenu();
   const seg=document.getElementById('viewSeg');
@@ -2210,7 +2224,9 @@ function renderReports(){
     const aud=SERIES[ACTIVE]&&SERIES[ACTIVE].audit;   // account audit (lead/prospect deliverable)
     const oneoff=[];
     if(aud)oneoff.push(card(aud.title||'Account audit', aud.date_range||'', aud.summary||'One-off account audit of the email & SMS program.', ' data-kind="audit"'));
-    list.forEach(r=>oneoff.push(card(r.title, r.date_range, r.summary, ' data-kind="custom" data-id="'+esc(r.id)+'"')));
+    list.forEach(r=>oneoff.push(card(r.title, r.date_range, r.summary,
+      r.href ? ' data-kind="link" data-href="'+esc(r.href)+'"'
+             : ' data-kind="custom" data-id="'+esc(r.id)+'"')));
     if(oneoff.length){
       html+='<div class="rep-group">One-Off</div><div class="rep-list">'+oneoff.join('')+'</div>';
     }
@@ -2218,6 +2234,9 @@ function renderReports(){
     body.querySelectorAll('.rep-card').forEach(c=>c.addEventListener('click',()=>{
       if(c.dataset.kind==='monthly'){openMonthlyReport();}
       else if(c.dataset.kind==='audit'){openAudit();}
+      // a report that is its own page (rendered by the pipeline, prints to PDF
+      // from the browser) rather than a block-rendered one
+      else if(c.dataset.kind==='link'){window.open(c.dataset.href,'_blank','noopener');}
       else{REPORT_OPEN=c.dataset.id;renderReports();window.scrollTo({top:0});}
     }));
     return;
@@ -3573,6 +3592,7 @@ function rightSize(){
     // unsubscribes the campaigns themselves caused: the campaign unsub RATE
     // against the people those campaigns reached
     un:((unsub_camp_arr(i)||0)/100)*(crecip[i]||0),
+    unrate:unsub_camp_arr(i)||0,
     net:(subsBase(i)||0)-(unsubBase(i)||0)
   }));
   const byN=pts.slice().sort((a,b)=>a.n-b.n||a.i-b.i);
@@ -3589,8 +3609,33 @@ function rightSize(){
       months:a.map(p=>p.m),k:a.length,
       lo:Math.min.apply(null,a.map(p=>p.n)),hi:Math.max.apply(null,a.map(p=>p.n)),
       sends:sends,rev:rev,perC:avg(a,p=>p.perC),rpr:rpr,un:un,
-      net:avg(a,p=>p.net),cost:cost,score:rev-cost};
+      net:avg(a,p=>p.net),unrate:avg(a,p=>p.unrate),cost:cost,score:rev-cost};
   });
+  // Does cadence explain the outcome at all, or is it just the calendar?
+  //
+  // Danny: "why would sending MORE mean subs would go up?" It would not. On
+  // Tipaw, sends correlate with net new subscribers at +0.02 and TIME
+  // correlates at +0.92 — the busy months were simply the recent months, and
+  // the account has been acquiring harder every month. The panel was drawing
+  // the calendar on a cadence axis, and a caption saying "read this as
+  // context" was papering over a bad encoding.
+  //
+  // So the card now tests its own premise. Revenue PER CAMPAIGN is the outcome
+  // (per-send, so a growing list cancels out) and it is checked against sends
+  // and against month order. Where time explains it better than cadence does,
+  // the recommendation is withheld and the card says why. Across the fleet that
+  // is most accounts: 7 of 14 are time-explained, 5 explained by neither, and
+  // only Bomber and Pleage show cadence actually driving revenue per send.
+  const corr=(xs,ys)=>{
+    const n=xs.length; if(n<3)return 0;
+    const mx=xs.reduce((a,b)=>a+b,0)/n, my=ys.reduce((a,b)=>a+b,0)/n;
+    let sxy=0,sxx=0,syy=0;
+    xs.forEach((x,i)=>{sxy+=(x-mx)*(ys[i]-my);sxx+=(x-mx)**2;syy+=(ys[i]-my)**2;});
+    return (sxx&&syy)?sxy/Math.sqrt(sxx*syy):0;
+  };
+  const perCampaign=pts.map(p=>p.perC);
+  const rSends=corr(pts.map(p=>p.n),perCampaign);
+  const rTime=corr(pts.map((p,i)=>i),perCampaign);
   // today's cadence: the most recent three complete months
   const last3=pts.slice(-3);
   const n0=avg(last3,p=>p.n);
@@ -3601,6 +3646,10 @@ function rightSize(){
   const spread=bands[0].sends?bands[2].sends/bands[0].sends-1:0;
   return {bands:bands,pts:pts,best:best,now:nowBand,n0:n0,mo:pts.length,
     spread:spread,flat:spread<RS_MIN_SPREAD,
+    r_sends:rSends,r_time:rTime,
+    // cadence has to beat the calendar, and clear a floor of its own
+    confounded:(Math.abs(rTime)>=0.5&&Math.abs(rTime)>Math.abs(rSends))
+               ||Math.abs(rSends)<0.3,
     from:MONTHS[use[0]],to:MONTHS[use[use.length-1]],
     H:RS_H,churnValue:RS_CHURN_VALUE};
 }
@@ -3718,12 +3767,17 @@ function renderRightSize(){
   const revOf=b=>RS_NET?b.score:b.rev;
   const maxRev=niceMax(Math.max.apply(null,R.pts.map(p=>p.rev)
     .concat(R.bands.map(revOf))));
-  const maxNet=niceMax(Math.max.apply(null,R.bands.map(b=>Math.abs(b.net)).concat([1])));
+
   panel(0,revOf,maxRev,'var(--camp)',
     RS_NET?'Campaign revenue a month, net of churn':'Campaign revenue a month',
     v=>kfmt(v), b=>R.pts.filter(p=>p.n>=b.lo&&p.n<=b.hi).map(p=>p.rev));
-  panel(PW+GAPX,b=>b.net,maxNet,'var(--good)','Net new subscribers a month',
-    v=>nfmt(v), null);
+  // Unsubscribe rate PER CAMPAIGN, not net new subscribers. Sending more does
+  // not bring subscribers in — acquisition does — but it does cost opt-outs,
+  // and a rate per send is independent of how big the list has grown, so it is
+  // the one cost of cadence this data can honestly attribute.
+  const maxUR=niceMax(Math.max.apply(null,R.bands.map(b=>b.unrate).concat([0.1])));
+  panel(PW+GAPX,b=>b.unrate,maxUR,'var(--crit)','Unsubscribe rate per campaign',
+    v=>v.toFixed(2)+'%', b=>R.pts.filter(p=>p.n>=b.lo&&p.n<=b.hi).map(p=>p.unrate));
   card.appendChild(svg);
   const lg=alegend([RS_NET?'Band average, net of churn cost':'Band average','var(--surface-2)'],
     ['Best on revenue','var(--camp)'],['Today’s cadence','var(--flow)'],
@@ -3732,7 +3786,21 @@ function renderRightSize(){
 
   const dRev=R.best.rev-R.now.rev, dNet=R.best.score-R.now.score, dUn=R.best.un-R.now.un;
   let head;
-  if(R.flat){
+  if(R.confounded){
+    const strong=Math.abs(R.r_time)>=0.5&&Math.abs(R.r_time)>Math.abs(R.r_sends);
+    head=`<b>This account’s history can’t tell you a cadence.</b> `
+      +(strong
+        ? `Revenue per campaign tracks the calendar far more than it tracks how much `
+          +`was sent: ${R.r_time>0?'+':''}${R.r_time.toFixed(2)} against `
+          +`${R.r_sends>0?'+':''}${R.r_sends.toFixed(2)} for send volume. The busy months `
+          +`and the growing months are the same months, so anything this chart appeared to `
+          +`say about sending more was really saying the account got bigger.`
+        : `Revenue per campaign barely moves with how much was sent `
+          +`(${R.r_sends>0?'+':''}${R.r_sends.toFixed(2)}), so there is no cadence effect `
+          +`here to act on either way.`)
+      +` The columns below are still real: they are what each group of months actually did. `
+      +`They just are not a recommendation.`;
+  }else if(R.flat){
     head=`<b>This account’s own months can’t answer this yet.</b> Its busiest third `
       +`averages ${R.bands[2].sends.toFixed(1)} campaigns a month against `
       +`${R.bands[0].sends.toFixed(1)} in its quietest — a ${Math.round(R.spread*100)}% `
@@ -3750,33 +3818,32 @@ function renderRightSize(){
       +`${dUn>=0?'costing':'saving'} about ${Math.abs(Math.round(dUn)).toLocaleString()} `
       +`unsubscribes a month, ${dNet>=0?'net +':'net '}${kfmt(dNet)} after the churn charge.`;
   }
-  // Link the two panels: each answers its own question, and this says whether
-  // the answers agree. That is the whole reason for splitting them.
-  const bestNet=R.bands.reduce((a,b)=>b.net>a.net?b:a);
-  const agree=bestNet===R.best;
+  // Link the two panels: earned against cost, which are the two halves of one
+  // decision. Net new subscribers used to sit on the right and could not be
+  // linked to anything, because sending does not cause acquisition.
   const band=b=>b.lo+(b.hi!==b.lo?'–'+b.hi:'')+' campaigns';
-  head+=` <span class="rs-note"><b>Both charts point the same way.</b> `
-    .replace('Both charts point the same way.', agree
-      ? 'Both charts point the same way.'
-      : 'The two charts disagree.')
-    + (agree
-        ? `${band(R.best)} earned the most (${kfmt(R.best.rev)} a month) and grew the list `
-          +`fastest (${Math.round(R.best.net).toLocaleString()} net subscribers a month). `
-        : `${band(R.best)} earned the most, but the list grew fastest at `
-          +`${band(bestNet)} (${Math.round(bestNet.net).toLocaleString()} against `
-          +`${Math.round(R.best.net).toLocaleString()} a month). `)
-    + `Read the list panel as context rather than as the recommendation: net growth is `
-    + `driven by acquisition far more than by how often you send.</span>`;
+  const cheapest=R.bands.reduce((a,b)=>b.unrate<a.unrate?b:a);
+  head+=` <span class="rs-note"><b>Earned against cost.</b> ${band(R.best)} earned the `
+    +`most per month (${kfmt(R.best.rev)}) at an unsubscribe rate of `
+    +`${R.best.unrate.toFixed(2)}% a campaign`
+    +(cheapest===R.best
+      ? `, which is also the gentlest rate of the three. `
+      : `, against ${cheapest.unrate.toFixed(2)}% at ${band(cheapest)}. `)
+    +`The right panel is a rate per send, so it does not move just because the list `
+    +`grew. Net new subscribers are deliberately not shown against cadence: sending `
+    +`more does not bring subscribers in, and on this account the two are unrelated `
+    +`(${R.r_sends>0?'+':''}${R.r_sends.toFixed(2)}).</span>`;
   rec.innerHTML='<div class="rs-head">'+head+'</div>';
   cap.innerHTML=`Read off this account’s own ${R.mo} complete months, ${R.from} to ${R.to} `
     +`— a fixed year, so this card does not move when you change the range above. `
     +`Those months are sorted by how many campaigns went out and split into three groups: the `
     +`account’s quietest third, middle third and busiest third. Both charts use those same `
     +`three groups, so the columns line up: the left one is what each cadence earned, the `
-    +`right one is what the list did at that cadence. On the left, every hollow dot is one `
-    +`real month and the line through them is that group’s range, so a dot above the column `
-    +`is simply a month better than its own group’s average. Nothing is projected, and no `
-    +`cadence this account has never run can be recommended. `
+    +`right one is what it cost in opt-outs. Both are per send, so neither moves just `
+    +`because the list grew. Every hollow dot is one real month and the line through them `
+    +`is that group’s range, so a dot above a column is simply a month better than its own `
+    +`group’s average. Nothing is projected, and no cadence this account has never run can `
+    +`be recommended. `
     +`The one estimate is the churn charge: a lost subscriber is charged the campaign revenue they `
     +`would have produced over ${R.H} months at that cadence, at ${Math.round(R.churnValue*100)}% of an `
     +`average subscriber’s rate, because someone who just opted out was the least engaged and past `
