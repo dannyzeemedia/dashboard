@@ -2279,7 +2279,8 @@ function renderReports(){
       c.innerHTML=bl.items.map(it=>'<div class="rep-callout"><div class="rc-big">'+esc(it.big)+'</div><div class="rc-lab">'+esc(it.lab)+'</div></div>').join('');wrap.appendChild(c);}
     else if(bl.t==='h'){const d=document.createElement('div');d.className='rep-prose';d.innerHTML=bl.html;wrap.appendChild(d);}
     else if(bl.t==='method'){const dt=document.createElement('div');dt.className='rep-method';
-      dt.innerHTML='<button class="rep-method-h" type="button"><span class="asec-chev">▸</span>How the test was built</button><div class="rep-method-b"><div class="rep-method-in"><div class="rep-prose">'+bl.html+'</div></div></div>';
+      dt.innerHTML='<button class="rep-method-h" type="button"><span class="asec-chev">▸</span>'
+        +esc(bl.label||'How the test was built')+'</button><div class="rep-method-b"><div class="rep-method-in"><div class="rep-prose">'+bl.html+'</div></div></div>';
       wrap.appendChild(dt);dt.querySelector('.rep-method-h').addEventListener('click',()=>dt.classList.toggle('open'));}
     else if(bl.t==='chart'){const fig=document.createElement('div');fig.className='rep-fig'+(bl.c==='ttorder'?' hero':'');
       fig.innerHTML='<div class="rep-fig-t">'+esc(bl.title||'')+'</div><div class="rep-fig-c"></div>'+(bl.cap?'<div class="rep-fig-cap">'+esc(bl.cap)+'</div>':'');
@@ -2318,6 +2319,66 @@ function repChart(host,name,data){
   const svg=(w,h)=>{const s=el('svg',{viewBox:'0 0 '+w+' '+h,width:'100%'});s.style.display='block';s.style.maxWidth=w+'px';s.style.margin='0 auto';return s;};
   const ON='var(--flow)',OFF='var(--camp)',ACC='var(--aqua)';
   const money=v=>'A$'+Math.round(v).toLocaleString();
+  // ---- cadence report ----
+  // Weekly revenue at each cadence the account has actually run, with revenue
+  // per send over the top. Two series because they answer different questions
+  // and running them together is what made the dashboard card tell Bomber to
+  // send less: the bars are what the week earns (the decision), the line is
+  // what each send earns (the diminishing return, if there is one).
+  if(name==='cadrev'){
+    const L=data.levels||[];
+    if(!L.length)return;
+    const W=680,H=310,PL=64,PR=64,PT=26,PB=56,iw=W-PL-PR,ih=H-PT-PB;
+    const sy=svg(W,H);
+    const mxR=niceMax(Math.max.apply(null,L.map(l=>l.revenue)));
+    const mxS=niceMax(Math.max.apply(null,L.map(l=>l.perSend)));
+    const cw=iw/L.length, bw=Math.min(64,cw*0.5);
+    const cx=k=>PL+cw*(k+0.5);
+    const y=v=>PT+ih-(v/mxR)*ih, y2=v=>PT+ih-(v/mxS)*ih;
+    for(let g=0;g<=3;g++){const gv=mxR*g/3;
+      sy.appendChild(el('line',{x1:PL,x2:W-PR,y1:y(gv),y2:y(gv),stroke:'var(--border)','stroke-width':1}));
+      const t=el('text',{x:PL-8,y:y(gv)+3,'text-anchor':'end',fill:'var(--muted)',
+        'font-size':10.5,'font-family':'system-ui'});t.textContent=kfmt(gv);sy.appendChild(t);
+      const t2=el('text',{x:W-PR+8,y:y2(mxS*g/3)+3,'text-anchor':'start',fill:'var(--camp)',
+        'font-size':10.5,'font-family':'system-ui'});t2.textContent=kfmt(mxS*g/3);sy.appendChild(t2);}
+    L.forEach((l,k)=>{
+      const top=y(l.revenue), cur=data.now!=null&&Math.abs(l.n-data.now)<0.5;
+      sy.appendChild(el('rect',{x:cx(k)-bw/2,y:top,width:bw,height:Math.max(PT+ih-top,1),
+        rx:4,fill:'var(--flow)','fill-opacity':cur?1:0.28,
+        stroke:'var(--flow)','stroke-opacity':cur?0:0.35,'stroke-width':1}));
+      const v=el('text',{x:cx(k),y:top-7,'text-anchor':'middle','font-size':11,
+        'font-weight':800,fill:cur?'var(--flow)':'var(--ink2)','font-family':'system-ui'});
+      v.textContent=kfmt(l.revenue);sy.appendChild(v);
+      const xl=el('text',{x:cx(k),y:PT+ih+17,'text-anchor':'middle','font-size':11.5,
+        'font-weight':700,fill:'var(--ink)','font-family':'system-ui'});
+      xl.textContent=l.n;sy.appendChild(xl);
+      const wl=el('text',{x:cx(k),y:PT+ih+31,'text-anchor':'middle','font-size':10,
+        fill:'var(--muted)','font-family':'system-ui'});
+      wl.textContent=l.weeks+'w';sy.appendChild(wl);
+      const hit=el('rect',{x:PL+cw*k,y:PT,width:cw,height:ih,fill:'transparent'});
+      hit.addEventListener('mousemove',e=>showTip(host,e,
+        l.n+' campaigns a week · '+l.weeks+' weeks',[
+        ['Revenue that week',l.revenue,'var(--flow)',kfmt],
+        ['Revenue per campaign',l.perSend,'var(--camp)',kfmt],
+        ['Unsubscribe rate',l.unrate,'var(--crit)',v=>v.toFixed(3)+'%']]));
+      hit.addEventListener('mouseleave',()=>hideTip(host));
+      sy.appendChild(hit);});
+    let d2='';L.forEach((l,k)=>{d2+=(k?'L':'M')+cx(k)+' '+y2(l.perSend);});
+    sy.appendChild(el('path',{d:d2,fill:'none',stroke:'var(--camp)','stroke-width':2.5,
+      'stroke-linejoin':'round'}));
+    L.forEach((l,k)=>sy.appendChild(el('circle',{cx:cx(k),cy:y2(l.perSend),r:4,
+      fill:'var(--camp)',stroke:'#fff','stroke-width':1.5})));
+    const ax=el('text',{x:PL+iw/2,y:H-8,'text-anchor':'middle',fill:'var(--muted)',
+      'font-size':11,'font-family':'system-ui'});
+    ax.textContent='campaigns sent that week';sy.appendChild(ax);
+    host.appendChild(sy);
+    // one swatch, not two: "revenue that week" and "where you are now" were
+    // both the accent, so the legend showed the same colour twice
+    const lg=alegend(['Revenue that week — solid is where you are now','var(--flow)'],
+      ['Revenue per campaign','var(--camp)']);
+    lg.style.margin='6px 0 0';host.appendChild(lg);
+    return;
+  }
   // ---- progress report ----
   // Delivery record: one square per email that was scoped, filled when it is
   // live. Drawn rather than described, so ten full rows read at a glance.
