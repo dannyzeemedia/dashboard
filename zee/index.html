@@ -3738,11 +3738,24 @@ function renderRightSize(){
   const rec=document.getElementById('rs-rec'), cap=document.getElementById('rs-cap');
   const R=rightSize();
   if(!R||R.short){
-    cap.textContent='This needs weekly campaign history: '+((R&&R.have)||0)
-      +' usable week'+(((R&&R.have)||0)===1?'':'s')+' so far, and at least '
-      +((R&&R.need)||RS_MIN_WEEKS)+' before sending volume can be told apart from '
-      +'everything else that moves week to week.';
-    rec.innerHTML='';return;
+    // The reason goes in the RECOMMENDATION block, which is open by default.
+    // Putting it only in the caption hid it inside the collapsed "how this is
+    // calculated" section, so the card read as simply broken — which is what
+    // Danny saw.
+    const have=(R&&R.have)||0, need=(R&&R.need)||RS_MIN_WEEKS;
+    rec.innerHTML='<div class="rs-head"><b>Not enough weekly history yet.</b> '
+      +'This account has '+have+' usable week'+(have===1?'':'s')+' of campaign '
+      +'sending, and it takes about '+need+' before how much you send can be told '
+      +'apart from everything else that moves week to week. '
+      +(have?'It will fill in as the weeks accumulate.'
+            :'Nothing has been sent often enough to compare yet.')
+      +'</div>';
+    cap.textContent='The card compares weeks, not months: how many campaigns went '
+      +'out in a week against what each one earned, with the account’s own growth '
+      +'trend removed so a busier month is not mistaken for a better cadence. That '
+      +'needs roughly '+need+' weeks of campaign history and this account has '
+      +have+'.';
+    return;
   }
   const sym=SYM;
   // ---- left: every week as a dot, sends against what each send earned ------
