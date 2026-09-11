@@ -2286,50 +2286,6 @@ function repReadTime(r){
   const w=repPlain(r).split(/\s+/).filter(Boolean).length;
   return Math.max(1,Math.round(w/200));
 }
-// Read-aloud uses the browser's own voice: no key, no cost, and it works on the
-// phone the client is most likely holding. Chunked by paragraph because some
-// engines truncate a single long utterance.
-let SPEAK=null;
-function repSpeak(r,btn){
-  const synth=window.speechSynthesis;
-  if(!synth){btn.textContent='🔈 No voice in this browser';btn.disabled=true;return;}
-  if(SPEAK){synth.cancel();SPEAK=null;btn.textContent='🔊 Read this to me';return;}
-  // getVoices() is populated asynchronously, and some browsers (Brave, by
-  // design) ship no voices at all. Wait briefly, then say so plainly instead of
-  // appearing to do nothing.
-  const voices=synth.getVoices()||[];
-  if(!voices.length){
-    btn.textContent='… finding a voice';
-    let waited=0;
-    const again=()=>{
-      if((synth.getVoices()||[]).length)return repSpeak(r,btn);
-      if((waited+=200)<1600)return setTimeout(again,200);
-      btn.textContent='🔈 No voice in this browser';
-      btn.title='This browser has no speech voices installed. Brave removes them '
-        +'by default; Chrome, Edge and Safari have them built in.';
-      setTimeout(()=>{btn.textContent='🔊 Read this to me';},4000);
-    };
-    return setTimeout(again,200);
-  }
-  const parts=repPlain(r).split(/\n\n+/);
-  const pick=voices.find(v=>/samantha|serena|sonia|aria|jenny|natural/i.test(v.name)&&/en/i.test(v.lang))
-    ||voices.find(v=>/en-(AU|GB)/i.test(v.lang))||voices.find(v=>/^en/i.test(v.lang))||null;
-  SPEAK=true;btn.textContent='⏹ Stop reading';
-  // if nothing is actually speaking a moment later, the engine has swallowed it
-  setTimeout(()=>{
-    if(SPEAK&&!synth.speaking&&!synth.pending){
-      SPEAK=null;synth.cancel();btn.textContent='🔈 Voice unavailable here';
-      setTimeout(()=>{btn.textContent='🔊 Read this to me';},4000);}
-  },1200);
-  let i=0;
-  const next=()=>{
-    if(!SPEAK||i>=parts.length){SPEAK=null;btn.textContent='🔊 Read this to me';return;}
-    const u=new SpeechSynthesisUtterance(parts[i++]);
-    if(pick)u.voice=pick;
-    u.rate=1.0;u.pitch=1.0;u.onend=next;u.onerror=next;synth.speak(u);
-  };
-  next();
-}
 function renderReports(){
   const body=document.getElementById('reports-body');if(!body)return;
   const list=(SERIES[ACTIVE]&&SERIES[ACTIVE].reports)||[];
@@ -2368,7 +2324,6 @@ function renderReports(){
   if(tt)tt.textContent=r.title;
   if(ctl)ctl.innerHTML='<button class="btn ghost" id="repBack">← All reports</button> '
     +(r.share&&!SHARE_MODE?'<button class="btn ghost" id="repShare">🔗 Share link</button> ':'')
-    +'<button class="btn ghost" id="repSay">🔊 Read this to me</button> '
     +'<button class="btn" onclick="window.print()">⤓ Save as PDF</button>';
   const wrap=document.createElement('div');wrap.className='rep-detail';
   wrap.innerHTML='<div class="rep-head"><div class="rep-ey">'+esc(r.date_range||'')
@@ -2391,10 +2346,7 @@ function renderReports(){
       wrap.appendChild(fig);try{repChart(fig.querySelector('.rep-fig-c'),bl.c,(r.charts||{})[bl.c]);}catch(e){}}
   });
   const back=document.getElementById('repBack');if(back)back.addEventListener('click',()=>{
-    if(window.speechSynthesis){window.speechSynthesis.cancel();SPEAK=null;}
     REPORT_OPEN=null;renderReports();window.scrollTo({top:0});});
-  const say=document.getElementById('repSay');
-  if(say)say.addEventListener('click',()=>repSpeak(r,say));
   const sh=document.getElementById('repShare');
   if(sh)sh.addEventListener('click',()=>{
     const done=()=>{sh.textContent='✓ Link copied';setTimeout(()=>{sh.textContent='🔗 Share link';},2200);};
