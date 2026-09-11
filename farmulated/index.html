@@ -667,15 +667,17 @@
   .rep-method-in{overflow:hidden;min-height:0}
   @media print{
     #view-dash,#view-board,#view-audit,#view-map,#reports-ctl,.rep-card-go{display:none!important}
-    .rep-detail{zoom:.84}
-    .rep-head{padding-bottom:12px}
-    .rep-callouts{margin:16px 0}
-    .rep-prose h3{margin:18px 0 6px}
-    .rep-prose p{margin:7px 0}
-    .rep-fig{margin:18px 0;padding:14px}
-    .rep-fig-cap{margin-top:8px}
-    .rep-method{margin-top:14px}
-    .rep-method-h{padding:10px 2px}
+    .rep-detail{zoom:.82}
+    .rep-head{padding-bottom:10px}
+    .rep-h1{font-size:27px;margin:6px 0 5px}
+    .rep-callouts{margin:13px 0;gap:11px}
+    .rep-callout{padding:12px 14px}
+    .rep-prose h3{margin:15px 0 5px}
+    .rep-prose p{margin:6px 0}
+    .rep-fig{margin:14px 0;padding:12px}
+    .rep-fig-cap{margin-top:7px}
+    .rep-method{margin-top:10px}
+    .rep-method-h{padding:8px 2px}
     .rep-detail{border:0;box-shadow:none;padding:0;max-width:none}
     .rep-fig,table.rtbl,.rep-callout,.rep-callouts,.rep-sm{break-inside:avoid}
     .rep-method-b{grid-template-rows:1fr!important}
@@ -2337,7 +2339,7 @@ function repChart(host,name,data){
   if(name==='cadrev'){
     const L=data.levels||[];
     if(!L.length)return;
-    const W=680,H=204,PL=64,PR=64,PT=20,PB=54,iw=W-PL-PR,ih=H-PT-PB;
+    const W=680,H=164,PL=64,PR=64,PT=16,PB=50,iw=W-PL-PR,ih=H-PT-PB;
     const sy=svg(W,H);
     const mxR=niceMax(Math.max.apply(null,L.map(l=>l.revenue)));
     const mxS=niceMax(Math.max.apply(null,L.map(l=>l.perSend)));
@@ -2377,7 +2379,7 @@ function repChart(host,name,data){
       'stroke-linejoin':'round'}));
     L.forEach((l,k)=>sy.appendChild(el('circle',{cx:cx(k),cy:y2(l.perSend),r:4,
       fill:'var(--camp)',stroke:'#fff','stroke-width':1.5})));
-    const ax=el('text',{x:PL+iw/2,y:H-8,'text-anchor':'middle',fill:'var(--muted)',
+    const ax=el('text',{x:PL+iw/2,y:H-3,'text-anchor':'middle',fill:'var(--muted)',
       'font-size':11,'font-family':'system-ui'});
     ax.textContent='campaigns sent that week';sy.appendChild(ax);
     host.appendChild(sy);
