@@ -2292,13 +2292,35 @@ function repReadTime(r){
 let SPEAK=null;
 function repSpeak(r,btn){
   const synth=window.speechSynthesis;
-  if(!synth){btn.textContent='🔈 Not supported here';btn.disabled=true;return;}
+  if(!synth){btn.textContent='🔈 No voice in this browser';btn.disabled=true;return;}
   if(SPEAK){synth.cancel();SPEAK=null;btn.textContent='🔊 Read this to me';return;}
-  const parts=repPlain(r).split(/\n\n+/);
+  // getVoices() is populated asynchronously, and some browsers (Brave, by
+  // design) ship no voices at all. Wait briefly, then say so plainly instead of
+  // appearing to do nothing.
   const voices=synth.getVoices()||[];
+  if(!voices.length){
+    btn.textContent='… finding a voice';
+    let waited=0;
+    const again=()=>{
+      if((synth.getVoices()||[]).length)return repSpeak(r,btn);
+      if((waited+=200)<1600)return setTimeout(again,200);
+      btn.textContent='🔈 No voice in this browser';
+      btn.title='This browser has no speech voices installed. Brave removes them '
+        +'by default; Chrome, Edge and Safari have them built in.';
+      setTimeout(()=>{btn.textContent='🔊 Read this to me';},4000);
+    };
+    return setTimeout(again,200);
+  }
+  const parts=repPlain(r).split(/\n\n+/);
   const pick=voices.find(v=>/samantha|serena|sonia|aria|jenny|natural/i.test(v.name)&&/en/i.test(v.lang))
     ||voices.find(v=>/en-(AU|GB)/i.test(v.lang))||voices.find(v=>/^en/i.test(v.lang))||null;
   SPEAK=true;btn.textContent='⏹ Stop reading';
+  // if nothing is actually speaking a moment later, the engine has swallowed it
+  setTimeout(()=>{
+    if(SPEAK&&!synth.speaking&&!synth.pending){
+      SPEAK=null;synth.cancel();btn.textContent='🔈 Voice unavailable here';
+      setTimeout(()=>{btn.textContent='🔊 Read this to me';},4000);}
+  },1200);
   let i=0;
   const next=()=>{
     if(!SPEAK||i>=parts.length){SPEAK=null;btn.textContent='🔊 Read this to me';return;}
@@ -2345,6 +2367,7 @@ function renderReports(){
   const r=list.find(x=>x.id===REPORT_OPEN);if(!r){REPORT_OPEN=null;return renderReports();}
   if(tt)tt.textContent=r.title;
   if(ctl)ctl.innerHTML='<button class="btn ghost" id="repBack">← All reports</button> '
+    +(r.share&&!SHARE_MODE?'<button class="btn ghost" id="repShare">🔗 Share link</button> ':'')
     +'<button class="btn ghost" id="repSay">🔊 Read this to me</button> '
     +'<button class="btn" onclick="window.print()">⤓ Save as PDF</button>';
   const wrap=document.createElement('div');wrap.className='rep-detail';
@@ -2372,6 +2395,13 @@ function renderReports(){
     REPORT_OPEN=null;renderReports();window.scrollTo({top:0});});
   const say=document.getElementById('repSay');
   if(say)say.addEventListener('click',()=>repSpeak(r,say));
+  const sh=document.getElementById('repShare');
+  if(sh)sh.addEventListener('click',()=>{
+    const done=()=>{sh.textContent='✓ Link copied';setTimeout(()=>{sh.textContent='🔗 Share link';},2200);};
+    // clipboard is blocked on some setups, so always leave a way to get the URL
+    if(navigator.clipboard&&navigator.clipboard.writeText)
+      navigator.clipboard.writeText(r.share).then(done).catch(()=>window.prompt('Share link',r.share));
+    else window.prompt('Share link',r.share);});
 }
 // The video walk-thru button belongs to the account audit, so it only shows
 // while the Audit view is open (and only when that audit has a video).
@@ -6493,7 +6523,7 @@ async function loadAndRender(){ try{
   await loadOwnerComments();
   SERIES={}; ser.data.forEach(r=>{const d=r.data; if(d&&d.client_slug)SERIES[d.client_slug]=d;});
   REPORTS={}; (rep.data||[]).forEach(r=>{ if(r.client_slug){(REPORTS[r.client_slug]=REPORTS[r.client_slug]||[]).push(r.data);} });   // all months, newest-first (query orders month desc)
-  const slugs=Object.keys(SERIES);
+  const slugs=Object.keys(SERIES).filter(s=>!((SERIES[s]||{}).hidden));
   ORDER=[...CORDER.filter(s=>slugs.includes(s)), ...slugs.filter(s=>!CORDER.includes(s)).sort()];
   const m=location.pathname.match(/dashboard\/([^\/]+)\//);
   const folder=m?m[1]:null;
