@@ -631,6 +631,16 @@
   .rep-ey{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
   .rep-h1{font-size:30px;letter-spacing:-.03em;margin:8px 0 6px;text-wrap:balance}
   .rep-sum{font-size:15px;color:var(--ink2)}
+  .rep-rt{margin-left:10px;padding-left:10px;border-left:1px solid var(--border);
+    font-weight:700;color:var(--ink2);letter-spacing:.04em}
+  .rep-tldr{border:1px solid var(--border);border-left:3px solid var(--flow);
+    border-radius:11px;background:var(--surface-2);padding:16px 20px;margin:20px 0 6px}
+  .rep-tldr-h{font-size:11px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:9px}
+  .rep-tldr ul{margin:0;padding-left:19px}
+  .rep-tldr li{font-size:14.5px;color:var(--ink2);line-height:1.6;margin:6px 0}
+  .rep-tldr li b{color:var(--ink)}
+  @media print{.rep-tldr{padding:11px 15px;margin:14px 0 4px}.rep-tldr li{margin:4px 0}}
   .rep-callouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin:24px 0}
   .rep-callout{border:1px solid var(--border);border-left:3px solid var(--aqua);border-radius:11px;padding:16px 18px;background:var(--surface-2)}
   .rc-big{font-size:26px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
@@ -687,6 +697,11 @@
   @media print{ header.top,.toolbar,.banner,.note,#view-dash,#view-audit,#view-map,.eyebrow,.view-h,.view-sub,.totop,.cmt-fab{display:none!important}
     body{background:#fff}.paper{box-shadow:none;border:0;border-radius:0;width:auto;padding:0}
     .wrap{padding:0}section.view{padding:0}}
+  body.shared #viewSeg,body.shared #refreshBtn,body.shared #outBtn,body.shared .cmt-fab,
+  body.shared #cmenu,body.shared .totop,body.shared #repBack,
+  body.shared #view-reports>.eyebrow{display:none!important}
+  body.shared #reports-title{font-size:0;height:0;margin:0}
+  body.shared .clogo-btn{pointer-events:none}
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 
   /* ---------- retention map ---------- */
@@ -1559,6 +1574,10 @@ let revGroup=false;
 let revChannel=false;
 let inProgress=true;   // "Include current (in-progress)" on by default
 let REPORT=null, SLUG='', RANGE=12, CMP='prev', REPORT_OPEN=null;
+// A path of /r/<token>/ is a public share link. Decided from the URL alone, so
+// no auth code runs and no client switcher is built.
+const SHARE_MODE=/\/r\/[A-Za-z0-9_-]+\/?$/.test(location.pathname);
+const LOGO_BASE=SHARE_MODE?'../../logos/':'../logos/';
 let tlaunched=[], tconcluded=[], twon=[], subsR3=[];
 // multi-client: all series/reports the logged-in user may read, keyed by slug
 let SERIES={}, REPORTS={}, ORDER=[], ACTIVE='';
@@ -1628,7 +1647,7 @@ function isDark(){const r=document.documentElement;
 function logoInfo(data,iconOnly){const dark=isDark();
   let file=(dark&&data.logo_dark)?data.logo_dark:(data.logo||data.client_slug+'.svg');
   if(iconOnly)file=file.replace(/\.svg$/,'-icon.svg');   // convention: <name>-icon.svg is the mark-only crop
-  return {src:'../logos/'+file, invert: dark && data.logo_invert && !data.logo_dark};}
+  return {src:LOGO_BASE+file, invert: dark && data.logo_invert && !data.logo_dark};}
 function applyPalette(){const r=document.documentElement, p=(SERIES[ACTIVE]||{}).palette;
   if(!p){['--flow','--camp','--aqua'].forEach(v=>r.style.removeProperty(v));return;}
   const set=p[isDark()?'dark':'light']||p.light||{};
@@ -1659,7 +1678,7 @@ function buildMenu(){const host=document.getElementById('cmenu');host.innerHTML=
 function buildSwitcher(){const b=document.getElementById('brand');b.innerHTML='';
   const AS=SERIES[ACTIVE]||{};
   if(AS.group_logo){const gl=new Image();gl.className='glogo'+((isDark()&&AS.group_logo_invert)?' inv':'');
-    gl.src='../logos/'+AS.group_logo;gl.alt=AS.group_name||'';gl.title=AS.group_name||'';b.appendChild(gl);
+    gl.src=LOGO_BASE+AS.group_logo;gl.alt=AS.group_name||'';gl.title=AS.group_name||'';b.appendChild(gl);
     const dv=document.createElement('span');dv.className='gdiv';b.appendChild(dv);}
   const wrap=document.createElement('div');wrap.className='cswitch';
   const g=AS.group;
@@ -2248,6 +2267,47 @@ function renderBoard(){const r=REPORT;const paper=document.getElementById('paper
   reportShareChart(document.getElementById('p-chart'), ch.months||[], ch.share||[], ch.baseline, 'var(--flow)');}
 
 // ---- Reports view (list + detail) ----
+// Plain text of a report, in reading order. Powers both the read-time estimate
+// and the read-aloud button, so the two can never disagree about what the
+// report actually says.
+function repPlain(r){
+  const out=[r.title||'', r.summary||''];
+  (r.blocks||[]).forEach(bl=>{
+    if(bl.t==='tldr'){out.push((bl.items||[]).join('. '));}
+    else if(bl.t==='callouts'){out.push((bl.items||[]).map(i=>i.big+', '+i.lab).join('. '));}
+    else if(bl.t==='h'||bl.t==='method'){
+      const d=document.createElement('div');d.innerHTML=bl.html||'';
+      out.push((d.textContent||'').replace(/\s+/g,' ').trim());}
+    else if(bl.t==='chart'){out.push([bl.title,bl.cap].filter(Boolean).join('. '));}
+  });
+  return out.filter(Boolean).join('\n\n');
+}
+function repReadTime(r){
+  const w=repPlain(r).split(/\s+/).filter(Boolean).length;
+  return Math.max(1,Math.round(w/200));
+}
+// Read-aloud uses the browser's own voice: no key, no cost, and it works on the
+// phone the client is most likely holding. Chunked by paragraph because some
+// engines truncate a single long utterance.
+let SPEAK=null;
+function repSpeak(r,btn){
+  const synth=window.speechSynthesis;
+  if(!synth){btn.textContent='🔈 Not supported here';btn.disabled=true;return;}
+  if(SPEAK){synth.cancel();SPEAK=null;btn.textContent='🔊 Read this to me';return;}
+  const parts=repPlain(r).split(/\n\n+/);
+  const voices=synth.getVoices()||[];
+  const pick=voices.find(v=>/samantha|serena|sonia|aria|jenny|natural/i.test(v.name)&&/en/i.test(v.lang))
+    ||voices.find(v=>/en-(AU|GB)/i.test(v.lang))||voices.find(v=>/^en/i.test(v.lang))||null;
+  SPEAK=true;btn.textContent='⏹ Stop reading';
+  let i=0;
+  const next=()=>{
+    if(!SPEAK||i>=parts.length){SPEAK=null;btn.textContent='🔊 Read this to me';return;}
+    const u=new SpeechSynthesisUtterance(parts[i++]);
+    if(pick)u.voice=pick;
+    u.rate=1.0;u.pitch=1.0;u.onend=next;u.onerror=next;synth.speak(u);
+  };
+  next();
+}
 function renderReports(){
   const body=document.getElementById('reports-body');if(!body)return;
   const list=(SERIES[ACTIVE]&&SERIES[ACTIVE].reports)||[];
@@ -2284,13 +2344,20 @@ function renderReports(){
   }
   const r=list.find(x=>x.id===REPORT_OPEN);if(!r){REPORT_OPEN=null;return renderReports();}
   if(tt)tt.textContent=r.title;
-  if(ctl)ctl.innerHTML='<button class="btn ghost" id="repBack">← All reports</button> <button class="btn" onclick="window.print()">⤓ Save as PDF</button>';
+  if(ctl)ctl.innerHTML='<button class="btn ghost" id="repBack">← All reports</button> '
+    +'<button class="btn ghost" id="repSay">🔊 Read this to me</button> '
+    +'<button class="btn" onclick="window.print()">⤓ Save as PDF</button>';
   const wrap=document.createElement('div');wrap.className='rep-detail';
-  wrap.innerHTML='<div class="rep-head"><div class="rep-ey">'+esc(r.date_range||'')+'</div><h1 class="rep-h1">'+esc(r.title)+'</h1><div class="rep-sum">'+esc(r.summary||'')+'</div></div>';
+  wrap.innerHTML='<div class="rep-head"><div class="rep-ey">'+esc(r.date_range||'')
+    +'<span class="rep-rt">'+repReadTime(r)+' min read</span></div>'
+    +'<h1 class="rep-h1">'+esc(r.title)+'</h1><div class="rep-sum">'+esc(r.summary||'')+'</div></div>';
   body.innerHTML='';body.appendChild(wrap);
   (r.blocks||[]).forEach(bl=>{
     if(bl.t==='callouts'){const c=document.createElement('div');c.className='rep-callouts';
       c.innerHTML=bl.items.map(it=>'<div class="rep-callout"><div class="rc-big">'+esc(it.big)+'</div><div class="rc-lab">'+esc(it.lab)+'</div></div>').join('');wrap.appendChild(c);}
+    else if(bl.t==='tldr'){const d=document.createElement('div');d.className='rep-tldr';
+      d.innerHTML='<div class="rep-tldr-h">'+esc(bl.label||'The short of it')+'</div><ul>'
+        +(bl.items||[]).map(x=>'<li>'+x+'</li>').join('')+'</ul>';wrap.appendChild(d);}
     else if(bl.t==='h'){const d=document.createElement('div');d.className='rep-prose';d.innerHTML=bl.html;wrap.appendChild(d);}
     else if(bl.t==='method'){const dt=document.createElement('div');dt.className='rep-method';
       dt.innerHTML='<button class="rep-method-h" type="button"><span class="asec-chev">▸</span>'
@@ -2300,7 +2367,11 @@ function renderReports(){
       fig.innerHTML='<div class="rep-fig-t">'+esc(bl.title||'')+'</div><div class="rep-fig-c"></div>'+(bl.cap?'<div class="rep-fig-cap">'+esc(bl.cap)+'</div>':'');
       wrap.appendChild(fig);try{repChart(fig.querySelector('.rep-fig-c'),bl.c,(r.charts||{})[bl.c]);}catch(e){}}
   });
-  const back=document.getElementById('repBack');if(back)back.addEventListener('click',()=>{REPORT_OPEN=null;renderReports();window.scrollTo({top:0});});
+  const back=document.getElementById('repBack');if(back)back.addEventListener('click',()=>{
+    if(window.speechSynthesis){window.speechSynthesis.cancel();SPEAK=null;}
+    REPORT_OPEN=null;renderReports();window.scrollTo({top:0});});
+  const say=document.getElementById('repSay');
+  if(say)say.addEventListener('click',()=>repSpeak(r,say));
 }
 // The video walk-thru button belongs to the account audit, so it only shows
 // while the Audit view is open (and only when that audit has a video).
@@ -6483,7 +6554,39 @@ document.getElementById('lform').addEventListener('submit',async e=>{
   if(error){err.textContent=error.message;err.hidden=false;} else showApp();
 });
 
-if(!sb){const e=document.getElementById('lerr');e.textContent='Could not load the app (a script was blocked). Try a hard refresh, or a different network or browser.';e.hidden=false;}
+// ---- public share mode ----
+// A report published to /r/<token>/ renders with no login: the bundle sits next
+// to the page as report.json and carries the client's palette with it. Nothing
+// else is reachable, there is no client switcher, and no Supabase call is made.
+async function shareBoot(){
+  document.getElementById('login').hidden=true;
+  try{
+    const res=await fetch('report.json',{cache:'no-store'});
+    if(!res.ok)throw new Error('not found');
+    const pkg=await res.json();
+    SERIES={}; REPORTS={}; ACTIVE=pkg.client_slug||'shared';
+    SERIES[ACTIVE]=pkg.data||{}; SERIES[ACTIVE].reports=pkg.reports||[];
+    document.getElementById('app').hidden=false;
+    document.body.classList.add('shared');
+    applyPalette();
+    try{ORDER=[ACTIVE];buildSwitcher();}catch(e){}
+    ['view-dash','view-board','view-audit','view-map'].forEach(id=>{
+      const el=document.getElementById(id);if(el)el.hidden=true;});
+    document.getElementById('view-reports').hidden=false;
+    REPORT_OPEN=(pkg.reports&&pkg.reports[0]&&pkg.reports[0].id)||null;
+    renderReports();
+    const bn=document.getElementById('banner');
+    if(bn)bn.innerHTML='<span class="dot"></span><span><b>'+esc((SERIES[ACTIVE].name)||'')
+      +'</b> '+esc(pkg.note||'Prepared by Zee.Media. Figures are Klaviyo-attributed.')
+      +'</span>';
+  }catch(e){
+    document.getElementById('login').hidden=false;
+    const el=document.getElementById('lerr');
+    if(el){el.textContent='This report link is no longer available.';el.hidden=false;}
+  }
+}
+if(SHARE_MODE){shareBoot();}
+else if(!sb){const e=document.getElementById('lerr');e.textContent='Could not load the app (a script was blocked). Try a hard refresh, or a different network or browser.';e.hidden=false;}
 else sb.auth.getSession().then(({data})=>{ if(data.session) showApp(); else showLogin(); });
 </script>
 </body>
