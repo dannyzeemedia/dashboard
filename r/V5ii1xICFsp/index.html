@@ -431,6 +431,7 @@
   .reach-freq .rf-lab{font-size:12.5px;color:var(--ink2);font-weight:600}
   .reach-freq .rf-note{font-size:12px;color:var(--ink);font-weight:700;white-space:nowrap}
   .abody p{margin:0 0 10px} .abody p:last-child{margin-bottom:0}
+  .fcov.one{grid-template-columns:1fr}
   .fcov{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px}
   @media(max-width:560px){.fcov{grid-template-columns:1fr}}
   .fcov-col h4{font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
@@ -698,7 +699,8 @@
     body{background:#fff}.paper{box-shadow:none;border:0;border-radius:0;width:auto;padding:0}
     .wrap{padding:0}section.view{padding:0}}
   body.shared #viewSeg,body.shared #refreshBtn,body.shared #outBtn,body.shared .cmt-fab,
-  body.shared #cmenu,body.shared .totop,body.shared #repBack,
+  body.shared #cmenu,body.shared .totop,body.shared #repBack,body.shared #todoBtn,
+  body.shared #auditBack,body.shared #vidBtn,
   body.shared #view-reports>.eyebrow{display:none!important}
   body.shared #reports-title{font-size:0;height:0;margin:0}
   body.shared .clogo-btn{pointer-events:none}
@@ -2990,7 +2992,7 @@ function auditFunnel(host,spec){const st=spec.stages||[];
   host.appendChild(wrap);
   if(spec.leak){const n=document.createElement('div');n.className='conc-note';n.textContent=spec.leak;host.appendChild(n);}}
 function auditCompare(host,spec){const items=spec.items||[],mx=Math.max(...items.map(i=>Math.abs(i.value)||0),1);
-  const fmt=spec.money?kfmt:spec.rpr?(v=>'$'+(+v).toFixed(2)):(v=>nfmt(v));
+  const fmt=spec.rpr?(v=>'$'+(+v).toFixed(Math.abs(+v)<0.1?4:2)):spec.money?kfmt:(v=>nfmt(v));
   host.style.position='relative';
   const wrap=document.createElement('div');wrap.className='abars';host.appendChild(wrap);
   items.forEach(it=>{const pct=Math.max(it.value>0?4:0,Math.abs(it.value)/mx*100),c=it.flag?'var(--crit)':'var(--flow)';
@@ -3072,8 +3074,10 @@ function auditFlowCoverage(host,spec){
   const wrap=document.createElement('div');wrap.className='fcov';
   const col=(title,items,cls,ic)=>'<div class="fcov-col"><h4>'+esc(title)+'</h4>'
     +items.map(t=>'<div class="fcov-item"><span class="fcov-ic '+cls+'">'+ic+'</span>'+esc(t)+'</div>').join('')+'</div>';
-  wrap.innerHTML=col(spec.liveTitle||'Live and well built',spec.live||[],'y','✓')
-    +col(spec.missingTitle||'Missing',spec.missing||[],'n','✕');
+  const L=spec.live||[], M=spec.missing||[];
+  if(!L.length||!M.length)wrap.classList.add('one');
+  wrap.innerHTML=(L.length?col(spec.liveTitle||'Live and well built',L,'y','✓'):'')
+    +(M.length?col(spec.missingTitle||'Missing',M,'n','✕'):'');
   host.appendChild(wrap);
   if(spec.note){const n=document.createElement('div');n.className='conc-note';n.textContent=spec.note;host.appendChild(n);}}
 var seasonBday=false;
@@ -6554,9 +6558,15 @@ async function shareBoot(){
     try{ORDER=[ACTIVE];buildSwitcher();}catch(e){}
     ['view-dash','view-board','view-audit','view-map'].forEach(id=>{
       const el=document.getElementById(id);if(el)el.hidden=true;});
-    document.getElementById('view-reports').hidden=false;
-    REPORT_OPEN=(pkg.reports&&pkg.reports[0]&&pkg.reports[0].id)||null;
-    renderReports();
+    if(pkg.kind==='audit'){
+      // an audit is the prospect deliverable, so a share link opens it directly
+      document.getElementById('view-audit').hidden=false;
+      renderAudit();
+    }else{
+      document.getElementById('view-reports').hidden=false;
+      REPORT_OPEN=(pkg.reports&&pkg.reports[0]&&pkg.reports[0].id)||null;
+      renderReports();
+    }
     const bn=document.getElementById('banner');
     if(bn)bn.innerHTML='<span class="dot"></span><span><b>'+esc((SERIES[ACTIVE].name)||'')
       +'</b> '+esc(pkg.note||'Prepared by Zee.Media. Figures are Klaviyo-attributed.')
