@@ -668,12 +668,12 @@
   @media print{
     #view-dash,#view-board,#view-audit,#view-map,#reports-ctl,.rep-card-go{display:none!important}
     .rep-detail{zoom:.82}
-    .rep-head{padding-bottom:10px}
+    .rep-head{padding-bottom:8px}
     .rep-h1{font-size:27px;margin:6px 0 5px}
-    .rep-callouts{margin:13px 0;gap:11px}
+    .rep-callouts{margin:11px 0;gap:11px}
     .rep-callout{padding:12px 14px}
-    .rep-prose h3{margin:15px 0 5px}
-    .rep-prose p{margin:6px 0}
+    .rep-prose h3{margin:13px 0 5px}
+    .rep-prose p{margin:5px 0}
     .rep-fig{margin:14px 0;padding:12px}
     .rep-fig-cap{margin-top:7px}
     .rep-method{margin-top:10px}
@@ -1032,7 +1032,10 @@
   .pgd-foot{display:flex;justify-content:space-between;align-items:baseline;margin:11px 0 0}
   .pgd-foot b{font-size:13px}
   .pgd-foot span{font-size:11.5px;color:var(--muted)}
-  @media print{.pgd-pip{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  @media print{.pgd-pip{-webkit-print-color-adjust:exact;print-color-adjust:exact;
+      width:13px;height:13px}
+    .pgd-row{padding:4px 0}
+    .pgd-foot{margin:8px 0 0}}
   /* the right-size call to action */
   .rs-call{margin:0 0 14px;padding:16px 18px;border-radius:12px;
     border:1px solid var(--border);border-left:4px solid var(--flow);
@@ -2405,13 +2408,13 @@ function repChart(host,name,data){
         +'<span class="pgd-dt">'+esc(r.span||'')+'</span></div>';}).join('')
       +'<div class="pgd-foot"><b>'+(data.delivered||0)+' of '+(data.promised||0)
       +' emails live · '+(data.promised?Math.round(data.delivered/data.promised*100):0)
-      +'%</b><span>last 30 days on the right</span></div>';
+      +'%</b><span>'+esc(data.note||'last 30 days on the right')+'</span></div>';
     host.appendChild(wrapEl);return;
   }
   // Flows beside campaigns, not stacked, over a soft area of the two combined.
   if(name==='pgrev'){
     const ms=data.months||[], fl=data.flow||[], cp=data.camp||[];
-    const W=680,H=290,L=62,R=16,PT=24,PB=42,iw=W-L-R,ih=H-PT-PB;
+    const W=680,H=194,L=62,R=16,PT=16,PB=34,iw=W-L-R,ih=H-PT-PB;
     const tot=ms.map((_,i)=>(fl[i]||0)+(cp[i]||0));
     const top=niceMax(Math.max.apply(null,tot.concat([1])));
     const nb=ms.length, band=iw/nb;
@@ -2445,7 +2448,8 @@ function repChart(host,name,data){
       hit.addEventListener('mouseleave',()=>hideTip(host));
       sy.appendChild(hit);});
     host.appendChild(sy);
-    const lg=alegend(['Automated flows','var(--flow)'],['Campaigns','var(--camp)']);
+    const lg=alegend(['Automated flows','var(--flow)'],['Campaigns','var(--camp)'],
+      ['Total email revenue','color-mix(in srgb,var(--flow) 26%,transparent)']);
     lg.style.margin='6px 0 0';host.appendChild(lg);
     return;
   }
