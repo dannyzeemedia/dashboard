@@ -667,6 +667,15 @@
   .rep-method-in{overflow:hidden;min-height:0}
   @media print{
     #view-dash,#view-board,#view-audit,#view-map,#reports-ctl,.rep-card-go{display:none!important}
+    .rep-detail{zoom:.84}
+    .rep-head{padding-bottom:12px}
+    .rep-callouts{margin:16px 0}
+    .rep-prose h3{margin:18px 0 6px}
+    .rep-prose p{margin:7px 0}
+    .rep-fig{margin:18px 0;padding:14px}
+    .rep-fig-cap{margin-top:8px}
+    .rep-method{margin-top:14px}
+    .rep-method-h{padding:10px 2px}
     .rep-detail{border:0;box-shadow:none;padding:0;max-width:none}
     .rep-fig,table.rtbl,.rep-callout,.rep-callouts,.rep-sm{break-inside:avoid}
     .rep-method-b{grid-template-rows:1fr!important}
@@ -2328,7 +2337,7 @@ function repChart(host,name,data){
   if(name==='cadrev'){
     const L=data.levels||[];
     if(!L.length)return;
-    const W=680,H=310,PL=64,PR=64,PT=26,PB=56,iw=W-PL-PR,ih=H-PT-PB;
+    const W=680,H=204,PL=64,PR=64,PT=20,PB=54,iw=W-PL-PR,ih=H-PT-PB;
     const sy=svg(W,H);
     const mxR=niceMax(Math.max.apply(null,L.map(l=>l.revenue)));
     const mxS=niceMax(Math.max.apply(null,L.map(l=>l.perSend)));
@@ -2374,7 +2383,7 @@ function repChart(host,name,data){
     host.appendChild(sy);
     // one swatch, not two: "revenue that week" and "where you are now" were
     // both the accent, so the legend showed the same colour twice
-    const lg=alegend(['Revenue that week — solid is where you are now','var(--flow)'],
+    const lg=alegend(['Revenue that week: solid is where you are now','var(--flow)'],
       ['Revenue per campaign','var(--camp)']);
     lg.style.margin='6px 0 0';host.appendChild(lg);
     return;
@@ -4063,8 +4072,8 @@ function renderRightSize(){
       +`measurable effect), so nothing is being cannibalised at this cadence.`;
   }else{
     head+=`Each individual campaign does earn less as volume rises `
-      +`(${R.partial.toFixed(2)} once the account's own growth is taken out) — `
-      +`that is diminishing returns, not negative returns. The extra send still `
+      +`(${R.partial.toFixed(2)} once the account's own growth is taken out). `
+      +`That is diminishing returns, not negative returns. The extra send still `
       +`adds to the week; it just adds less than the one before it.`;
   }
   head+=` The next campaign is worth about `
@@ -4077,7 +4086,7 @@ function renderRightSize(){
     +`that count and judged separately: they are the same creative going back out, `
     +`not another campaign. `:''}You are sending about ${R.n0.toFixed(1)} a week, `
     +`and this account has run between ${R.lo} and ${R.hi}. Nothing here says what `
-    +`happens past ${R.hi} — it has never been tried, so that is a test to run, not `
+    +`happens past ${R.hi}: it has never been tried, so that is a test to run, not `
     +`a number to read off.`
     +(R.peaks.length?` ${R.peaks.length} promotional week${R.peaks.length===1?'':'s'} `
       +`sit outside this, deliberately: letting a Black Friday anchor the trend is `
@@ -4087,7 +4096,7 @@ function renderRightSize(){
   if(A&&A.kind==='more'){
     call='<div class="rs-call go"><div class="rs-call-a">Make '+A.to.n
       +' campaigns a week the floor</div><div class="rs-call-b">'
-      +'you average '+A.now.toFixed(1)+' — worth about <b>'+money(A.perMonth)
+      +'you average '+A.now.toFixed(1)+', worth about <b>'+money(A.perMonth)
       +' a month</b> more</div>'
       +'<div class="rs-call-c">In the '+A.to.weeks+' weeks this account ran '+A.to.n
       +' a week it earned '+money(A.to.revenue)+' a week, against '
@@ -4097,7 +4106,7 @@ function renderRightSize(){
   }else if(A&&A.kind==='less'){
     call='<div class="rs-call back"><div class="rs-call-a">Pull back to '+A.to.n
       +' campaigns a week</div><div class="rs-call-b">'
-      +'from '+A.now.toFixed(1)+' — worth about <b>'+money(A.perMonth)
+      +'from '+A.now.toFixed(1)+', worth about <b>'+money(A.perMonth)
       +' a month</b> more</div>'
       +'<div class="rs-call-c">This is the rare case where sending less earned '
       +'more, so treat it as a flag to check rather than an instruction: in the '
@@ -4138,7 +4147,7 @@ function renderRightSize(){
         +'<div class="rs-call-b">'+perWeek.toFixed(1)+' resends a week earning '
         +pct+'% of what a campaign earns per person</div>'
         +'<div class="rs-call-c">'+RS.nWindow+' resends to non-openers over the '
-        +'last '+RS.windowWeeks+' weeks — '+Math.round(RS.share*100)+'% of '
+        +'last '+RS.windowWeeks+' weeks, '+Math.round(RS.share*100)+'% of '
         +'everything that went out. '
         +'They bring in '+money(RS.revPerWeek)+' a week between them, which is what '
         +(swap<1?'less than one':swap.toFixed(1))+' real campaign earns here. '
@@ -4150,7 +4159,7 @@ function renderRightSize(){
         +'being spent either way.</div></div>';
     }else if(RS.verdict==='good'){
       rsCall='<div class="rs-call go"><div class="rs-call-a">The follow-ups are '
-        +'earning their keep — keep them</div>'
+        +'earning their keep, so keep them</div>'
         +'<div class="rs-call-b">'+pct+'% of a campaign’s revenue per person, at '
         +'no creative cost</div>'
         +'<div class="rs-call-c">'+RS.nWindow+' resends over the last '
@@ -4183,7 +4192,7 @@ function renderRightSize(){
         +'marginal</div><div class="rs-call-b">'+pct+'% of a campaign’s revenue '
         +'per person, across '+RS.nWindow+' of them</div>'
         +'<div class="rs-call-c">'+perWeek.toFixed(1)+' a week lately, worth '
-        +money(RS.revPerWeek)+' a week. Not clearly wasted, not clearly paying — '
+        +money(RS.revPerWeek)+' a week. Not clearly wasted, not clearly paying, so it is '
         +'worth trying a month without them and reading this again. They are '
         +'counted separately from the cadence above either way.</div></div>';
     }
@@ -4194,7 +4203,7 @@ function renderRightSize(){
     +`it tracked send volume, so it could not tell the two apart. `
     +`${R.weeks.length} weeks, ${R.from} to ${R.to}. `
     +`Each dot is one week: how many campaigns went out, against what each one earned. `
-    +`The dark line is the average at each cadence — flat means volume is not changing `
+    +`The dark line is the average at each cadence: flat means volume is not changing `
     +`the return. `
     +`The test behind the verdict removes the straight-line trend from both sends and `
     +`revenue-per-campaign before comparing them, so "busier weeks earned more" (true of `
