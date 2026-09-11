@@ -631,7 +631,7 @@
   .rep-ey{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
   .rep-h1{font-size:30px;letter-spacing:-.03em;margin:8px 0 6px;text-wrap:balance}
   .rep-sum{font-size:15px;color:var(--ink2)}
-  .rep-callouts{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:24px 0}
+  .rep-callouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin:24px 0}
   .rep-callout{border:1px solid var(--border);border-left:3px solid var(--aqua);border-radius:11px;padding:16px 18px;background:var(--surface-2)}
   .rc-big{font-size:26px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
   .rc-lab{font-size:12.5px;color:var(--ink2);line-height:1.45;margin-top:5px}
@@ -1027,7 +1027,7 @@
   .pgd-pip.off{background:color-mix(in srgb,var(--ink) 10%,transparent)}
   .pgd-ct{font-size:11.5px;font-weight:700;color:var(--good);text-align:right;
     font-variant-numeric:tabular-nums}
-  .pgd-dt{font-size:10.5px;color:var(--muted);text-align:right;
+  .pgd-dt{font-size:11.5px;color:var(--ink2);text-align:right;
     font-variant-numeric:tabular-nums}
   .pgd-foot{display:flex;justify-content:space-between;align-items:baseline;margin:11px 0 0}
   .pgd-foot b{font-size:13px}
@@ -2405,7 +2405,7 @@ function repChart(host,name,data){
         +'<span class="pgd-dt">'+esc(r.span||'')+'</span></div>';}).join('')
       +'<div class="pgd-foot"><b>'+(data.delivered||0)+' of '+(data.promised||0)
       +' emails live · '+(data.promised?Math.round(data.delivered/data.promised*100):0)
-      +'%</b><span>one square per email that was scoped</span></div>';
+      +'%</b><span>last 30 days on the right</span></div>';
     host.appendChild(wrapEl);return;
   }
   // Flows beside campaigns, not stacked, over a soft area of the two combined.
