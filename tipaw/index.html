@@ -475,7 +475,7 @@
   .trow-hero{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
   .trow-rest{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:stretch}
   @media(max-width:1040px){.trow-rest{grid-template-columns:repeat(2,minmax(0,1fr))}}
-  .tile .ticon{width:13px;height:13px;vertical-align:-2px;margin-right:5px;opacity:.55;flex:none}
+  .tile .ticon{width:15px;height:15px;vertical-align:-3px;margin-right:6px;opacity:.9;flex:none;color:var(--ink2)}
   .tile.splittile{grid-column:span 2}
   @media(max-width:620px){.trow-rest{grid-template-columns:1fr}.tile.splittile{grid-column:span 1}}
   .tile.splittile{display:flex;flex-direction:column;justify-content:center}
@@ -491,7 +491,7 @@
   .tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
     padding:15px 16px;box-shadow:var(--shadow);min-width:0}
   .tile.hero{padding:18px 20px;border-color:color-mix(in srgb,var(--flow) 22%,var(--border))}
-  .tile .lab{font-size:11px;color:var(--muted);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tile .lab{font-size:11.5px;color:var(--ink2);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:0}
   .tile .val{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-top:7px}
   .tile.hero .val{font-size:30px}
   .tile.hero .lab{font-size:12px}
@@ -1725,7 +1725,8 @@ function switchTo(slug){ACTIVE=slug;
   // Reports tab houses the recurring monthly report, any one-off reports, AND the account audit.
   const hasReports=reps.length>0 || !!(SERIES[slug]&&(SERIES[slug].reports||[]).length) || !!A;
   // Retention map: only for clients we have actually mapped (client_series.data.retention_map).
-  const hasMap=!!(SERIES[slug]&&SERIES[slug].retention_map&&(SERIES[slug].retention_map.flows||[]).length);
+  const _S=SERIES[slug]||{};
+  const hasMap=!!(_S.has_map||(_S.retention_map&&(_S.retention_map.flows||[]).length));
   seg.hidden=!(hasReports||hasMap);
   [...seg.children].forEach(x=>{const v=x.dataset.view;
     x.hidden=(v==='reports'&&!hasReports)||(v==='map'&&!hasMap);});
@@ -1741,7 +1742,7 @@ function switchTo(slug){ACTIVE=slug;
   document.getElementById('view-map').hidden=true;
   updateVidBtn();
   RM_FLOW=null;RM_SEL=null;RM_Z=1;RM_L=null;if(RM_FULL)rmFullscreen(false);
-  if(hasMap)renderMap();
+  if(hasMap)ensureMap(slug).then(renderMap);
   REPORT_OPEN=null;
   renderDash();renderBoard();renderReports();
   if(IS_OWNER)updateFab();}
@@ -1943,15 +1944,34 @@ function renderTiles(){
   // First two are emphasised "hero" tiles; the remainder flow into a responsive row.
   const tShare=[];for(let k=cur[0];k<=cur[1];k++)tShare.push(store[k]?total[k]/store[k]:null);   // attributed share of store, per month, for the tile overlay
   // On a short window the headline is a part-year number, which is hard to hold
-  // next to an annual one. Annualise it: what the selected range implies over
-  // twelve months. Only worth saying when the window is shorter than a year.
-  const runRate=v=>(len&&len<12)?('≈'+kfmt(v/len*12)+' a year at this rate'):null;
+  // next to an annual one. Annualise it, and say how that compares with the
+  // twelve months actually on record, which is the number it will be read
+  // against. Only worth saying when the window is shorter than a year.
+  const y12=[Math.max(0,n-12),n-1];
+  const store12=sum(store,y12), attr12=sum(total,y12);
+  const vsYear=(rr,actual)=>{
+    if(!actual)return '';
+    const d=Math.round((rr/actual-1)*100);
+    if(!isFinite(d)||Math.abs(d)<1)return ' · level with last 12mo';
+    return ` · ${d>0?'+':''}${d}% vs last 12mo`;
+  };
+  const runRate=(v,actual)=>(len&&len<12)
+    ? '≈'+kfmt(v/len*12)+' a year at this rate'+vsYear(v/len*12,actual) : null;
+  // Attributed is annualised through the period's own average share of store,
+  // month by month, rather than straight off the attributed total: Danny asked
+  // for "the average store revenue % for that time period", and a mean of the
+  // monthly shares is not the same as the ratio of the two totals.
+  const shareAvg=(()=>{const xs=tShare.filter(v=>v!=null);
+    return xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:null;})();
+  const attrRun=(shareAvg!=null)?(stC/len*12)*shareAvg:(atC/len*12);
   const rows=[
     {l:`Total store revenue · ${len}mo`,i:'store',v:kfmt(stC),d:cD?delta(stC,sum(store,cD)):null,hero:true,
-      sub:runRate(stC),
+      sub:runRate(stC,store12),
       spark:MONTHS.slice(cur[0],cur[1]+1).map((_,k)=>store[cur[0]+k]),sparkId:'tile-storeline',draw:drawMoneyLine},
     {l:`Total attributed · ${len}mo`,i:'bolt',v:kfmt(atC),d:cD?delta(atC,sum(total,cD)):null,
-      sub:[stC?Math.round(atC/stC*100)+'% of store revenue':null,runRate(atC)].filter(Boolean).join(' · '),hero:true,
+      sub:[stC?Math.round(atC/stC*100)+'% of store revenue':null,
+           (len&&len<12)?'≈'+kfmt(attrRun)+' a year (avg '+(shareAvg*100).toFixed(1)+'% of store)'
+             +vsYear(attrRun,attr12):null].filter(Boolean).join(' · '),hero:true,
       spark:tShare,sparkId:'tile-attrshare',draw:drawAttrShare},
     {pie:true,l:'Attributed mix',i:'pie',flow:sum(flow,cur),camp:sum(camp,cur)},
     {l:`Flow revenue · ${len}mo`,i:'flow',v:kfmt(sum(flow,cur)),d:cD?delta(sum(flow,cur),sum(flow,cD)):null,sub:(atC?Math.round(sum(flow,cur)/atC*100)+'% of attributed':null)},
@@ -4492,7 +4512,7 @@ function wireControls(){
     document.getElementById('view-map').hidden=v!=='map';
     if(v!=='map'&&RM_FULL)rmFullscreen(false);
     if(v==='reports'){REPORT_OPEN=null;renderReports();}
-    if(v==='map'){renderMap();}
+    if(v==='map'){ensureMap(ACTIVE).then(renderMap);}
     updateVidBtn();});
   document.getElementById('boardMonth').addEventListener('change',e=>{const reps=REPORTS[ACTIVE]||[];REPORT=reps[+e.target.value]||reps[0]||null;renderBoard();});
   document.getElementById('curTog').addEventListener('click',e=>{inProgress=!inProgress;e.currentTarget.setAttribute('aria-pressed',inProgress);applyMode();renderDash();});
@@ -5083,6 +5103,19 @@ function rmWireFilterCheck(){
     if(f)b.addEventListener('click',()=>rmIce(b,null,f));});
 }
 
+// The retention map is 0.4 to 0.6 MB and only ever read for the client on
+// screen, so it is fetched when the tab is opened rather than shipped for all
+// seventeen clients on every page load. has_map, set by the light view, is what
+// tells the tab whether to offer itself in the meantime.
+async function ensureMap(slug){
+  const S=SERIES[slug];
+  if(!S||S.retention_map||!S.has_map)return;
+  try{
+    const {data}=await sb.from('client_series').select('data').eq('client_slug',slug).limit(1);
+    const d=data&&data[0]&&data[0].data;
+    if(d&&d.retention_map)S.retention_map=d.retention_map;
+  }catch(e){}
+}
 function renderMap(){
   const M=rmData(); if(!M)return;
   document.getElementById('map-sub').textContent=
@@ -6492,7 +6525,9 @@ async function loadAndRender(){ try{
   let ser,rep;
   for(let attempt=0;attempt<2;attempt++){
     [ser,rep]=await Promise.all([
-      sb.from('client_series').select('data'),                                 // ALL readable clients
+      sb.rpc('client_series_light').then(r=>(r.error   // ALL readable clients, minus the retention maps
+        ? sb.from('client_series').select('data')      // fall back: never lock anyone out over a view
+        : r)),
       sb.from('client_reports').select('data,client_slug,month').order('month',{ascending:false}),
     ]);
     if(!ser.error)break;
@@ -6506,7 +6541,7 @@ async function loadAndRender(){ try{
     return;
   }
   await loadOwnerComments();
-  SERIES={}; ser.data.forEach(r=>{const d=r.data; if(d&&d.client_slug)SERIES[d.client_slug]=d;});
+  SERIES={}; ser.data.forEach(r=>{const d=r.data||r; if(d&&d.client_slug)SERIES[d.client_slug]=d;});
   REPORTS={}; (rep.data||[]).forEach(r=>{ if(r.client_slug){(REPORTS[r.client_slug]=REPORTS[r.client_slug]||[]).push(r.data);} });   // all months, newest-first (query orders month desc)
   const slugs=Object.keys(SERIES).filter(s=>!((SERIES[s]||{}).hidden));
   ORDER=[...CORDER.filter(s=>slugs.includes(s)), ...slugs.filter(s=>!CORDER.includes(s)).sort()];
