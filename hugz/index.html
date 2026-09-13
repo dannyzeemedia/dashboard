@@ -1353,6 +1353,7 @@
               <div class="mtwrap">
                 <button class="miniToggle" id="revChanTog" aria-pressed="false" title="Break out by channel (email vs SMS)"><span class="dot"></span>Email vs SMS</button>
                 <button class="miniToggle" id="revGroupTog" aria-pressed="false" title="Side-by-side bars"><span class="dot"></span>Side by side</button>
+                <button class="miniToggle" id="revTrendTog" aria-pressed="false" title="3-month moving average"><span class="dot"></span>Trend</button>
               </div>
               <div class="cap">Monthly. Stacked = total; split shows the mix.</div>
               <div class="legend" id="crev-legend"><span><i style="background:var(--flow)"></i>Flow</span><span><i style="background:var(--camp)"></i>Campaign</span></div></div>
@@ -1574,6 +1575,7 @@ let remail=[],rsms=[],smsDeliv=[],rsmsFlow=[],rsmsCamp=[];
 let campRev=false, campSubs=false;
 let revGroup=false;
 let revChannel=false;
+let revTrend=false;
 let inProgress=true;   // "Include current (in-progress)" on by default
 let REPORT=null, SLUG='', RANGE=12, CMP='prev', REPORT_OPEN=null;
 // A path of /r/<token>/ is a public share link. Decided from the URL alone, so
@@ -1940,10 +1942,16 @@ function renderTiles(){
   // Order (Danny): store revenue first, then attributed, then flow & campaign, then the rest.
   // First two are emphasised "hero" tiles; the remainder flow into a responsive row.
   const tShare=[];for(let k=cur[0];k<=cur[1];k++)tShare.push(store[k]?total[k]/store[k]:null);   // attributed share of store, per month, for the tile overlay
+  // On a short window the headline is a part-year number, which is hard to hold
+  // next to an annual one. Annualise it: what the selected range implies over
+  // twelve months. Only worth saying when the window is shorter than a year.
+  const runRate=v=>(len&&len<12)?('≈'+kfmt(v/len*12)+' a year at this rate'):null;
   const rows=[
     {l:`Total store revenue · ${len}mo`,i:'store',v:kfmt(stC),d:cD?delta(stC,sum(store,cD)):null,hero:true,
+      sub:runRate(stC),
       spark:MONTHS.slice(cur[0],cur[1]+1).map((_,k)=>store[cur[0]+k]),sparkId:'tile-storeline',draw:drawMoneyLine},
-    {l:`Total attributed · ${len}mo`,i:'bolt',v:kfmt(atC),d:cD?delta(atC,sum(total,cD)):null,sub:(stC?Math.round(atC/stC*100)+'% of store revenue':null),hero:true,
+    {l:`Total attributed · ${len}mo`,i:'bolt',v:kfmt(atC),d:cD?delta(atC,sum(total,cD)):null,
+      sub:[stC?Math.round(atC/stC*100)+'% of store revenue':null,runRate(atC)].filter(Boolean).join(' · '),hero:true,
       spark:tShare,sparkId:'tile-attrshare',draw:drawAttrShare},
     {pie:true,l:'Attributed mix',i:'pie',flow:sum(flow,cur),camp:sum(camp,cur)},
     {l:`Flow revenue · ${len}mo`,i:'flow',v:kfmt(sum(flow,cur)),d:cD?delta(sum(flow,cur),sum(flow,cD)):null,sub:(atC?Math.round(sum(flow,cur)/atC*100)+'% of attributed':null)},
@@ -2134,6 +2142,25 @@ function stackedCols(id,win){const card=document.getElementById(id);const[i0,i1]
           }}}
       showTip(card,e,title,rows,money);});
     hit.addEventListener('mouseleave',()=>hideTip(card));svg.appendChild(hit);});
+  // 3-month moving average. Stacked, the question is where the account is
+  // heading in total; side by side, each series has its own answer, so it gets
+  // its own line.
+  if(revTrend){
+    const ma=a=>a.map((_,i)=>{const s0=Math.max(0,i-2),w=a.slice(s0,i+1);
+      return w.reduce((x,y)=>x+(y||0),0)/w.length;});
+    const cx=i=>PL+step*i+step/2;
+    const draw=(vals,col)=>{let d='';ma(vals).forEach((v,i)=>{d+=(i?'L':'M')+cx(i)+' '+y(v);});
+      svg.appendChild(el('path',{d,fill:'none',stroke:col,'stroke-width':2.4,
+        'stroke-linejoin':'round','stroke-linecap':'round',opacity:.92}));
+      ma(vals).forEach((v,i)=>svg.appendChild(el('circle',{cx:cx(i),cy:y(v),r:2.6,
+        fill:col,opacity:.92})));};
+    if(grp){draw(fv,C1);draw(cv,C2);}
+    else draw(tv,'var(--ink)');
+    if(lg)lg.innerHTML+=grp
+      ? `<span><i style="background:${C1};border-radius:9px"></i>${N1} trend</span>`
+        +`<span><i style="background:${C2};border-radius:9px"></i>${N2} trend</span>`
+      : '<span><i style="background:var(--ink);border-radius:9px"></i>Total, 3-mo average</span>';
+  }
   svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));card.appendChild(svg);}
 
 function lineChart(id,win,series,fmt,opts){opts=opts||{};const card=document.getElementById(id);const[i0,i1]=win;const L=MONTHS.slice(i0,i1+1);
@@ -4450,6 +4477,8 @@ function wireControls(){
   document.getElementById('revGroupTog').addEventListener('click',e=>{revGroup=!revGroup;e.currentTarget.setAttribute('aria-pressed',revGroup);
     document.querySelectorAll('#c-rev svg,#c-rev .tip').forEach(n=>n.remove());stackedCols('c-rev',windows().cur);});
   document.getElementById('revChanTog').addEventListener('click',e=>{revChannel=!revChannel;e.currentTarget.setAttribute('aria-pressed',revChannel);
+    document.querySelectorAll('#c-rev svg,#c-rev .tip').forEach(n=>n.remove());stackedCols('c-rev',windows().cur);});
+  document.getElementById('revTrendTog').addEventListener('click',e=>{revTrend=!revTrend;e.currentTarget.setAttribute('aria-pressed',revTrend);
     document.querySelectorAll('#c-rev svg,#c-rev .tip').forEach(n=>n.remove());stackedCols('c-rev',windows().cur);});
   rmWire();
   {const bb=document.getElementById('boardBack');if(bb)bb.addEventListener('click',backToReports);}
