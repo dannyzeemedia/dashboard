@@ -741,10 +741,16 @@
     border-top-color:var(--border)}
   .rm-fcbody > .rm-fcinner{overflow:hidden;padding:0 13px}
   .rs-head{margin:10px 0 0;font-size:13.5px;line-height:1.55;color:var(--ink2);
-    border-left:3px solid var(--camp);padding:9px 0 9px 12px;
+    border-left:3px solid var(--camp);padding:13px 16px 13px 14px;
     background:color-mix(in srgb,var(--camp) 6%,transparent);border-radius:0 8px 8px 0}
   .rs-head b{color:var(--ink)}
-  .rs-note{display:block;margin-top:6px;font-size:12px;color:var(--muted)}
+  /* one dense paragraph was hard to read, so the three facts it carries get a
+     line each with a mark to hang them on */
+  .rs-pt{display:grid;grid-template-columns:20px 1fr;gap:0 9px;align-items:start;margin:9px 0 0}
+  .rs-pt:first-of-type{margin-top:0}
+  .rs-pt .rs-ic{font-size:14px;line-height:1.5;text-align:center;opacity:.85}
+  .rs-note{display:block;margin-top:10px;padding-top:9px;font-size:12px;color:var(--muted);
+    border-top:1px solid color-mix(in srgb,var(--ink) 10%,transparent)}
   .rs-fold{margin:10px 0 0}
   .rs-fold>summary{cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:6px;
     font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
@@ -1068,6 +1074,9 @@
   .rs-call-b{font-size:14px;color:var(--ink2);margin-top:5px}
   .rs-call-c{font-size:12.5px;line-height:1.6;color:var(--ink2);margin-top:10px;
     padding-top:10px;border-top:1px solid color-mix(in srgb,var(--border) 70%,transparent)}
+  .rs-hows{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0 0}
+  @media(max-width:760px){.rs-hows{grid-template-columns:1fr}}
+  .rs-hows .rs-how{margin:0}
   .rs-how{font-size:11.5px;line-height:1.6;color:var(--ink2);margin:10px 0 0;
     padding:10px 12px;border-radius:9px;background:var(--surface-2);
     border:1px solid var(--border)}
@@ -4117,7 +4126,7 @@ function rightSize(){
 }
 function renderRightSize(){
   const card=document.getElementById('c-rightsize');if(!card)return;
-  card.querySelectorAll('svg,.tip,.legend').forEach(n=>n.remove());
+  card.querySelectorAll('svg,.tip,.legend,.rs-how,.rs-hows').forEach(n=>n.remove());
   const rec=document.getElementById('rs-rec'), cap=document.getElementById('rs-cap');
   const R=rightSize();
   if(!R||R.short){
@@ -4227,14 +4236,18 @@ function renderRightSize(){
     ['Where you are now','var(--flow)']);
   // The scatter is unreadable without this, and it was buried in a collapsed
   // section: "interesting, but with no explanation it can just look messy."
-  const how=document.createElement('p');
-  how.className='rs-how';
-  how.innerHTML='<b>Reading the left chart:</b> one dot per week. How far right it '
-    +'sits is how many campaigns went out that week; how high it sits is what each '
-    +'one earned. The dark line joins the average at each cadence, so a line that '
-    +'slopes down means each campaign earns less the more you send in a week. The '
-    +'dashed line is where you are now.';
-  card.appendChild(how);
+  const hows=document.createElement('div');
+  hows.className='rs-hows';
+  hows.innerHTML='<p class="rs-how"><b>Reading this chart:</b> one dot per week. '
+    +'How far right it sits is how many campaigns went out that week; how high it '
+    +'sits is what each one earned. The dark line joins the average at each '
+    +'cadence, so a line that slopes down means each campaign earns less the more '
+    +'you send in a week. The dashed line is where you are now.</p>'
+    +'<p class="rs-how"><b>Reading this chart:</b> what the next campaign of the '
+    +'week is worth. The dark bar is what it earns, the pale bar is the value of '
+    +'the subscribers it drives off, priced over '+RS_H+' months. Taller dark bar '
+    +'means the extra send pays for itself.</p>';
+  card.appendChild(hows);
   lg.style.margin='4px 0 2px';card.appendChild(lg);
 
   // ---- the verdict ---------------------------------------------------------
@@ -4249,31 +4262,27 @@ function renderRightSize(){
   // return alongside it.
   const lv=R.levels.filter(l=>l.weeks>=3);
   const topRev=lv.length?lv.reduce((a,b)=>b.revenue>a.revenue?b:a):null;
-  let head;
-  head=`<b>More campaigns in a week has meant more revenue that week, `
-    +`every step of the way.</b> `;
-  if(topRev){
-    head+=`Across ${R.weeks.length} weeks: `
-      +lv.map(l=>`${l.n} a week earned ${kfmt(l.revenue)}`).join(', ')
-      +`. `;
-  }
-  if(R.flat){
-    head+=`And each individual campaign held its value as volume rose `
-      +`(${R.partial>=0?'+':''}${R.partial.toFixed(2)} once the account's own `
-      +`growth is taken out, where anything under 0.30 either way means no `
-      +`measurable effect), so nothing is being cannibalised at this cadence.`;
-  }else{
-    head+=`Each individual campaign does earn less as volume rises `
-      +`(${R.partial.toFixed(2)} once the account's own growth is taken out). `
-      +`That is diminishing returns, not negative returns. The extra send still `
-      +`adds to the week; it just adds less than the one before it.`;
-  }
-  head+=` The next campaign is worth about `
-    +`<b>${sym}${Math.round(R.marginalRev).toLocaleString()}</b> against about `
-    +`<b>${sym}${Math.round(R.marginalCost).toLocaleString()}</b> of subscribers `
-    +`burnt, ${net>=0?'a net':'a net loss of'} `
-    +`<b>${sym}${Math.round(Math.abs(net)).toLocaleString()}</b> a week`
-    +`${net>=0?' in favour of sending it':''}.`;
+  const pt=(ic,html)=>`<div class="rs-pt"><span class="rs-ic">${ic}</span><span>${html}</span></div>`;
+  let head='';
+  head+=pt('📈',`<b>More campaigns in a week has meant more revenue that week, `
+    +`every step of the way.</b>`
+    +(topRev?` Across ${R.weeks.length} weeks: `
+      +lv.map(l=>`${l.n} a week earned ${kfmt(l.revenue)}`).join(', ')+`.`:''));
+  head+=R.flat
+    ? pt('⚖️',`<b>Each campaign held its value as volume rose.</b> `
+        +`${R.partial>=0?'+':''}${R.partial.toFixed(2)} once the account's own `
+        +`growth is taken out, where anything under 0.30 either way means no `
+        +`measurable effect, so nothing is being cannibalised at this cadence.`)
+    : pt('⚖️',`<b>Each campaign earns a little less as volume rises</b> `
+        +`(${R.partial.toFixed(2)} with the account's own growth taken out). `
+        +`That is diminishing returns, not negative returns: the extra send `
+        +`still adds to the week, it just adds less than the one before it.`);
+  head+=pt(net>=0?'💰':'⚠️',`<b>The next campaign is worth about `
+    +`${sym}${Math.round(R.marginalRev).toLocaleString()}</b> against about `
+    +`${sym}${Math.round(R.marginalCost).toLocaleString()} of subscribers burnt, `
+    +`${net>=0?'a net':'a net loss of'} `
+    +`<b>${sym}${Math.round(Math.abs(net)).toLocaleString()} a week</b>`
+    +`${net>=0?' in favour of sending it':''}.`);
   head+=` <span class="rs-note">${R.resend?`Resends to non-openers are left out of `
     +`that count and judged separately: they are the same creative going back out, `
     +`not another campaign. `:''}You are sending about ${R.n0.toFixed(1)} a week, `
