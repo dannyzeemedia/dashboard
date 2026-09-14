@@ -4294,7 +4294,7 @@ function renderRightSize(){
   const nl=el('text',{x:x(R.n0)+6,y:PT+13,'text-anchor':'start','font-size':10.5,
     'font-weight':700,fill:'var(--flow)','paint-order':'stroke',
     'stroke':'var(--surface)','stroke-width':3,'stroke-linejoin':'round'});
-  nl.textContent='now '+R.n0.toFixed(1);svg.appendChild(nl);
+  nl.textContent='now '+R.n0.toFixed(1)+' · last 8 weeks';svg.appendChild(nl);
   const wkAt={};R.weeks.forEach(w=>{wkAt[w.sends]=(wkAt[w.sends]||0)+1;});
   for(let v=Math.ceil(xLo);v<=xHi;v++){
     const t=el('text',{class:'ax',x:x(v),y:PT+ih+17,'text-anchor':'middle'});
@@ -4419,7 +4419,7 @@ function renderRightSize(){
     +`${net>=0?' in favour of sending it':''}.`);
   head+=` <span class="rs-note">${R.resend?`Resends to non-openers are left out of `
     +`that count and judged separately: they are the same creative going back out, `
-    +`not another campaign. `:''}You are sending about ${R.n0.toFixed(1)} a week, `
+    +`not another campaign. `:''}You are sending about ${R.n0.toFixed(1)} a week over the last eight weeks, `
     +`and this account has run between ${R.lo} and ${R.hi}. Nothing here says what `
     +`happens past ${R.hi}: it has never been tried, so that is a test to run, not `
     +`a number to read off.`
