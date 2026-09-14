@@ -211,6 +211,12 @@
   .anum{font-size:12px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
   .achart{margin-top:2px}
   .abars{display:flex;flex-direction:column;gap:8px;margin-top:2px}
+  /* two or three rows in a full-width card left the bars looking like a
+     rounding error, so a short comparison gets the height back */
+  .abars.big{gap:14px;margin-top:6px}
+  .abars.big .abar{font-size:14.5px;gap:16px}
+  .abars.big .abt{height:34px;border-radius:9px}
+  .abars.big .abv{font-size:20px;letter-spacing:-.01em}
   .abar{display:grid;grid-template-columns:220px 1fr auto;align-items:center;gap:12px;font-size:13px}
   .abar .abl{color:var(--ink2);line-height:1.25}   /* wrap long labels instead of truncating */
   .abar .abt{height:16px;border-radius:5px;min-width:2px}
@@ -3093,7 +3099,8 @@ function auditFunnel(host,spec){const st=spec.stages||[];
 function auditCompare(host,spec){const items=spec.items||[],mx=Math.max(...items.map(i=>Math.abs(i.value)||0),1);
   const fmt=spec.rpr?(v=>'$'+(+v).toFixed(Math.abs(+v)<0.1?4:2)):spec.money?kfmt:(v=>nfmt(v));
   host.style.position='relative';
-  const wrap=document.createElement('div');wrap.className='abars';host.appendChild(wrap);
+  const wrap=document.createElement('div');
+  wrap.className='abars'+(items.length<=3?' big':'');host.appendChild(wrap);
   items.forEach(it=>{const pct=Math.max(it.value>0?4:0,Math.abs(it.value)/mx*100),c=it.flag?'var(--crit)':'var(--flow)';
     const row=document.createElement('div');row.className='abar'+(it.flag?' flagged':'');
     row.innerHTML='<span class="abl" title="'+esc(it.label)+'">'+esc(it.label)+'</span>'
@@ -3701,8 +3708,17 @@ function auditGrowth(host,S,spec){host.innerHTML='';spec=spec||{};
   const bs=csub.slice(-12).slice(0,3).reduce((a,b)=>a+b,0)/3, bf=S.flow.slice(-12).slice(0,3).reduce((a,b)=>a+b,0)/3;
   const K=0.8;   // diminishing returns: scaled paid acquisition brings lower-intent subs, so revenue grows sub-linearly with the list
   const target=subs.map(s=>bs>0?Math.round(bf*Math.pow(s/bs,K)):0);
+  // A target line drawn below actual performance reads as a low bar rather than
+  // a goal, so where the account is already past it the line is dropped and
+  // said in words instead.
+  const av=a=>{const t=a.slice(-3).filter(v=>v!=null);return t.length?t.reduce((x,y)=>x+y,0)/t.length:0;};
+  const ahead=av(flow)>=av(target);
   const blab=auditSubsChannel==='sms'?'New SMS subs / mo':auditSubsChannel==='combined'?'New subs (email+SMS) / mo':'New subscribers / mo';
-  auditDual(host,m,subs,flow,nfmt,kfmt,blab,'Flow revenue (actual)',target,'Realistic target (diminishing returns)',cur?m.length-1:-1);}
+  auditDual(host,m,subs,flow,nfmt,kfmt,blab,'Flow revenue (actual)',
+    ahead?null:target,ahead?null:'Realistic target (diminishing returns)',cur?m.length-1:-1);
+  if(ahead){const n=document.createElement('div');n.className='conc-note';
+    n.textContent='Flow revenue is running ahead of what this list growth alone would '
+      +'predict, so there is no target line to draw here.';host.appendChild(n);}}
 function auditFlowRpr(host,S){const cur=(S.current&&S.current.mtd)?S.current:null;
   const cm=S.months.slice(-12),m=cm.concat(cur?[cur.month]:[]);
   const dv=cm.map(mm=>(S.flows||[]).filter(r=>r[0]===mm).reduce((a,r)=>a+r[2],0));
