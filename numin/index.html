@@ -5091,8 +5091,11 @@ function rmFilterCheck(M){
         +'not on ice">'+nX+' EXTRA</span>');
       if((fc.logic_off||[]).length)
         chips.push('<span class="rm-fcchip w">'+fc.logic_off.length+' AND/OR</span>');
-      if(reState(fc.reentry)==='miss')
-        chips.push('<span class="rm-fcchip c">RE-ENTRY OFF</span>');
+      if(reState(fc.reentry)==='miss'){
+        const re=fc.reentry||{}, has=re.actual_label||'', want=re.prescribed_label||'';
+        chips.push('<span class="rm-fcchip c" title="'
+          +esc(has?('Runs '+has):'Re-entry not as prescribed')
+          +(want?('. Map asks for '+want):'')+'">RE-ENTRY OFF-SPEC</span>');}
     }else{
       chips.push('<span class="rm-fcchip">NOT ON THE MAP</span>');
     }
