@@ -722,8 +722,14 @@
   .off-t td a:hover{text-decoration:underline}
   .off-t td .fl{color:var(--muted);font-size:12px}
   .off-t tr:hover td{background:color-mix(in srgb,var(--flow) 4%,transparent)}
-  .off-hot{color:var(--crit);font-weight:700}
-  .off-warn{color:var(--warn);font-weight:700}
+  .off-red{color:var(--crit);font-weight:700}
+  .off-ink{color:var(--ink);font-weight:700}
+  .off-green{color:var(--good);font-weight:700}
+  .off-zero{color:var(--muted)}
+  .rm-band .v.off-zero{color:var(--good)}
+  .rm-band .v.off-red{color:var(--crit)}
+  .rm-band .v.off-ink{color:var(--ink)}
+  .rm-band .v.off-green{color:var(--good)}
   .off-empty{padding:26px 4px;color:var(--muted)}
   .rm-band{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1px;
     background:var(--border);border:1px solid var(--border);border-radius:var(--radius);
@@ -5462,6 +5468,18 @@ const RM_FAN=52;
 // or spam rates... so we can either alter them or just turn them off." Sorting
 // is the point: the worst offender that also earns nothing is the one to pull.
 let OFF_RANGE='90d', OFF_SORT='unsub', OFF_DIR=-1;
+// What "okay" is for ecommerce automated sending. Unsubscribes: 0.30% is the
+// line we hold for flow email, and anything past 0.5% is a problem. Spam: 0.05%
+// is Klaviyo's own action line, with Gmail's cliff far above at 0.30%.
+const OFF_OK={unsub:0.30, spam:0.05};
+// Over the line is red. Just under it is not a win, so it stays black. Clear of
+// it by more than a tenth is green.
+function offCol(v, ok){
+  if(v==null)return '';
+  if(!v)return 'off-zero';
+  if(v>ok)return 'off-red';
+  return (v>=ok*0.9)?'off-ink':'off-green';
+}
 const OFF_FLOOR=100;   // below this a rate is one or two people, not a rate
 function offRows(){
   const M=rmData(); if(!M)return [];
@@ -5507,11 +5525,18 @@ function renderOffenders(){
     +'not a rate.';
   const band=document.getElementById('off-band');
   const pct=(v,dp)=>(v==null?'\u2014':v.toFixed(dp==null?3:dp)+'%');
+  const verdict=(v,ok)=>v==null?'':(v>ok?'over the '+ok+'% line'
+    :v>=ok*0.9?'just under the '+ok+'% line':'clear of the '+ok+'% line');
   band.innerHTML=
-     '<div><div class="k">Unsub rate</div><div class="v">'+pct(S.unsubRate)+'</div>'
-    +'<div class="n">across '+nfmt(S.delivered)+' sends. Median message '+pct(S.medUnsub)+'.</div></div>'
-    +'<div><div class="k">Spam rate</div><div class="v">'+(S.hasSpam?pct(S.spamRate,4):'\u2014')+'</div>'
-    +'<div class="n">'+(S.hasSpam?('median message '+pct(S.medSpam,4)+'. Klaviyo acts above 0.05%.')
+     '<div><div class="k">Unsub rate</div><div class="v '+offCol(S.unsubRate,OFF_OK.unsub)
+    +'">'+pct(S.unsubRate)+'</div>'
+    +'<div class="n">'+verdict(S.unsubRate,OFF_OK.unsub)+' for automated email. '
+    +nfmt(S.delivered)+' sends, median message '+pct(S.medUnsub)+'.</div></div>'
+    +'<div><div class="k">Spam rate</div><div class="v '
+    +(S.hasSpam?offCol(S.spamRate,OFF_OK.spam):'')+'">'
+    +(S.hasSpam?pct(S.spamRate,4):'\u2014')+'</div>'
+    +'<div class="n">'+(S.hasSpam?(verdict(S.spamRate,OFF_OK.spam)+' Klaviyo acts on. '
+        +'Median message '+pct(S.medSpam,4)+'.')
         :'not in this map yet: resync the account to collect it.')+'</div></div>'
     +'<div><div class="k">Messages sending</div><div class="v">'+S.msgs+'</div>'
     +'<div class="n">'+S.sized+' with '+OFF_FLOOR+'+ sends</div></div>'
@@ -5534,8 +5559,8 @@ function renderOffenders(){
     +col('unsub','Unsub rate')+col('spam','Spam rate')+col('rev','Revenue')
     +'</tr></thead><tbody>'
     +bad.map(r=>{
-      const uCls=r.unsub>=1?'off-hot':r.unsub>S.unsubRate*1.5?'off-warn':'';
-      const sCls=(r.spam!=null&&r.spam>=0.05)?'off-hot':(r.spam!=null&&r.spam>S.spamRate*1.5)?'off-warn':'';
+      const uCls=offCol(r.unsub,OFF_OK.unsub);
+      const sCls=offCol(r.spam,OFF_OK.spam);
       return '<tr><td><a href="https://www.klaviyo.com/flow/message/'+esc(r.id)
         +'/edit" target="_blank" rel="noopener">'+esc(r.name)+'</a>'
         +(r.channel==='sms'?' <span class="fl">SMS</span>':'')+'</td>'
