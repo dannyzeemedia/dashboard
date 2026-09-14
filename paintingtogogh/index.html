@@ -740,13 +740,13 @@
   .rm-fcflow.open .rm-fcbody{grid-template-rows:1fr;opacity:1;
     border-top-color:var(--border)}
   .rm-fcbody > .rm-fcinner{overflow:hidden;padding:0 13px}
-  .rs-head{font-size:13.5px;line-height:1.55;color:var(--ink2)}
+  .rs-head{font-size:12.5px;line-height:1.6;color:var(--ink2)}
   .rs-head b{color:var(--ink)}
   /* one dense paragraph was hard to read, so the three facts it carries get a
      line each with a mark to hang them on */
   .rs-pt{display:grid;grid-template-columns:20px 1fr;gap:0 9px;align-items:start;margin:9px 0 0}
   .rs-pt:first-of-type{margin-top:0}
-  .rs-pt .rs-ic{font-size:14px;line-height:1.5;text-align:center;opacity:.85}
+  .rs-pt .rs-ic{font-size:13px;line-height:1.55;text-align:center;opacity:.85}
   .rs-note{display:block;margin-top:10px;padding-top:9px;font-size:12px;color:var(--muted);
     border-top:1px solid color-mix(in srgb,var(--ink) 10%,transparent)}
   .rs-fold{margin:10px 0 0}
@@ -1073,9 +1073,9 @@
     background:color-mix(in srgb,var(--warn) 8%,transparent)}
   .rs-call.hold{border-left-color:var(--muted);
     background:color-mix(in srgb,var(--muted) 7%,transparent)}
-  .rs-call-a{font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--ink);
-    line-height:1.25}
-  .rs-call-b{font-size:14px;color:var(--ink2);margin-top:5px}
+  .rs-call-a{font-size:15px;font-weight:700;letter-spacing:-.01em;color:var(--ink);
+    line-height:1.3}
+  .rs-call-b{font-size:12.5px;color:var(--muted);margin-top:3px}
   .rs-call-c{font-size:12.5px;line-height:1.6;color:var(--ink2);margin-top:10px;
     padding-top:10px;border-top:1px solid color-mix(in srgb,var(--border) 70%,transparent)}
   .rs-hows{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0 0}
@@ -4155,11 +4155,11 @@ function renderRightSize(){
   }
   const sym=SYM;
   // ---- left: every week as a dot, sends against what each send earned ------
-  const PW=372,GAPX=16,H=286,PL=54,PR=14,PT=30,PB=64;
+  const PW=542,GAPX=16,H=414,PL=66,PR=20,PT=40,PB=86;
   const W=PW*2+GAPX, ih=H-PT-PB;
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`});
-  const title=(ox,txt)=>{const t=el('text',{x:ox+PL,y:PT-14,'font-size':11,
-    'font-weight':800,fill:'var(--ink2)','letter-spacing':'.02em'});
+  const title=(ox,txt)=>{const t=el('text',{x:ox+PL,y:PT-16,'font-size':13.5,
+    'font-weight':700,fill:'var(--ink)','letter-spacing':'-.01em'});
     t.textContent=txt;svg.appendChild(t);};
   const xLo=R.lo-0.6, xHi=R.hi+0.6;
   const maxRps=niceMax(Math.max.apply(null,R.weeks.map(w=>w.rev_per_send)));
@@ -4182,8 +4182,10 @@ function renderRightSize(){
   R.levels.forEach(l=>{
     svg.appendChild(el('circle',{cx:x(l.n),cy:y(l.revPerSend),r:5,
       fill:'var(--ink2)',stroke:'var(--surface)','stroke-width':2}));
-    const t=el('text',{x:x(l.n),y:y(l.revPerSend)-11,'text-anchor':'middle',
-      'font-size':10.5,'font-weight':800,fill:'var(--ink2)'});
+    const t=el('text',{x:x(l.n)+9,y:y(l.revPerSend)-6,'text-anchor':'start',
+      'font-size':10.5,'font-weight':700,fill:'var(--ink2)',
+      'paint-order':'stroke','stroke':'var(--surface)','stroke-width':3,
+      'stroke-linejoin':'round'});
     t.textContent=kfmt(l.revPerSend);svg.appendChild(t);});
   // where the account sits now
   svg.appendChild(el('line',{x1:x(R.n0),x2:x(R.n0),y1:PT,y2:PT+ih,
@@ -4240,6 +4242,7 @@ function renderRightSize(){
     ['Where you are now','var(--flow)']);
   // The scatter is unreadable without this, and it was buried in a collapsed
   // section: "interesting, but with no explanation it can just look messy."
+  lg.style.margin='10px 0 2px';card.appendChild(lg);
   const hows=document.createElement('div');
   hows.className='rs-hows';
   hows.innerHTML='<p class="rs-how"><b>Reading this chart:</b> one dot per week. '
@@ -4252,7 +4255,6 @@ function renderRightSize(){
     +'the subscribers it drives off, priced over '+RS_H+' months. Taller dark bar '
     +'means the extra send pays for itself.</p>';
   card.appendChild(hows);
-  lg.style.margin='4px 0 2px';card.appendChild(lg);
 
   // ---- the verdict ---------------------------------------------------------
   const net=R.marginalRev-R.marginalCost;
