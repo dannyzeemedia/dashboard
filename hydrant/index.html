@@ -740,9 +740,7 @@
   .rm-fcflow.open .rm-fcbody{grid-template-rows:1fr;opacity:1;
     border-top-color:var(--border)}
   .rm-fcbody > .rm-fcinner{overflow:hidden;padding:0 13px}
-  .rs-head{margin:10px 0 0;font-size:13.5px;line-height:1.55;color:var(--ink2);
-    border-left:3px solid var(--camp);padding:13px 16px 13px 14px;
-    background:color-mix(in srgb,var(--camp) 6%,transparent);border-radius:0 8px 8px 0}
+  .rs-head{font-size:13.5px;line-height:1.55;color:var(--ink2)}
   .rs-head b{color:var(--ink)}
   /* one dense paragraph was hard to read, so the three facts it carries get a
      line each with a mark to hang them on */
@@ -1063,6 +1061,12 @@
   .rs-call{margin:0 0 14px;padding:16px 18px;border-radius:12px;
     border:1px solid var(--border);border-left:4px solid var(--flow);
     background:color-mix(in srgb,var(--flow) 6%,transparent)}
+  .rs-call-a{cursor:pointer;display:flex;align-items:center;gap:8px}
+  .rs-call-a .rs-chev{font-size:11px;color:var(--muted);transition:transform .18s;flex:none}
+  .rs-call.shut .rs-chev{transform:rotate(-90deg)}
+  .rs-call-w{display:grid;grid-template-rows:1fr;transition:grid-template-rows .25s ease}
+  .rs-call.shut .rs-call-w{grid-template-rows:0fr}
+  .rs-call-w>div{min-height:0;overflow:hidden}
   .rs-call.go{border-left-color:var(--good);
     background:color-mix(in srgb,var(--good) 7%,transparent)}
   .rs-call.back{border-left-color:var(--warn);
@@ -4263,11 +4267,26 @@ function renderRightSize(){
   const lv=R.levels.filter(l=>l.weeks>=3);
   const topRev=lv.length?lv.reduce((a,b)=>b.revenue>a.revenue?b:a):null;
   const pt=(ic,html)=>`<div class="rs-pt"><span class="rs-ic">${ic}</span><span>${html}</span></div>`;
+  // The old headline claimed "every step of the way" whatever the ladder
+  // actually did. On Human Improvement it read 421, 341, 709, 666 under that
+  // sentence, which is not a step at all. Danny: "the pattern doesn't fit."
+  // So describe the shape that is there, and say plainly that these are weekly
+  // totals, because "1 a week earned $421" reads as per campaign.
+  const rising=lv.length>1&&lv.every((l,i)=>i===0||l.revenue>=lv[i-1].revenue);
+  const endsUp=lv.length>1&&lv[lv.length-1].revenue>lv[0].revenue;
+  const ladder=lv.map(l=>`${l.n} a week → <b>${kfmt(l.revenue)}</b> (${l.weeks} wk`
+    +`${l.weeks===1?'':'s'})`).join(' · ');
   let head='';
-  head+=pt('📈',`<b>More campaigns in a week has meant more revenue that week, `
-    +`every step of the way.</b>`
-    +(topRev?` Across ${R.weeks.length} weeks: `
-      +lv.map(l=>`${l.n} a week earned ${kfmt(l.revenue)}`).join(', ')+`.`:''));
+  head+=pt('📈',(rising
+      ? `<b>Every extra campaign in a week has earned more that week.</b>`
+      : endsUp
+        ? `<b>Busier weeks earn more, but not in a straight line.</b> The dip in `
+          +`the middle sits on a handful of weeks, so read the ends rather than `
+          +`the steps.`
+        : `<b>Sending more has not reliably earned more here yet.</b> There is no `
+          +`clean ladder in the weeks so far.`)
+    +(topRev?` What a week earned at each cadence, averaged across the weeks the `
+      +`account ran it: ${ladder}.`:''));
   head+=R.flat
     ? pt('⚖️',`<b>Each campaign held its value as volume rose.</b> `
         +`${R.partial>=0?'+':''}${R.partial.toFixed(2)} once the account's own `
@@ -4277,7 +4296,7 @@ function renderRightSize(){
         +`(${R.partial.toFixed(2)} with the account's own growth taken out). `
         +`That is diminishing returns, not negative returns: the extra send `
         +`still adds to the week, it just adds less than the one before it.`);
-  head+=pt(net>=0?'💰':'⚠️',`<b>The next campaign is worth about `
+  head+=pt(net>=0?'💰':'⚠️',`<b>One more campaign a week is worth about `
     +`${sym}${Math.round(R.marginalRev).toLocaleString()}</b> against about `
     +`${sym}${Math.round(R.marginalCost).toLocaleString()} of subscribers burnt, `
     +`${net>=0?'a net':'a net loss of'} `
@@ -4293,6 +4312,7 @@ function renderRightSize(){
       +`sit outside this, deliberately: letting a Black Friday anchor the trend is `
       +`how a cadence chart flatters itself.`:'')+`</span>`;
   const A=R.advice, money=v=>sym+Math.round(Math.abs(v)).toLocaleString();
+  const money2=v=>sym+(+v).toFixed(v<1?3:2);   // per-recipient needs the decimals
   let call='';
   if(A&&A.kind==='more'){
     call='<div class="rs-call go"><div class="rs-call-a">Make '+A.to.n
@@ -4369,15 +4389,42 @@ function renderRightSize(){
         +'They are counted separately from the cadence above, because a resend to '
         +'non-openers is not a campaign and should not be judged as one.</div></div>';
     }else if(RS.verdict==='stopped'){
-      rsCall='<div class="rs-call hold"><div class="rs-call-a">You have stopped '
-        +'sending follow-ups</div><div class="rs-call-b">'+RS.n+' over the year, '
-        +'the last one '+(RS.lastWeek?'the week of '+RS.lastWeek:'a while ago')
+      // Danny: "what's the point of telling them they've stopped unless we want
+      // to urge them to start again? There's no information on $/recip which
+      // would make it powerful." So price what they used to earn and make the
+      // call, instead of reporting a fact and shrugging.
+      const worth=RS.ratio>=RS_RESEND_OK, ok=RS.ratio>=RS_RESEND_POOR;
+      const perWk=RS.n/Math.max(RS.windowWeeks,1);
+      const wouldBe=RS.rpr*RS.recipients/Math.max(RS.n,1);   // per resend, at the old rate
+      rsCall='<div class="rs-call '+(worth?'go':ok?'hold':'back')+'">'
+        +'<div class="rs-call-a">'
+        +(worth?'Start the follow-ups again'
+          :ok?'The follow-ups are worth another look'
+          :'Leave the follow-ups switched off')+'</div>'
+        +'<div class="rs-call-b">they earned '+money2(RS.rpr)+' a recipient against '
+        +money2(RS.campRpr)+' for a campaign, '
+        +(RS.ratio>=1.25?RS.ratio.toFixed(1)+'x what a campaign earns per person'
+          :RS.ratio>=0.9?'about the same as a campaign'
+          :Math.round(RS.ratio*100)+'% of what a campaign earns per person')
         +'</div>'
-        +'<div class="rs-call-c">Nothing to act on, and no verdict offered: this '
-        +'is a programme the account no longer runs, so what it earned back then '
-        +'says nothing about what it would earn now. They are excluded from the '
-        +'cadence count above either way. Start sending them again and this will '
-        +'judge them once there are enough to judge.</div></div>';
+        +'<div class="rs-call-c">The last one went out '
+        +(RS.lastWeek?'the week of '+RS.lastWeek:'a while ago')+', and there were '
+        +RS.n+' over the period, about '+perWk.toFixed(1)+' a week. At the rate '
+        +'they used to earn, one resend to non-openers was worth about '
+        +money(wouldBe)+'. '
+        +(worth
+          ? 'That is close to a full campaign for creative you have already paid '
+            +'for, so restarting them is the cheapest revenue on this page. Two a '
+            +'week, to non-openers only, and this card will judge them again once '
+            +'there are enough to judge.'
+          : ok
+            ? 'Not spectacular, but not nothing. Worth restarting for a month to '
+              +'see whether they still land, rather than leaving the question '
+              +'open.'
+            : 'They were earning too little per person to be worth the list, so '
+              +'stopping was the right call. Put the effort into another real '
+              +'campaign instead.')
+        +' They are excluded from the cadence count above either way.</div></div>';
     }else if(RS.verdict==='toofew'){
       rsCall='<div class="rs-call hold"><div class="rs-call-a">Too few follow-ups '
         +'to call</div><div class="rs-call-b">'+RS.n+' in the last year, reaching '
@@ -4398,7 +4445,29 @@ function renderRightSize(){
         +'counted separately from the cadence above either way.</div></div>';
     }
   }
-  rec.innerHTML=call+rsCall+'<div class="rs-head">'+head+'</div>';
+  // the reading of the cadence is a card like the other two, not a stray block
+  const readCard='<div class="rs-call"><div class="rs-call-a">How the cadence '
+    +'reads</div><div class="rs-call-b">'+R.weeks.length+' weeks, '
+    +mlabel(R.from.slice(0,7))+' to '+mlabel(R.to.slice(0,7))
+    +(R.peaks.length?', '+R.peaks.length+' promotional weeks set aside':'')
+    +'</div><div class="rs-call-c"><div class="rs-head">'+head+'</div></div></div>';
+  rec.innerHTML=call+rsCall+readCard;
+  // every card collapses, and only the recommendation is open to begin with
+  [...rec.querySelectorAll('.rs-call')].forEach((c,i)=>{
+    const a=c.querySelector('.rs-call-a');if(!a)return;
+    a.insertAdjacentHTML('afterbegin','<span class="rs-chev">▾</span>');
+    const rest=[...c.children].filter(x=>x!==a);
+    if(rest.length){
+      const w=document.createElement('div');w.className='rs-call-w';
+      const inner=document.createElement('div');
+      rest.forEach(x=>inner.appendChild(x));
+      w.appendChild(inner);c.appendChild(w);
+    }
+    if(i>0)c.classList.add('shut');
+    a.addEventListener('click',()=>c.classList.toggle('shut'));
+    a.setAttribute('role','button');a.setAttribute('tabindex','0');
+    a.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();c.classList.toggle('shut');}});
+  });
   cap.innerHTML=`Weekly, not monthly, and that is the whole point: monthly gave this `
     +`card twelve numbers and on most accounts revenue tracked the calendar harder than `
     +`it tracked send volume, so it could not tell the two apart. `
