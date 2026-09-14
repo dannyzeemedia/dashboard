@@ -211,18 +211,17 @@
   .anum{font-size:12px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
   .achart{margin-top:2px}
   .abars{display:flex;flex-direction:column;gap:8px;margin-top:2px}
-  /* two or three rows in a full-width card left the bars looking like a
-     rounding error, so a short comparison gets the height back */
-  .abars.big{gap:14px;margin-top:6px}
-  .abars.big .abar{font-size:14.5px;gap:16px}
-  .abars.big .abt{height:34px;border-radius:9px}
-  .abars.big .abv{font-size:20px;letter-spacing:-.01em}
-  .abar{display:grid;grid-template-columns:220px 1fr auto;align-items:center;gap:12px;font-size:13px}
+  .abar{display:grid;grid-template-columns:220px 1fr;align-items:center;gap:12px;font-size:13px}
   .abar .abl{color:var(--ink2);line-height:1.25}   /* wrap long labels instead of truncating */
-  .abar .abt{height:16px;border-radius:5px;min-width:2px}
-  .abar .abv{font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600;white-space:nowrap}
+  /* the value rides at the end of its own bar. Parked in a right-hand column it
+     sat hundreds of pixels from a short bar, which is dead space, not alignment */
+  .abar .abw{display:flex;align-items:center;gap:10px;min-width:0}
+  .abar .abt{height:16px;border-radius:5px;min-width:2px;flex:none}
+  .abar .abv{font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600;
+    white-space:nowrap;flex:none;min-width:76px}
   .abar.flagged .abv{color:var(--crit)}
-  @media(max-width:620px){.abar{grid-template-columns:120px 1fr auto}}
+  @media(max-width:620px){.abar{grid-template-columns:110px 1fr}
+    .abar .abv{min-width:0}}
   .aflist{margin-top:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
   .aflist-summary{display:flex;align-items:center;gap:8px;width:100%;cursor:pointer;padding:11px 14px;font:inherit;font-size:13px;font-weight:700;color:var(--ink2);background:var(--surface-2);border:0;text-align:left}
   .aflist-chev{color:var(--muted);transition:transform .2s ease;display:inline-block}
@@ -3037,6 +3036,10 @@ function auditStoreShare(host,S,spec){spec=spec||{};const cur=(S.current&&S.curr
     const camp=S.camp.slice(-N).concat(cur?[cur.mtd.camp]:[]);
     const share=store.map((s,i)=>s?+(((flow[i]+camp[i])/s)*100).toFixed(1):0);
     const ma3=share.map((_,i)=>{const w=share.slice(Math.max(0,i-2),i+1);return +(w.reduce((a,b)=>a+b,0)/w.length).toFixed(1);});
+    // The conservative share we would hold the account to, drawn over what it
+    // actually did. A rolling average of its own past is not a goal, so the
+    // target line replaces it unless an audit explicitly asks for the average.
+    const TGT=(spec.target==null?25:spec.target), showTgt=TGT>0, showMa=!!spec.ma3;
     // Deployment bars: how much we sent each month by channel (email campaign recipients + SMS delivered).
     const crec=(S.crecip||[]).slice(-N).concat(cur?[(cur.mtd&&cur.mtd.crecip)||0]:[]);
     const sdel=(S.sms_deliv||[]).slice(-N).concat(cur?[(cur.mtd&&cur.mtd.sms_deliv)||0]:[]);
@@ -3054,7 +3057,7 @@ function auditStoreShare(host,S,spec){spec=spec||{};const cur=(S.current&&S.curr
     let run=0;const cum=store.map(v=>run+=v);
     const sv=storeView==='cum'?cum:store,svLab=storeView==='cum'?'Cumulative store revenue':'Store revenue / mo';
     const W=1080,H=312,PL=64,PR=56,PT=28,PB=44,iw=W-PL-PR,ih=H-PT-PB,n=m.length;
-    const smax=niceMax(Math.max(...sv,1)),pmax=niceMax(Math.max(...share,10));
+    const smax=niceMax(Math.max(...sv,1)),pmax=niceMax(Math.max(...share,showTgt?TGT*1.08:0,10));
     const x=i=>PL+(n<=1?iw/2:iw*i/(n-1)),ys=v=>PT+ih-(v/smax)*ih,yp=v=>PT+ih-(v/pmax)*ih,ev=lblEvery(n);
     const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
     for(let g=0;g<=4;g++){svg.appendChild(el('line',{class:'gl',x1:PL,x2:W-PR,y1:ys(smax*g/4),y2:ys(smax*g/4)}));
@@ -3072,20 +3075,41 @@ function auditStoreShare(host,S,spec){spec=spec||{};const cur=(S.current&&S.curr
     let ls='';sv.forEach((v,i)=>ls+=(i?'L':'M')+x(i)+' '+ys(v));svg.appendChild(el('path',{d:ls,fill:'none',stroke:'var(--camp)','stroke-width':2,'stroke-linejoin':'round'}));
     let lp='';share.forEach((v,i)=>lp+=(i?'L':'M')+x(i)+' '+yp(v));svg.appendChild(el('path',{d:lp,fill:'none',stroke:'var(--flow)','stroke-width':3,'stroke-linejoin':'round'}));
     share.forEach((v,i)=>svg.appendChild(el('circle',{cx:x(i),cy:yp(v),r:3.2,fill:'var(--flow)'})));
-    let mp='';ma3.forEach((v,i)=>mp+=(i?'L':'M')+x(i)+' '+yp(v));svg.appendChild(el('path',{d:mp,fill:'none',stroke:'var(--aqua)','stroke-width':2.5,'stroke-dasharray':'6 4','stroke-linejoin':'round'}));
+    if(showMa){let mp='';ma3.forEach((v,i)=>mp+=(i?'L':'M')+x(i)+' '+yp(v));
+      svg.appendChild(el('path',{d:mp,fill:'none',stroke:'var(--aqua)','stroke-width':2.5,'stroke-dasharray':'6 4','stroke-linejoin':'round'}));}
+    if(showTgt){const yt=yp(TGT);
+      // the gap between where they are and where we would hold them, shaded so
+      // the distance is the thing you see rather than two lines
+      let g='M'+x(0)+' '+yt+'L'+x(n-1)+' '+yt;
+      for(let i=n-1;i>=0;i--)g+='L'+x(i)+' '+yp(share[i]);
+      g+='Z';
+      svg.appendChild(el('path',{d:g,fill:'var(--good)','fill-opacity':0.10,stroke:'none'}));
+      svg.appendChild(el('line',{x1:PL,x2:W-PR,y1:yt,y2:yt,stroke:'var(--good)','stroke-width':2.5,
+        'stroke-dasharray':'7 5'}));
+      const tl2=el('text',{x:PL+6,y:yt-7,style:'fill:var(--good);font-size:10.5px;font-weight:800'});
+      tl2.textContent='Conservative target '+TGT+'%';svg.appendChild(tl2);}
     m.forEach((mm,i)=>{if(labIdx(n).has(i)){mlab(svg,x(i),PT+ih+16,mlabel(mm)+(cur&&i===n-1?'*':''));}});
     svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
     const cross=el('line',{class:'cross',y1:PT,y2:PT+ih,opacity:0});svg.appendChild(cross);
     const hit=el('rect',{x:PL,y:PT,width:iw,height:ih,fill:'transparent'});
     hit.addEventListener('mousemove',e=>{const r=svg.getBoundingClientRect();const px=(e.clientX-r.left)/r.width*W;
       const i=Math.max(0,Math.min(n-1,Math.round((px-PL)/iw*(n-1))));cross.setAttribute('x1',x(i));cross.setAttribute('x2',x(i));cross.setAttribute('opacity',1);
-      const rows=[[svLab,sv[i],'var(--camp)',kfmt],['Email share of store',share[i],'var(--flow)',v=>v.toFixed(1)+'%'],['3-mo average',ma3[i],'var(--aqua)',v=>v.toFixed(1)+'%']];
+      const rows=[[svLab,sv[i],'var(--camp)',kfmt],
+        ['Email + SMS share of store',share[i],'var(--flow)',v=>v.toFixed(1)+'%']];
+      if(showMa)rows.push(['3-mo average',ma3[i],'var(--aqua)',v=>v.toFixed(1)+'%']);
+      if(showTgt){rows.push(['Conservative target',TGT,'var(--good)',v=>v+'%']);
+        rows.push(['Revenue at that target',(sv[i]||0)*TGT/100,'var(--good)',kfmt]);}
       if(showBars){rows.push(['Campaigns sent',csend[i]||0,'rgba(132,142,163,1)',v=>nf(v)+' send'+(v==1?'':'s')],['Email delivered',crec[i]||0,'rgba(132,142,163,1)',nf],['SMS delivered',sdel[i]||0,'rgba(232,152,90,1)',nf]);}
       showTip(box,e,mlabel(m[i]),rows,kfmt);});
     hit.addEventListener('mouseleave',()=>{cross.setAttribute('opacity',0);hideTip(box);});svg.appendChild(hit);
-    box.appendChild(showBars?alegend([svLab,'var(--camp)'],['Email % of store','var(--flow)'],['3-mo average','var(--aqua)'],['Email sent','rgba(132,142,163,.75)'],['SMS sent','rgba(232,152,90,.95)']):alegend([svLab,'var(--camp)'],['Email % of store','var(--flow)'],['3-mo average','var(--aqua)']));box.appendChild(svg);
+    const leg=[[svLab,'var(--camp)'],['Email + SMS % of store','var(--flow)']];
+    if(showTgt)leg.push(['Conservative target '+TGT+'%','var(--good)']);
+    if(showMa)leg.push(['3-mo average','var(--aqua)']);
+    if(showBars)leg.push(['Email sent','rgba(132,142,163,.75)'],['SMS sent','rgba(232,152,90,.95)']);
+    box.appendChild(alegend.apply(null,leg));box.appendChild(svg);
     const note=document.createElement('div');note.className='conc-note';
-    note.textContent=(storeView==='cum'?'Total store revenue building up (area); email and SMS as a share of it (line). ':'Monthly store revenue (area) against email and SMS as a share of it (line). ')+(showBars?'Bars at the base show what we actually sent each month by channel (email delivered, SMS delivered); hover for the campaign count. ':'')+(spec.markers?'Dashed lines mark major gift-giving moments; the store spikes hard through the winter gifting season and stays quiet the rest of the year.':'');
+    note.textContent=(storeView==='cum'?'Total store revenue building up (area); email and SMS as a share of it (line). ':'Monthly store revenue (area) against email and SMS as a share of it (line). ')
+      +(showTgt?'The dashed line is '+TGT+'% of store revenue, the conservative share we would hold the account to, and the shaded band is the distance from it. Hover any month to see what that month would have been worth at '+TGT+'%. ':'')+(showBars?'Bars at the base show what we actually sent each month by channel (email delivered, SMS delivered); hover for the campaign count. ':'')+(spec.markers?'Dashed lines mark major gift-giving moments; the store spikes hard through the winter gifting season and stays quiet the rest of the year.':'');
     box.appendChild(note);}
   draw();}
 function auditFunnel(host,spec){const st=spec.stages||[];
@@ -3099,13 +3123,13 @@ function auditFunnel(host,spec){const st=spec.stages||[];
 function auditCompare(host,spec){const items=spec.items||[],mx=Math.max(...items.map(i=>Math.abs(i.value)||0),1);
   const fmt=spec.rpr?(v=>'$'+(+v).toFixed(Math.abs(+v)<0.1?4:2)):spec.money?kfmt:(v=>nfmt(v));
   host.style.position='relative';
-  const wrap=document.createElement('div');
-  wrap.className='abars'+(items.length<=5?' big':'');host.appendChild(wrap);
+  const wrap=document.createElement('div');wrap.className='abars';host.appendChild(wrap);
   items.forEach(it=>{const pct=Math.max(it.value>0?4:0,Math.abs(it.value)/mx*100),c=it.flag?'var(--crit)':'var(--flow)';
     const row=document.createElement('div');row.className='abar'+(it.flag?' flagged':'');
     row.innerHTML='<span class="abl" title="'+esc(it.label)+'">'+esc(it.label)+'</span>'
-      +'<span class="abt" style="width:'+pct+'%;background:'+c+'"></span>'
-      +'<span class="abv">'+fmt(it.value)+'</span>';
+      +'<span class="abw"><span class="abt" style="width:calc((100% - 86px) * '+(pct/100).toFixed(4)
+      +');background:'+c+'"></span>'
+      +'<span class="abv">'+fmt(it.value)+'</span></span>';
     row.addEventListener('mousemove',e=>showTip(host,e,it.label,[[spec.metricLabel||'Value',it.value,c,fmt]]));
     row.addEventListener('mouseleave',()=>hideTip(host));
     wrap.appendChild(row);});
