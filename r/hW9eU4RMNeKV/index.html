@@ -5464,6 +5464,23 @@ const RM_HB={msg:66,delay:50,split:76};   // base heights; messages grow when st
 const RM_GAPX=40, RM_GAPY=88, RM_PAD=64;
 // how far below a condition card its branches fan out — the donut sits ON this line
 const RM_FAN=52;
+// headroom added under a split so each path can carry its own share pie
+const RM_PIE_ROOM=40;
+let RM_PIED={};
+// One path's share of everything the split sends, drawn as a small donut
+// directly above the message it leads into. The junction donut says how the
+// whole split divides; these say what each arm is actually worth.
+function rmPathPie(g,cx,cy,frac,col,tcol,P,sv,rmText){
+  const r=14, C=2*Math.PI*r, f=Math.max(0,Math.min(1,frac||0));
+  g.appendChild(sv('circle',{cx:cx,cy:cy,r:r+6,fill:P.card}));
+  g.appendChild(sv('circle',{cx:cx,cy:cy,r:r,fill:'none',stroke:P.edge,
+    'stroke-opacity':.45,'stroke-width':7}));
+  if(f>0)g.appendChild(sv('circle',{cx:cx,cy:cy,r:r,fill:'none',stroke:col,'stroke-width':7,
+    'stroke-linecap':'butt','stroke-dasharray':(f*C).toFixed(2)+' '+C.toFixed(2),
+    transform:'rotate(-90 '+cx+' '+cy+')'}));
+  const pc=f*100, txt=(pc>0&&pc<1?pc.toFixed(1):String(Math.round(pc)))+'%';
+  rmText(g,cx,cy+3.4,txt,txt.length>=4?7.5:txt.length>=3?8.5:9.5,800,tcol||col,1,'-.02em');
+}
 
 // ---- Automated offenders -------------------------------------------------
 // Danny: "a list of any messages in the account that have above avg unsub rates
@@ -5643,12 +5660,18 @@ function rmLayout(nodes){
     });
   }
   const minx=Math.min(...nodes.map(n=>x[n.id])), pitch=RM_W.msg+RM_GAPX;
+  // a split whose shares are readable gets a pie above every path it fans into,
+  // so the row below it needs the headroom to hold one
+  const fansToPies=id=>{const n=by[id]; if(!n)return false;
+    if(n.branches&&n.branches.length){const sp=rmSplitN(n,by);return !!(sp&&sp.readable);}
+    if(n.yes||n.no){const sp=rmSplit(n,by);return !!(sp&&sp.readable);}
+    return false;};
   let y=RM_PAD; const pos={};
   rks.forEach(r=>{
     const hh=Math.max(...rows[r].map(id=>rmBox(by[id]).h));
     rows[r].forEach(id=>{const b=rmBox(by[id]);
       pos[id]={x:RM_PAD+(x[id]-minx)*pitch+(RM_W.msg-b.w)/2,y:y+(hh-b.h)/2,w:b.w,h:b.h};});
-    y+=hh+RM_GAPY;
+    y+=hh+RM_GAPY+(rows[r].some(fansToPies)?RM_PIE_ROOM:0);
   });
   const mx=Math.max(...nodes.map(n=>pos[n.id].x+pos[n.id].w));
   return {pos,width:mx+RM_PAD,height:y-RM_GAPY+RM_PAD,kids,by};
@@ -5880,6 +5903,9 @@ function rmDraw(){
   svg.appendChild(defs);
 
   // ---- connectors: quiet greyscale, so the data is the only colour ----
+  // how many of each split's paths got their own pie above the card they lead
+  // into; the junction donut is only still needed where one of them could not
+  RM_PIED={};
   const eg=sv('g',{});
   drawn.forEach(n=>{
     const a=L.pos[n.id]; if(!a)return;
@@ -5921,6 +5947,19 @@ function rmDraw(){
         // the branch's test sits just above the node it leads into, where there is
         // node-width room for it — at the label's midpoint it collides with the
         // neighbouring branch's label
+        if(pct!=null){
+          RM_PIED[n.id]=(RM_PIED[n.id]||0)+1;
+          const pie=sv('g',{class:'rm-pathpie'});
+          // the muted grey an 'everyone else' arm is drawn in is too light to
+          // read as a number, so the centre takes the next step up in ink
+          rmPathPie(pie,x2,y2-49,pct,bcol,bcol===P.mute?P.dim:bcol,P,sv,rmText);
+          const tt=(br?(br.is_else?'Everyone else':(br.name||br.cond||'Path')):lab)
+            +': '+(pct*100).toFixed(1)+'% of everyone this split sends'
+            +(spn&&spn.total?' ('+Math.round(pct*spn.total).toLocaleString()
+              +' of '+spn.total.toLocaleString()+')':'');
+          const ttl=sv('title',{});ttl.textContent=tt;pie.appendChild(ttl);
+          eg.appendChild(pie);
+        }
         if(br&&!br.is_else&&br.cond){
           // as wide as the open canvas allows before it would reach a sibling path
           let room=260;
@@ -6003,13 +6042,13 @@ function rmDraw(){
         const spn=rmSplitN(n,L.by);
         if(spn&&spn.readable){
           const t=spn.total.toLocaleString()+' sent';
+          const allPied=(RM_PIED[n.id]||0)>=spn.paths.filter(x=>(x.pct||0)>0).length;
           const w=rmMeasure(t,8.5,700)+16;
           g.appendChild(sv('rect',{x:p.x+p.w-w-14,y:p.y+14,width:w,height:17,rx:8.5,fill:P.chip}));
           rmText(g,p.x+p.w-w/2-14,p.y+26,t,8.5,700,P.dim,.9);
-          // A yes/no split gets a donut on the junction; an N-path split was
-          // getting only this chip, so the same split read two different ways
-          // depending on how many branches it had. Same donut, one slice per
-          // path, in the order they fan out below.
+          // Every path now carries its own pie above the card it leads into, so
+          // the junction donut is only drawn when a path had nowhere to put one.
+          if(!allPied){
           const dcx=p.x+p.w/2, dcy=p.y+p.h+RM_FAN, dr=19, C=2*Math.PI*dr;
           const cols=[P.accent,P.good,P.teal,P.warn,P.crit,P.dim];
           g.appendChild(sv('circle',{cx:dcx,cy:dcy,r:dr+8,fill:P.card,filter:'url(#rm-shs)'}));
@@ -6027,10 +6066,12 @@ function rmDraw(){
             if(f>big.pct)big={pct:f,col:col};
             acc+=f;});
           rmText(g,dcx,dcy+4,Math.round(big.pct*100)+'%',10.5,800,big.col,1,'-.02em');
+          }
         }
       }
       {const sp=rmSplit(n,L.by);
        if(sp&&sp.readable){
+         const ynPied=(RM_PIED[n.id]||0)>=[sp.yesPct,sp.noPct].filter(v=>v>0).length;
          const ys=String(Math.round(sp.yesPct*100)), ns=String(Math.round(sp.noPct*100));
          const wy=rmMeasure(ys,8.5,800), wn=rmMeasure(ns,8.5,800), wsl=rmMeasure(' / ',8.5,800);
          const w=wy+wsl+wn+16, bx0=p.x+p.w-w-14;
@@ -6039,6 +6080,7 @@ function rmDraw(){
          rmText(g,bx0+10+wy,p.y+26,'/',8.5,800,P.mute,.7,null,'start');
          rmText(g,bx0+12+wy+wsl,p.y+26,ns,8.5,800,P.crit,1,'.06em','start');
          // donut on the junction: Yes as an arc of the whole, No as the remainder
+         if(!ynPied){
          const dcx=p.x+p.w/2, dcy=p.y+p.h+RM_FAN, dr=19, C=2*Math.PI*dr;
          g.appendChild(sv('circle',{cx:dcx,cy:dcy,r:dr+8,fill:P.card,
            filter:'url(#rm-shs)'}));
@@ -6052,6 +6094,7 @@ function rmDraw(){
          // the middle shows whichever side actually dominates, in that side's colour
          const domPct=yes>=0.5?yes:1-yes, domCol=yes>=0.5?P.good:P.crit;
          rmText(g,dcx,dcy+4,Math.round(domPct*100)+'%',10.5,800,domCol,1,'-.02em');
+         }
        }}
     }else{
       // ---- message card: tile layout + status pill + footer alert bar ----
