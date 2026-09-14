@@ -3100,7 +3100,7 @@ function auditCompare(host,spec){const items=spec.items||[],mx=Math.max(...items
   const fmt=spec.rpr?(v=>'$'+(+v).toFixed(Math.abs(+v)<0.1?4:2)):spec.money?kfmt:(v=>nfmt(v));
   host.style.position='relative';
   const wrap=document.createElement('div');
-  wrap.className='abars'+(items.length<=3?' big':'');host.appendChild(wrap);
+  wrap.className='abars'+(items.length<=5?' big':'');host.appendChild(wrap);
   items.forEach(it=>{const pct=Math.max(it.value>0?4:0,Math.abs(it.value)/mx*100),c=it.flag?'var(--crit)':'var(--flow)';
     const row=document.createElement('div');row.className='abar'+(it.flag?' flagged':'');
     row.innerHTML='<span class="abl" title="'+esc(it.label)+'">'+esc(it.label)+'</span>'
