@@ -4156,6 +4156,7 @@ function renderRightSize(){
   const sym=SYM;
   // ---- left: every week as a dot, sends against what each send earned ------
   const PW=542,GAPX=16,H=392,PL=66,PR=20,PT=42,PB=58;
+  const PRL=56;   // left panel keeps room for the weekly-total axis
   const W=PW*2+GAPX, ih=H-PT-PB;
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`});
   const title=(ox,txt)=>{const t=el('text',{x:ox+2,y:PT-18,'font-size':13.5,
@@ -4163,14 +4164,36 @@ function renderRightSize(){
     t.textContent=txt;svg.appendChild(t);};
   const xLo=R.lo-0.6, xHi=R.hi+0.6;
   const maxRps=niceMax(Math.max.apply(null,R.weeks.map(w=>w.rev_per_send)));
-  const iw=PW-PL-PR;
+  const iw=PW-PL-PRL;
   const x=v=>PL+iw*(v-xLo)/((xHi-xLo)||1);
   const y=v=>PT+ih-(Math.max(0,v)/maxRps)*ih;
+  // Danny: "a total area chart behind this chart gives us a figure of what to
+  // expect / measure against." Cadence times what each send earns IS what the
+  // week earned, so the area is the same arithmetic he did by hand: 3 x $236 is
+  // the $709 week. Own axis on the right, because it is a different quantity.
+  const lvT=R.levels.filter(l=>l.weeks>=3);
+  const maxTot=niceMax(Math.max.apply(null,lvT.length?lvT.map(l=>l.revenue):[1]));
+  const yT=v=>PT+ih-(Math.max(0,v)/maxTot)*ih;
   title(0,'What each campaign earned, week by week');
   for(let g=0;g<=3;g++){const gv=maxRps*g/3;
-    svg.appendChild(el('line',{class:'gl',x1:PL,x2:PW-PR,y1:y(gv),y2:y(gv)}));
+    svg.appendChild(el('line',{class:'gl',x1:PL,x2:PW-PRL,y1:y(gv),y2:y(gv)}));
     const t=el('text',{class:'ax',x:PL-7,y:y(gv)+4,'text-anchor':'end'});
-    t.textContent=kfmt(gv);svg.appendChild(t);}
+    t.textContent=kfmt(gv);svg.appendChild(t);
+    const t2=el('text',{class:'ax',x:PW-PRL+8,y:yT(maxTot*g/3)+4,'text-anchor':'start',
+      fill:'var(--aqua)'});
+    t2.textContent=kfmt(maxTot*g/3);svg.appendChild(t2);}
+  // the area goes down first so the weeks sit on top of it
+  if(lvT.length>1){
+    let ad='M'+x(lvT[0].n)+' '+(PT+ih);
+    lvT.forEach(l=>{ad+='L'+x(l.n)+' '+yT(l.revenue);});
+    ad+='L'+x(lvT[lvT.length-1].n)+' '+(PT+ih)+'Z';
+    svg.appendChild(el('path',{d:ad,fill:'var(--aqua)','fill-opacity':.16}));
+    let al='';lvT.forEach((l,k)=>{al+=(k?'L':'M')+x(l.n)+' '+yT(l.revenue);});
+    svg.appendChild(el('path',{d:al,fill:'none',stroke:'var(--aqua)',
+      'stroke-width':1.6,'stroke-linejoin':'round','stroke-opacity':.85}));
+    lvT.forEach(l=>svg.appendChild(el('circle',{cx:x(l.n),cy:yT(l.revenue),r:3,
+      fill:'var(--aqua)'})));
+  }
   R.weeks.forEach(w=>{
     const c=el('circle',{cx:x(w.sends),cy:y(w.rev_per_send),r:3.2,
       fill:'var(--camp)','fill-opacity':.5,stroke:'var(--surface)','stroke-width':.8});
@@ -4197,6 +4220,9 @@ function renderRightSize(){
   for(let v=Math.ceil(xLo);v<=xHi;v++){
     const t=el('text',{class:'ax',x:x(v),y:PT+ih+17,'text-anchor':'middle'});
     t.textContent=v;svg.appendChild(t);}
+  {const tl=el('text',{class:'ax',x:PW-PRL+8,y:PT-6,'text-anchor':'start',
+     fill:'var(--aqua)','font-weight':700});
+   tl.textContent='week total';svg.appendChild(tl);}
   const ax1=el('text',{class:'ax',x:PL+iw/2,y:H-8,'text-anchor':'middle'});
   ax1.textContent='campaigns that week';svg.appendChild(ax1);
   R.levels.forEach(l=>{
@@ -4240,6 +4266,7 @@ function renderRightSize(){
   ax2.textContent='per additional campaign a week';svg.appendChild(ax2);
   card.appendChild(svg);
   const lg=alegend(['One week','var(--camp)'],['Average at that cadence','var(--ink2)'],
+    ['What the week earned at that cadence','var(--aqua)'],
     ['Where you are now','var(--flow)']);
   // The scatter is unreadable without this, and it was buried in a collapsed
   // section: "interesting, but with no explanation it can just look messy."
@@ -4250,7 +4277,10 @@ function renderRightSize(){
     +'How far right it sits is how many campaigns went out that week; how high it '
     +'sits is what each one earned. The dark line joins the average at each '
     +'cadence, so a line that slopes down means each campaign earns less the more '
-    +'you send in a week. The dashed line is where you are now.</p>'
+    +'you send in a week. The shaded band, on the right-hand axis, is what the '
+    +'whole week earned at that cadence, which is the figure to expect and measure '
+    +'against. It only covers the cadences with at least three weeks behind them. '
+    +'The dashed line is where you are now.</p>'
     +'<p class="rs-how"><b>Reading this chart:</b> what the next campaign of the '
     +'week is worth. The dark bar is what it earns, the pale bar is the value of '
     +'the subscribers it drives off, priced over '+RS_H+' months. Taller dark bar '
