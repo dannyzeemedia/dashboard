@@ -707,6 +707,24 @@
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 
   /* ---------- retention map ---------- */
+  .off-seg{margin:14px 0 10px}
+  .off-t{width:100%;border-collapse:collapse;font-size:13px}
+  .off-t th{text-align:right;font-size:10.5px;font-weight:800;letter-spacing:.07em;
+    text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);
+    padding:9px 10px;cursor:pointer;white-space:nowrap;user-select:none}
+  .off-t th:first-child,.off-t th:nth-child(2){text-align:left}
+  .off-t th.on{color:var(--ink)}
+  .off-t th .ar{opacity:.5;font-size:9px;margin-left:3px}
+  .off-t td{border-bottom:1px solid var(--border);padding:9px 10px;text-align:right;
+    color:var(--ink2);font-variant-numeric:tabular-nums}
+  .off-t td:first-child,.off-t td:nth-child(2){text-align:left}
+  .off-t td a{color:var(--ink);font-weight:600;text-decoration:none}
+  .off-t td a:hover{text-decoration:underline}
+  .off-t td .fl{color:var(--muted);font-size:12px}
+  .off-t tr:hover td{background:color-mix(in srgb,var(--flow) 4%,transparent)}
+  .off-hot{color:var(--crit);font-weight:700}
+  .off-warn{color:var(--warn);font-weight:700}
+  .off-empty{padding:26px 4px;color:var(--muted)}
   .rm-band{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1px;
     background:var(--border);border:1px solid var(--border);border-radius:var(--radius);
     overflow:hidden;margin:18px 0 24px}
@@ -1523,6 +1541,19 @@
     </div>
 
     <div id="map-issues"></div>
+
+    <div class="rm-group" id="map-offenders" hidden>
+      <div class="rm-glab"><span class="chev">▾</span>Automated offenders</div>
+      <div class="rm-rows">
+        <p class="view-sub" id="off-sub"></p>
+        <div class="rm-band" id="off-band"></div>
+        <div class="seg off-seg" id="off-range" role="tablist" aria-label="Window">
+          <button data-or="7d">7 days</button><button data-or="30d">30 days</button>
+          <button data-or="90d" aria-selected="true">90 days</button>
+        </div>
+        <div id="off-table"></div>
+      </div>
+    </div>
   </section>
 
   <section class="view wrap" id="view-audit" hidden>
@@ -5232,6 +5263,7 @@ async function ensureMap(slug){
 }
 function renderMap(){
   const M=rmData(); if(!M)return;
+  try{renderOffenders();}catch(e){}
   document.getElementById('map-sub').textContent=
     'Every flow in the account drawn against the retention map, with the filters each '
     +'flow actually runs compared to the ones the map prescribes. Depth counts the longest '
@@ -5422,6 +5454,100 @@ const RM_GAPX=40, RM_GAPY=88, RM_PAD=64;
 // how far below a condition card its branches fan out — the donut sits ON this line
 const RM_FAN=52;
 
+// ---- Automated offenders -------------------------------------------------
+// Danny: "a list of any messages in the account that have above avg unsub rates
+// or spam rates... so we can either alter them or just turn them off." Sorting
+// is the point: the worst offender that also earns nothing is the one to pull.
+let OFF_RANGE='90d', OFF_SORT='unsub', OFF_DIR=-1;
+const OFF_FLOOR=100;   // below this a rate is one or two people, not a rate
+function offRows(){
+  const M=rmData(); if(!M)return [];
+  const out=[];
+  (M.flows||[]).forEach(f=>{
+    if(f.status!=='live')return;
+    (f.nodes||[]).forEach(n=>{
+      const k=rmKind(n);
+      if(k!=='email'&&k!=='sms'&&k!=='push')return;
+      const st=(n.stats&&n.stats[OFF_RANGE])||null;
+      if(!st||!st.delivered)return;
+      out.push({id:n.msg_id||n.id, name:n.name||'(untitled)', flow:f.name, flowId:f.id,
+        channel:k, delivered:st.delivered, unsub:st.unsub||0,
+        spam:(st.spam==null?null:st.spam), rev:st.revenue||0,
+        rpr:st.delivered?(st.revenue||0)/st.delivered:0});
+    });
+  });
+  return out;
+}
+function offStats(rows){
+  const d=rows.reduce((a,r)=>a+r.delivered,0);
+  const u=rows.reduce((a,r)=>a+r.unsub/100*r.delivered,0);
+  const sp=rows.reduce((a,r)=>a+(r.spam==null?0:r.spam/100*r.delivered),0);
+  const hasSpam=rows.some(r=>r.spam!=null);
+  const med=(vals)=>{const v=vals.slice().sort((a,b)=>a-b);if(!v.length)return 0;
+    const m=Math.floor(v.length/2);return v.length%2?v[m]:(v[m-1]+v[m])/2;};
+  const big=rows.filter(r=>r.delivered>=OFF_FLOOR);
+  return {delivered:d, unsubRate:d?u/d*100:0, spamRate:d?sp/d*100:0, hasSpam:hasSpam,
+    medUnsub:med(big.map(r=>r.unsub)), medSpam:med(big.map(r=>r.spam||0)),
+    msgs:rows.length, sized:big.length};
+}
+function renderOffenders(){
+  const host=document.getElementById('map-offenders'); if(!host)return;
+  const rows=offRows();
+  host.hidden=!rows.length;
+  if(!rows.length)return;
+  const S=offStats(rows);
+  document.getElementById('off-sub').textContent=
+    'Every live automated message that sent in the '+RM_RLABEL[OFF_RANGE]+', with the ones '
+    +'above the account\u2019s own average listed below. Sort by a column to find the '
+    +'messages costing the most list for the least revenue. Messages under '
+    +OFF_FLOOR+' sends are left out of the averages, because a rate on twenty sends is '
+    +'not a rate.';
+  const band=document.getElementById('off-band');
+  const pct=(v,dp)=>(v==null?'\u2014':v.toFixed(dp==null?3:dp)+'%');
+  band.innerHTML=
+     '<div><div class="k">Unsub rate</div><div class="v">'+pct(S.unsubRate)+'</div>'
+    +'<div class="n">across '+nfmt(S.delivered)+' sends. Median message '+pct(S.medUnsub)+'.</div></div>'
+    +'<div><div class="k">Spam rate</div><div class="v">'+(S.hasSpam?pct(S.spamRate,4):'\u2014')+'</div>'
+    +'<div class="n">'+(S.hasSpam?('median message '+pct(S.medSpam,4)+'. Klaviyo acts above 0.05%.')
+        :'not in this map yet: resync the account to collect it.')+'</div></div>'
+    +'<div><div class="k">Messages sending</div><div class="v">'+S.msgs+'</div>'
+    +'<div class="n">'+S.sized+' with '+OFF_FLOOR+'+ sends</div></div>'
+    +'<div><div class="k">Above average</div><div class="v">'
+    +rows.filter(r=>r.delivered>=OFF_FLOOR&&(r.unsub>S.unsubRate||(r.spam!=null&&r.spam>S.spamRate))).length
+    +'</div><div class="n">on unsubscribes or complaints</div></div>';
+  const bad=rows.filter(r=>r.delivered>=OFF_FLOOR
+      &&(r.unsub>S.unsubRate||(r.spam!=null&&r.spam>S.spamRate)));
+  const key=r=>({unsub:r.unsub,spam:(r.spam==null?-1:r.spam),rev:r.rev,
+                 sent:r.delivered,name:r.name.toLowerCase(),flow:r.flow.toLowerCase()})[OFF_SORT];
+  bad.sort((a,b)=>{const x=key(a),y=key(b);
+    return (typeof x==='string')?OFF_DIR*x.localeCompare(y):OFF_DIR*(x-y);});
+  const col=(id,label)=>'<th data-os="'+id+'" class="'+(OFF_SORT===id?'on':'')+'">'+label
+    +(OFF_SORT===id?'<span class="ar">'+(OFF_DIR<0?'\u25bc':'\u25b2')+'</span>':'')+'</th>';
+  const host2=document.getElementById('off-table');
+  if(!bad.length){host2.innerHTML='<div class="off-empty">Nothing above the account average '
+    +'in this window. That is the result you want.</div>';return;}
+  host2.innerHTML='<table class="off-t"><thead><tr>'
+    +col('name','Message')+col('flow','Flow')+col('sent','Sent')
+    +col('unsub','Unsub rate')+col('spam','Spam rate')+col('rev','Revenue')
+    +'</tr></thead><tbody>'
+    +bad.map(r=>{
+      const uCls=r.unsub>=1?'off-hot':r.unsub>S.unsubRate*1.5?'off-warn':'';
+      const sCls=(r.spam!=null&&r.spam>=0.05)?'off-hot':(r.spam!=null&&r.spam>S.spamRate*1.5)?'off-warn':'';
+      return '<tr><td><a href="https://www.klaviyo.com/flow/message/'+esc(r.id)
+        +'/edit" target="_blank" rel="noopener">'+esc(r.name)+'</a>'
+        +(r.channel==='sms'?' <span class="fl">SMS</span>':'')+'</td>'
+        +'<td><a class="fl" href="https://www.klaviyo.com/flow/'+esc(r.flowId)
+        +'/edit" target="_blank" rel="noopener">'+esc(r.flow)+'</a></td>'
+        +'<td>'+nfmt(r.delivered)+'</td>'
+        +'<td class="'+uCls+'">'+r.unsub.toFixed(3)+'%</td>'
+        +'<td class="'+sCls+'">'+(r.spam==null?'\u2014':r.spam.toFixed(4)+'%')+'</td>'
+        +'<td>'+rmMoney(r.rev)+'</td></tr>';}).join('')
+    +'</tbody></table>';
+  host2.querySelectorAll('th[data-os]').forEach(th=>th.addEventListener('click',()=>{
+    const k=th.dataset.os;
+    if(OFF_SORT===k)OFF_DIR=-OFF_DIR; else {OFF_SORT=k;OFF_DIR=(k==='name'||k==='flow')?1:-1;}
+    renderOffenders();}));
+}
 function rmKind(n){
   if(n.type==='flow-trigger')return 'trigger';
   if(n.type==='send-email')return 'email';
@@ -5839,6 +5965,27 @@ function rmDraw(){
           const w=rmMeasure(t,8.5,700)+16;
           g.appendChild(sv('rect',{x:p.x+p.w-w-14,y:p.y+14,width:w,height:17,rx:8.5,fill:P.chip}));
           rmText(g,p.x+p.w-w/2-14,p.y+26,t,8.5,700,P.dim,.9);
+          // A yes/no split gets a donut on the junction; an N-path split was
+          // getting only this chip, so the same split read two different ways
+          // depending on how many branches it had. Same donut, one slice per
+          // path, in the order they fan out below.
+          const dcx=p.x+p.w/2, dcy=p.y+p.h+RM_FAN, dr=19, C=2*Math.PI*dr;
+          const cols=[P.accent,P.good,P.teal,P.warn,P.crit,P.dim];
+          g.appendChild(sv('circle',{cx:dcx,cy:dcy,r:dr+8,fill:P.card,filter:'url(#rm-shs)'}));
+          g.appendChild(sv('circle',{cx:dcx,cy:dcy,r:dr,fill:'none',stroke:P.chip,'stroke-width':9}));
+          let acc=0, big={pct:0,col:P.dim};
+          spn.paths.forEach((pa,i)=>{
+            const f=Math.max(0,Math.min(1,pa.pct||0));
+            if(f<=0)return;
+            const col=pa.is_else?P.dim:cols[i%cols.length];
+            g.appendChild(sv('circle',{cx:dcx,cy:dcy,r:dr,fill:'none',stroke:col,
+              'stroke-width':9,'stroke-linecap':'butt',
+              'stroke-dasharray':(f*C).toFixed(2)+' '+C.toFixed(2),
+              'stroke-dashoffset':(-acc*C).toFixed(2),
+              transform:'rotate(-90 '+dcx+' '+dcy+')'}));
+            if(f>big.pct)big={pct:f,col:col};
+            acc+=f;});
+          rmText(g,dcx,dcy+4,Math.round(big.pct*100)+'%',10.5,800,big.col,1,'-.02em');
         }
       }
       {const sp=rmSplit(n,L.by);
@@ -6630,6 +6777,14 @@ function rmWire(){
   sc.addEventListener('pointerup',up); sc.addEventListener('pointercancel',up);
   document.getElementById('view-map').addEventListener('click',e=>{
     const h=e.target.closest('.asec-head'); if(h)h.closest('.asection').classList.toggle('open');});
+  {const seg=document.getElementById('off-range');
+   if(seg)seg.addEventListener('click',e=>{
+     const b=e.target.closest('button[data-or]'); if(!b)return;
+     [...seg.children].forEach(x=>x.setAttribute('aria-selected',x===b));
+     OFF_RANGE=b.dataset.or; renderOffenders();});}
+  {const lab=document.querySelector('#map-offenders .rm-glab');
+   if(lab)lab.addEventListener('click',()=>
+     document.getElementById('map-offenders').classList.toggle('shut'));}
 }
 
 // ---- boot ----
