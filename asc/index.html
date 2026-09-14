@@ -1496,6 +1496,18 @@
     <p class="view-sub" id="map-sub"></p>
     <div class="rm-band" id="map-band"></div>
     <div id="map-coverage"></div>
+    <div class="rm-group" id="map-offenders" hidden>
+      <div class="rm-glab"><span class="chev">▾</span>Automated offenders</div>
+      <div class="rm-rows">
+        <p class="view-sub" id="off-sub"></p>
+        <div class="rm-band" id="off-band"></div>
+        <div class="seg off-seg" id="off-range" role="tablist" aria-label="Window">
+          <button data-or="7d">7 days</button><button data-or="30d">30 days</button>
+          <button data-or="90d" aria-selected="true">90 days</button>
+        </div>
+        <div id="off-table"></div>
+      </div>
+    </div>
 
     <div class="rm-stage" id="map-stage">
       <div class="rm-bar">
@@ -1542,18 +1554,6 @@
 
     <div id="map-issues"></div>
 
-    <div class="rm-group" id="map-offenders" hidden>
-      <div class="rm-glab"><span class="chev">▾</span>Automated offenders</div>
-      <div class="rm-rows">
-        <p class="view-sub" id="off-sub"></p>
-        <div class="rm-band" id="off-band"></div>
-        <div class="seg off-seg" id="off-range" role="tablist" aria-label="Window">
-          <button data-or="7d">7 days</button><button data-or="30d">30 days</button>
-          <button data-or="90d" aria-selected="true">90 days</button>
-        </div>
-        <div id="off-table"></div>
-      </div>
-    </div>
   </section>
 
   <section class="view wrap" id="view-audit" hidden>
