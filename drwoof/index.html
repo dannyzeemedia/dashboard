@@ -4155,10 +4155,10 @@ function renderRightSize(){
   }
   const sym=SYM;
   // ---- left: every week as a dot, sends against what each send earned ------
-  const PW=542,GAPX=16,H=414,PL=66,PR=20,PT=40,PB=86;
+  const PW=542,GAPX=16,H=392,PL=66,PR=20,PT=42,PB=58;
   const W=PW*2+GAPX, ih=H-PT-PB;
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`});
-  const title=(ox,txt)=>{const t=el('text',{x:ox+PL,y:PT-16,'font-size':13.5,
+  const title=(ox,txt)=>{const t=el('text',{x:ox+2,y:PT-18,'font-size':13.5,
     'font-weight':700,fill:'var(--ink)','letter-spacing':'-.01em'});
     t.textContent=txt;svg.appendChild(t);};
   const xLo=R.lo-0.6, xHi=R.hi+0.6;
@@ -4190,8 +4190,9 @@ function renderRightSize(){
   // where the account sits now
   svg.appendChild(el('line',{x1:x(R.n0),x2:x(R.n0),y1:PT,y2:PT+ih,
     stroke:'var(--flow)','stroke-width':1.5,'stroke-dasharray':'4 3'}));
-  const nl=el('text',{x:x(R.n0),y:PT-3,'text-anchor':'middle','font-size':10,
-    'font-weight':800,fill:'var(--flow)'});
+  const nl=el('text',{x:x(R.n0)+6,y:PT+13,'text-anchor':'start','font-size':10.5,
+    'font-weight':700,fill:'var(--flow)','paint-order':'stroke',
+    'stroke':'var(--surface)','stroke-width':3,'stroke-linejoin':'round'});
   nl.textContent='now '+R.n0.toFixed(1);svg.appendChild(nl);
   for(let v=Math.ceil(xLo);v<=xHi;v++){
     const t=el('text',{class:'ax',x:x(v),y:PT+ih+17,'text-anchor':'middle'});
