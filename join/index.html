@@ -32,14 +32,16 @@
   .lform button:disabled{opacity:.6}
   .lerr{color:#ff8b8b;font-size:13px}
   .lform{gap:14px;display:flex;flex-direction:column}
-  .jclient{font-size:19px;font-weight:800;letter-spacing:-.01em;margin:2px 0 -2px}
+  .jclient{font-size:19px;font-weight:800;letter-spacing:-.01em;margin:2px 0 -2px;line-height:1.3}
   .jalt{margin-top:2px;text-align:center;font-size:13px;color:rgba(255,255,255,.62)}
   .jalt button{all:unset;color:#38b6ff;font-weight:700;cursor:pointer}
   .jalt button:hover{text-decoration:underline}
   .jok{color:#6ee7a8;font-size:13px}
   .jhint{color:rgba(255,255,255,.45);font-size:12px;margin-top:7px;line-height:1.45}
   .jlogos{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:2px}
-  .jlogos img.cl{height:34px;width:auto;border-radius:6px;background:#fff;padding:5px 8px}
+  .jlogos img.cl{height:30px;width:auto;border-radius:6px;background:#fff;padding:5px 8px}
+  .jlogos{flex-wrap:wrap}
+  #clogo{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center}
 </style>
 </head>
 <body>
@@ -112,19 +114,28 @@ async function boot(){
     return;
   }
   const {data,error}=await sb.rpc('peek_invite',{p_token:TOKEN});
-  const row=(data&&data[0])||null;
-  if(error||!row){
+  const rows=(data&&data.length)?data:null;
+  if(error||!rows){
     $('jclient').textContent='This link is no longer valid';
     $('jsub').textContent='Ask your account manager for a new one.';
     return;
   }
-  SLUG=row.client_slug; NAME=row.client_name||row.client_slug;
+  // one link can cover several brands under the same owner
+  SLUG=rows[0].client_slug;
+  const names=rows.map(r=>r.client_name||r.client_slug);
+  NAME=names.length>1
+    ? names.slice(0,-1).join(', ')+' and '+names[names.length-1]
+    : names[0];
   $('jclient').textContent=NAME;
-  $('jsub').textContent='Set up your access to the reporting dashboard.';
-  const img=new Image();
-  img.className='cl'; img.alt=NAME;
-  img.onload=()=>$('clogo').appendChild(img);
-  img.src='../logos/'+SLUG+'.png';
+  $('jsub').textContent=rows.length>1
+    ? 'Set up your access to all '+rows.length+' dashboards.'
+    : 'Set up your access to the reporting dashboard.';
+  rows.slice(0,3).forEach(r=>{
+    const img=new Image();
+    img.className='cl'; img.alt=r.client_name||r.client_slug;
+    img.onload=()=>$('clogo').appendChild(img);
+    img.src='../logos/'+r.client_slug+'.png';
+  });
   show($('jfields'),true); show($('jbtn'),true); show($('jalt'),true);
   setMode('signup');
   // already signed in on this device: just take the access and go

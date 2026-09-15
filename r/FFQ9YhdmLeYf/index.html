@@ -706,7 +706,7 @@
   body.shared #viewSeg,body.shared #refreshBtn,body.shared #outBtn,body.shared .cmt-fab,
   body.shared #cmenu,body.shared .totop,body.shared #repBack,body.shared #todoBtn,
   body.shared #auditBack,body.shared #vidBtn,body.shared #boardBack,
-  body.shared #auditShare,body.shared #boardShare,
+  body.shared #auditShare,body.shared #boardShare,body.shared #inviteBtn,
   body.shared #view-reports>.eyebrow{display:none!important}
   body.shared #reports-title{font-size:0;height:0;margin:0}
   body.shared .clogo-btn{pointer-events:none}
@@ -1361,6 +1361,7 @@
       <button role="tab" aria-selected="false" data-view="reports">Reports</button>
       <button role="tab" aria-selected="false" data-view="map">Retention Map</button>
     </div>
+    <button class="themeBtn" id="inviteBtn" style="display:none" title="Copy this client's self-serve access link">✉ Send invite link</button>
     <button class="themeBtn" id="refreshBtn" style="display:none" title="Reload for the latest version, staying on this client and tab">⟳ Refresh</button>
     <button class="themeBtn" id="themeBtn">◑ Theme</button>
     <button class="outBtn" id="outBtn">Log out</button>
@@ -1802,6 +1803,7 @@ function switchTo(slug){ACTIVE=slug;
   document.getElementById('view-audit').hidden=true;
   document.getElementById('view-map').hidden=true;
   updateVidBtn();
+  updateInviteBtn();
   RM_FLOW=null;RM_SEL=null;RM_Z=1;RM_L=null;if(RM_FULL)rmFullscreen(false);
   if(hasMap)ensureMap(slug).then(renderMap);
   REPORT_OPEN=null;
@@ -2470,6 +2472,24 @@ function renderReports(){
 // while the Audit view is open (and only when that audit has a video).
 // Share link on the audit and the monthly report. The custom reports have had
 // one for a while; these two were the odd ones out.
+// Owner-only: hand a client their own sign-up link without going near a
+// terminal. One link per account, so two brands under one owner share it.
+function updateInviteBtn(){
+  const b=document.getElementById('inviteBtn'); if(!b)return;
+  const u=((SERIES[ACTIVE]||{}).invite)||'';
+  b.dataset.url=u;
+  b.style.display=(IS_OWNER&&u&&!SHARE_MODE)?'':'none';
+  if(b.dataset.wired)return;
+  b.dataset.wired='1';
+  b.addEventListener('click',()=>{
+    const url=b.dataset.url||''; if(!url)return;
+    const done=()=>{b.textContent='✓ Link copied';
+      setTimeout(()=>{b.textContent='✉ Send invite link';},2200);};
+    if(navigator.clipboard&&window.isSecureContext)
+      navigator.clipboard.writeText(url).then(done).catch(()=>window.prompt('Invite link',url));
+    else window.prompt('Invite link',url);
+  });
+}
 function wireShare(btnId, url){
   const b=document.getElementById(btnId); if(!b)return;
   b.style.display=(url&&!SHARE_MODE)?'':'none';
