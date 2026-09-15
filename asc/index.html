@@ -2799,6 +2799,48 @@ function repChart(host,name,data){
     lg.innerHTML='<span><i style="background:var(--camp)"></i>'+esc(d.barLabel||'Campaigns sent')+'</span><span><i style="background:var(--flow)"></i>'+esc(d.lineLabel||'Net subscribers (cumulative)')+'</span>';
     host.appendChild(lg);
   }
+  // ---- stage curve: what each lifecycle stage earns per email, against how
+  // many emails that stage sends. One bar and one point per stage, so a track
+  // that sends as much as its neighbour but earns a tenth as much is obvious.
+  else if(name==='stagecurve'){
+    const d=data,n=d.x.length,sym=d.sym||'$';
+    const W=760,H=300,L=52,R=62,PT=20,PB=52,iw=W-L-R,ih=H-PT-PB;
+    const mxB=Math.max.apply(null,d.deliv)*1.1, mxL=Math.max.apply(null,d.rpr)*1.12;
+    const cx=i=>L+iw*(i+0.5)/n, yB=v=>PT+ih-ih*v/mxB, yL=v=>PT+ih-ih*v/mxL;
+    const bw=Math.min(34,iw/n*0.56), nf=v=>Math.round(v).toLocaleString();
+    const mf=v=>sym+(+v).toFixed(3);
+    const sg=svg(W,H);
+    for(let g=0;g<=4;g++){const f=g/4,yy=PT+ih-ih*f;
+      sg.appendChild(el('line',{x1:L,x2:W-R,y1:yy,y2:yy,stroke:'var(--border)','stroke-width':1}));
+      const lt=el('text',{x:L-8,y:yy+3,'text-anchor':'end',fill:'var(--muted)','font-size':10.5,'font-family':'system-ui'});
+      lt.textContent=Math.round(mxB*f/1000)+'k';sg.appendChild(lt);
+      const rt=el('text',{x:W-R+8,y:yy+3,'text-anchor':'start',fill:'var(--flow)','font-size':10.5,'font-family':'system-ui'});
+      rt.textContent=sym+(mxL*f).toFixed(2);sg.appendChild(rt);}
+    if(d.split!=null&&d.split>0&&d.split<n){const xx=L+iw*d.split/n;
+      sg.appendChild(el('line',{x1:xx,x2:xx,y1:PT,y2:PT+ih,stroke:'var(--crit)','stroke-width':1.5,'stroke-dasharray':'5 4'}));
+      if(d.splitLabel){const t=el('text',{x:xx+6,y:PT+12,'text-anchor':'start',fill:'var(--crit)','font-size':10.5,'font-weight':800,'font-family':'system-ui'});
+        t.textContent=d.splitLabel;sg.appendChild(t);}}
+    d.deliv.forEach((v,i)=>{const bh=Math.max(2,ih*v/mxB);
+      sg.appendChild(el('rect',{x:cx(i)-bw/2,y:PT+ih-bh,width:bw,height:bh,rx:4,fill:OFF,'fill-opacity':0.75}));});
+    let p2='';d.rpr.forEach((v,i)=>p2+=(i?'L':'M')+cx(i)+' '+yL(v));
+    sg.appendChild(el('path',{d:p2,fill:'none',stroke:ON,'stroke-width':2.5,'stroke-linejoin':'round'}));
+    d.rpr.forEach((v,i)=>sg.appendChild(el('circle',{cx:cx(i),cy:yL(v),r:3.5,fill:ON,stroke:'var(--card)','stroke-width':1.5})));
+    d.x.forEach((lb,i)=>{const t=el('text',{x:cx(i),y:PT+ih+18,'text-anchor':'middle',fill:'var(--muted)','font-size':10,'font-family':'system-ui'});
+      t.textContent=lb;sg.appendChild(t);});
+    if(d.xTitle){const t=el('text',{x:L+iw/2,y:PT+ih+40,'text-anchor':'middle',fill:'var(--muted)','font-size':10.5,'font-weight':700,'font-family':'system-ui'});
+      t.textContent=d.xTitle;sg.appendChild(t);}
+    const guide=el('line',{x1:L,x2:L,y1:PT,y2:PT+ih,stroke:'var(--ink)','stroke-width':1,'stroke-dasharray':'3 3','stroke-opacity':0});sg.appendChild(guide);
+    for(let i=0;i<n;i++){const hit=el('rect',{x:L+iw*i/n,y:PT,width:iw/n,height:ih,fill:'transparent'});hit.style.cursor='pointer';sg.appendChild(hit);
+      hit.addEventListener('mousemove',e=>{guide.setAttribute('x1',cx(i));guide.setAttribute('x2',cx(i));guide.setAttribute('stroke-opacity',0.3);
+        showTip(host,e,d.x[i],[['Emails delivered',d.deliv[i],OFF,nf],
+          ['Revenue per recipient',d.rpr[i],ON,mf],['Revenue',d.rev[i],ACC,v=>sym+nf(v)]],nf);});
+      hit.addEventListener('mouseleave',()=>{hideTip(host);guide.setAttribute('stroke-opacity',0);});}
+    host.appendChild(sg);
+    const lg=document.createElement('div');lg.className='rep-lg';
+    lg.innerHTML='<span><i style="background:var(--camp)"></i>Emails delivered</span>'
+      +'<span><i style="background:var(--flow)"></i>Revenue per recipient</span>';
+    host.appendChild(lg);
+  }
   else if(name==='pcttrend'||name.indexOf('pcttrend')===0){   // one or more % series over time
     const d=data,n=d.x.length,cols=[ON,OFF,ACC];
     const dp=d.decimals==null?2:d.decimals,fp=v=>v.toFixed(dp)+'%';
