@@ -493,11 +493,18 @@
 
   .filters-wrap{position:sticky;top:70px;z-index:15;margin:20px 0 4px;padding-top:12px;background:var(--plane)}
   /* jump links, built from the sections themselves so they cannot drift */
-  .jumpbar{display:flex;flex-wrap:wrap;align-items:center;gap:4px 2px;margin:7px 2px 0}
+  /* part of the controls card: its own row, divided by a hairline in the
+     card's own tint rather than sitting loose on the page */
+  .jumpbar{flex:1 0 100%;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
+    gap:3px 2px;margin:2px -16px -13px;padding:9px 16px 10px;
+    border-top:1px solid color-mix(in srgb,var(--flow) 14%,transparent);
+    background:color-mix(in srgb,var(--flow) 5%,transparent);
+    border-radius:0 0 12px 12px}
+  .jumpbar:empty{display:none}
   .jumpbar .jl{font:inherit;font-size:12px;font-weight:700;color:var(--ink2);background:none;
     border:0;border-radius:7px;padding:5px 9px;cursor:pointer;white-space:nowrap}
-  .jumpbar .jl:hover{background:var(--surface-2);color:var(--ink)}
-  .jumpbar .jl.on{color:var(--ink);background:var(--surface-2)}
+  .jumpbar .jl:hover{background:color-mix(in srgb,var(--flow) 14%,transparent);color:var(--ink)}
+  .jumpbar .jl.on{color:var(--flow);background:color-mix(in srgb,var(--flow) 15%,transparent)}
   .jumpbar .jlab{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
     color:var(--muted);margin-right:6px}
   .legend .lgk{cursor:pointer;user-select:none;border-radius:7px;padding:2px 6px;margin:-2px -2px}
@@ -1487,8 +1494,8 @@
       <div class="fgroup"><span class="flabel">Month</span>
         <button class="togBtn" id="curTog" aria-pressed="false" title="Show the current, in-progress month (month-to-date + projected outcome)"><span class="dot"></span>Include current (in&#8209;progress)</button></div>
       <span class="frange" id="rangeText"></span>
-    </div>
-    <div class="jumpbar" id="jumpBar"></div></div>
+      <div class="jumpbar" id="jumpBar"></div>
+    </div></div>
     <div class="ipnote" id="ipnote" hidden></div>
     <div id="dash-sections">
       <div class="asection dsection open">
