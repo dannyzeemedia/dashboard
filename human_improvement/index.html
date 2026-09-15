@@ -5169,6 +5169,21 @@ function renderSms(){const{cur}=windows();const cc=document.getElementById('c-sm
 
 // The theme button lives in the top bar on every page, including a share link,
 // which never ran wireControls — so it had no handler at all there.
+// The video modal used to be wired only on the logged-in boot, so a share link
+// showed a walk-thru button that did nothing.
+function wireVideoModal(){
+  const vm=document.getElementById('vidModal'); if(!vm||vm.dataset.wired)return;
+  vm.dataset.wired='1';
+  const vif=document.getElementById('vidIframe');
+  const close=()=>{vm.hidden=true;vif.src='about:blank';};
+  window.openVideo=u=>{if(!u)return;vif.src=u;vm.hidden=false;};
+  const vb=document.getElementById('vidBtn');
+  if(vb)vb.addEventListener('click',e=>{e.stopPropagation();
+    window.openVideo(vb.dataset.embed||'');});
+  document.getElementById('vidClose').addEventListener('click',close);
+  document.getElementById('vidBackdrop').addEventListener('click',close);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!vm.hidden)close();});
+}
 function wireTheme(){
   const b=document.getElementById('themeBtn');
   if(!b||b.dataset.wired)return;
@@ -5235,6 +5250,7 @@ function wireControls(){
     document.querySelectorAll('#healthChanSeg .csg').forEach(x=>x.classList.toggle('on',x===b));renderDash();});}
   {const srs=document.getElementById('smsRevSeg');if(srs)srs.addEventListener('click',e=>{const b=e.target.closest('.csg');if(!b)return;e.stopPropagation();smsRevSeg=b.dataset.sr;
     document.querySelectorAll('#smsRevSeg .csg').forEach(x=>x.classList.toggle('on',x===b));renderSms();});}
+  wireVideoModal();
   (function(){
     const vm=document.getElementById('vidModal'),vif=document.getElementById('vidIframe');
     const open=u=>{if(!u)return;vif.src=u;vm.hidden=false;};
@@ -7572,6 +7588,7 @@ async function shareBoot(){
     document.getElementById('app').hidden=false;
     document.body.classList.add('shared');
     wireTheme();
+    wireVideoModal();
     applyPalette();
     try{ORDER=[ACTIVE];buildSwitcher();}catch(e){}
     ['view-dash','view-board','view-audit','view-map'].forEach(id=>{
