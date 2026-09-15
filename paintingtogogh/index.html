@@ -386,6 +386,14 @@
   .pin-banner button{background:rgba(127,127,127,.28);color:inherit;border:none;font:inherit;font-weight:700;font-size:12.5px;padding:6px 12px;border-radius:999px;cursor:pointer}
   .pin-banner button:hover{background:rgba(127,127,127,.45)}
   body.pinmode #app,body.pinmode #app *{cursor:crosshair!important}
+  /* pick the element, do not drop a pin in space: whatever would receive the
+     note is outlined as you move over it, and named in the corner */
+  body.pinmode .cmt-target{outline:2px solid var(--flow);outline-offset:3px;
+    border-radius:8px;background:color-mix(in srgb,var(--flow) 7%,transparent)}
+  .cmt-hint{position:fixed;z-index:900;pointer-events:none;font-size:11.5px;font-weight:700;
+    color:#fff;background:var(--flow);padding:4px 9px;border-radius:7px;
+    box-shadow:0 6px 18px -6px rgba(0,0,0,.5);max-width:320px;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
   .cmt-pin{position:absolute;transform:translate(-50%,-50%);z-index:800;width:26px;height:26px;border-radius:50% 50% 50% 2px;border:2px solid var(--surface);background:var(--flow);font-size:11px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.32);display:flex;align-items:center;justify-content:center;padding:0}
   .cmt-pin:hover{transform:translate(-50%,-50%) scale(1.14)}
   .cmt-pop{position:fixed;z-index:1800;width:320px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,.32);padding:12px;display:flex;flex-direction:column;gap:8px}
@@ -2537,7 +2545,12 @@ function renderReports(){
     +'<span class="rep-rt">'+repReadTime(r)+' min read</span></div>'
     +'<h1 class="rep-h1">'+esc(r.title)+'</h1><div class="rep-sum">'+esc(r.summary||'')+'</div></div>';
   body.innerHTML='';body.appendChild(wrap);
+  // Each block is its own comment target. Before this a pin on a report had
+  // nothing closer to land on than the whole view, so its recorded position was
+  // a fraction of the entire page and I read it as the wrong chart twice.
+  let _blk=-1;
   (r.blocks||[]).forEach(bl=>{
+    _blk++;
     if(bl.t==='callouts'){const c=document.createElement('div');c.className='rep-callouts';
       c.innerHTML=bl.items.map(it=>'<div class="rep-callout">'
         +(it.eye?'<div class="rc-eye">'+esc(it.eye)+'</div>':'')
@@ -2554,6 +2567,11 @@ function renderReports(){
     else if(bl.t==='chart'){const fig=document.createElement('div');fig.className='rep-fig'+(bl.c==='ttorder'?' hero':'');
       fig.innerHTML='<div class="rep-fig-t">'+esc(bl.title||'')+'</div><div class="rep-fig-c"></div>'+(bl.cap?'<div class="rep-fig-cap">'+esc(bl.cap)+'</div>':'');
       wrap.appendChild(fig);try{repChart(fig.querySelector('.rep-fig-c'),bl.c,(r.charts||{})[bl.c]);}catch(e){}}
+    {const last=wrap.lastElementChild;
+     if(last&&!last.id){last.id='rblk-'+_blk;last.dataset.blk=_blk;
+       last.dataset.blkKind=bl.t||'';
+       if(bl.c)last.dataset.chart=bl.c;
+       if(bl.title)last.dataset.blkTitle=bl.title;}}
   });
   const back=document.getElementById('repBack');if(back)back.addEventListener('click',()=>{
     REPORT_OPEN=null;renderReports();window.scrollTo({top:0});});
@@ -3246,10 +3264,25 @@ async function saveComments(){try{
 function delComment(id){COMMENTS=COMMENTS.filter(c=>c.id!==id);saveComments();}
 function curView(){const a=document.getElementById('view-audit');return (a&&!a.hidden)?'audit':'dash';}
 function nearestAnchor(el){const root=document.getElementById('app');let n=el;
-  while(n&&n!==document.body){if(n.id&&n.id!=='app'&&n!==root)return n;n=n.parentElement;}
+  // the view containers are a last resort: landing on one means the note has no
+  // real target and its position is a fraction of the whole page
+  const views={'view-dash':1,'view-audit':1,'view-reports':1,'view-board':1,'view-map':1};
+  while(n&&n!==document.body){
+    if(n.id&&n.id!=='app'&&n!==root&&!views[n.id])return n;
+    n=n.parentElement;}
   return document.getElementById(curView()==='audit'?'view-audit':'view-dash')||root;}
 function anchorTitle(c){if(!c)return'';const id=c.id||'';
   if(id.indexOf('afind-')===0){const h=c.querySelector('h3');return h?h.textContent:id;}
+  if(id.indexOf('rblk-')===0){
+    if(c.dataset.chart)return 'chart: '+(c.dataset.blkTitle||c.dataset.chart);
+    const h=c.querySelector('h3');
+    if(h)return h.textContent;
+    const k=c.dataset.blkKind;
+    if(k==='callouts')return 'the four summary boxes';
+    if(k==='tldr')return 'the summary box';
+    if(k==='method')return 'the method note';
+    return (c.textContent||'').replace(/\s+/g,' ').trim().slice(0,70);
+  }
   if(id==='wins-board')return 'Top wins';
   if(id==='view-audit')return 'Audit';if(id==='view-dash')return 'Dashboard';
   const h=c.querySelector('h3,h2');return h?h.textContent:id;}
@@ -3290,7 +3323,7 @@ function enterPinMode(){if(!IS_OWNER)return;PIN_MODE=true;document.body.classLis
     b.querySelector('.pb-done').addEventListener('click',e=>{e.stopPropagation();exitPinMode();});
     b.querySelector('.pb-list').addEventListener('click',e=>{e.stopPropagation();openList();});}
   updateFab();}
-function exitPinMode(){PIN_MODE=false;document.body.classList.remove('pinmode');const b=document.getElementById('pinBanner');if(b)b.remove();updateFab();}
+function exitPinMode(){PIN_MODE=false;cmtClearHover();document.body.classList.remove('pinmode');const b=document.getElementById('pinBanner');if(b)b.remove();updateFab();}
 function openList(){const old=document.getElementById('cmtList');if(old){old.remove();return;}
   const all=COMMENTS.filter(c=>c.slug===ACTIVE);
   const mine=all.filter(c=>c.status!=='resolved'), done=all.filter(c=>c.status==='resolved');
@@ -3316,6 +3349,25 @@ function updateFab(){if(!IS_OWNER)return;ensureFab();const fab=document.getEleme
   const n=COMMENTS.filter(c=>c.slug===ACTIVE&&c.status!=='resolved').length;let badge=fab.querySelector('.cmt-badge');
   if(n){if(!badge){badge=document.createElement('span');badge.className='cmt-badge';fab.appendChild(badge);}badge.textContent=n;}
   else if(badge)badge.remove();}
+let _cmtHover=null,_cmtHint=null;
+function cmtClearHover(){
+  if(_cmtHover){_cmtHover.classList.remove('cmt-target');_cmtHover=null;}
+  if(_cmtHint){_cmtHint.remove();_cmtHint=null;}
+}
+document.addEventListener('mousemove',function(e){
+  if(!PIN_MODE){if(_cmtHover)cmtClearHover();return;}
+  if(e.target.closest('.cmt-pop,.pin-banner,.cmt-fab,.cmt-fabmenu,.cmt-listpanel,.cmt-pin')){
+    cmtClearHover();return;}
+  const t=nearestAnchor(e.target);
+  if(t!==_cmtHover){
+    cmtClearHover();
+    if(t){_cmtHover=t;t.classList.add('cmt-target');
+      _cmtHint=document.createElement('div');_cmtHint.className='cmt-hint';
+      _cmtHint.textContent=anchorTitle(t)||'this section';
+      document.body.appendChild(_cmtHint);}
+  }
+  if(_cmtHint){_cmtHint.style.left=(e.clientX+14)+'px';_cmtHint.style.top=(e.clientY+16)+'px';}
+},true);
 document.addEventListener('click',function(e){   // pin-mode capture: intercept the click and attach a note
   if(!PIN_MODE)return;
   if(e.target.closest('.cmt-pop,.pin-banner,.cmt-fab,.cmt-fabmenu,.cmt-listpanel,.cmt-pin'))return;
@@ -3323,10 +3375,13 @@ document.addEventListener('click',function(e){   // pin-mode capture: intercept 
   const cont=nearestAnchor(e.target);if(!cont||!cont.id)return;
   const rect=cont.getBoundingClientRect();
   const relX=Math.min(1,Math.max(0,(e.clientX-rect.left)/rect.width)),relY=Math.min(1,Math.max(0,(e.clientY-rect.top)/rect.height));
+  cmtClearHover();
   const clicked=(e.target.textContent||'').trim().replace(/\s+/g,' ').slice(0,120),ct=anchorTitle(cont);
   const sec=cont.closest?cont.closest('.asection'):null,secName=sec?((sec.querySelector('.asec-name')||{}).textContent||''):'';
   const full=(secName?secName+' › ':'')+ct;
-  openPinEditor({id:null,view:curView(),containerId:cont.id,containerLabel:full,relX,relY,label:full+(clicked?' — “'+clicked+'”':'')},e.clientX,e.clientY);
+  openPinEditor({id:null,view:curView(),containerId:cont.id,containerLabel:full,relX,relY,
+    target:ct,targetChart:cont.dataset?cont.dataset.chart||null:null,
+    label:full+(clicked?' — “'+clicked+'”':'')},e.clientX,e.clientY);
 },true);
 document.addEventListener('click',function(){const m=document.getElementById('cmtMenu');if(m)m.remove();const l=document.getElementById('cmtList');if(l)l.remove();closePop();});
 (function(){var b=document.createElement('button');b.className='totop';b.type='button';b.title='Back to top';b.setAttribute('aria-label','Back to top');b.innerHTML='↑ Top';
