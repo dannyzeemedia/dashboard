@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Set up your Zee.Media dashboard</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#0b0815;color:#fff;
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif}
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+    background:radial-gradient(900px 520px at 12% -10%,rgba(70,97,242,.30),transparent 60%),radial-gradient(950px 620px at 100% 0%,rgba(121,0,255,.32),transparent 55%),radial-gradient(760px 520px at 88% 115%,rgba(255,0,227,.16),transparent 60%),#0b0815}
+  #login[hidden]{display:none}
+  [hidden]{display:none!important}
+  .lform{position:relative;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);border-radius:18px;padding:34px 32px 24px;
+    width:392px;max-width:100%;box-shadow:0 40px 90px -30px rgba(121,0,255,.55),inset 0 1px 0 rgba(255,255,255,.05);
+    -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:flex;flex-direction:column;gap:14px;overflow:hidden}
+  .lform::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#4661f2,#7900ff 55%,#ff00e3)}
+  .llogo{height:44px;width:auto;margin:6px 0 2px;filter:drop-shadow(0 2px 12px rgba(56,182,255,.28))}
+  .leyebrow{text-transform:uppercase;letter-spacing:.22em;font-size:10.5px;font-weight:800;color:#38b6ff;margin-top:2px}
+  .lsub{color:rgba(255,255,255,.62);font-size:13px;margin-top:-4px}
+  .lfoot{margin-top:4px;padding-top:16px;border-top:1px solid rgba(255,255,255,.1);text-align:center;
+    color:rgba(255,255,255,.5);font-size:12px;letter-spacing:.01em}
+  .lform label{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,.5)}
+  .lform input{font:inherit;font-size:15px;padding:11px 12px;border:1px solid rgba(255,255,255,.14);
+    border-radius:10px;background:rgba(255,255,255,.05);color:#fff}
+  .lform input:focus{outline:2px solid #7900ff;border-color:#7900ff}
+  .lform button{margin-top:6px;font:inherit;font-weight:700;font-size:15px;color:#fff;background:linear-gradient(135deg,#4661f2,#7900ff);
+    border:0;border-radius:10px;padding:13px;cursor:pointer;box-shadow:0 12px 28px -10px rgba(121,0,255,.75)}
+  .lform button:hover:not(:disabled){filter:brightness(1.1);transform:translateY(-1px)}
+  .lform button:disabled{opacity:.6}
+  .lerr{color:#ff8b8b;font-size:13px}
+  .mark{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--flow),var(--camp));
+  .lform{gap:14px;display:flex;flex-direction:column}
+  .jclient{font-size:19px;font-weight:800;letter-spacing:-.01em;margin:2px 0 -2px}
+  .jalt{margin-top:2px;text-align:center;font-size:13px;color:rgba(255,255,255,.62)}
+  .jalt button{all:unset;color:#38b6ff;font-weight:700;cursor:pointer}
+  .jalt button:hover{text-decoration:underline}
+  .jok{color:#6ee7a8;font-size:13px}
+  .jhint{color:rgba(255,255,255,.45);font-size:12px;margin-top:-6px}
+  .jlogos{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:2px}
+  .jlogos img.cl{height:34px;width:auto;border-radius:6px;background:#fff;padding:5px 8px}
+</style>
+</head>
+<body>
+<div id="login">
+  <form class="lform" id="jform">
+    <div class="jlogos"><img class="llogo" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB3aWR0aD0iNTA0IiB6b29tQW5kUGFuPSJtYWduaWZ5IiB2aWV3Qm94PSI3OC4wIDE1OC45OTk5OTYxMzkwNzI4MyAzNzguMCAxOTQuMjQ5OTk1MjgzMTEyNTgiIGhlaWdodD0iMjU5IiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJ4TWlkWU1pZCBtZWV0IiB2ZXJzaW9uPSIxLjAiPjxkZWZzPjxnLz48Y2xpcFBhdGggaWQ9IjRkNDVkY2VmMWIiPjxyZWN0IHg9IjAiIHdpZHRoPSIzNjYiIHk9IjAiIGhlaWdodD0iMjk0Ii8+PC9jbGlwUGF0aD48L2RlZnM+PGcgdHJhbnNmb3JtPSJtYXRyaXgoMSwgMCwgMCwgMSwgODQsIDc5KSI+PGcgY2xpcC1wYXRoPSJ1cmwoIzRkNDVkY2VmMWIpIj48ZyBmaWxsPSIjZmZmZmZmIiBmaWxsLW9wYWNpdHk9IjEiPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAuODU2NTc0LCAyMTEuMDM4ODk4KSI+PGc+PHBhdGggZD0iTSAxMjkuNzE4NzUgLTExOS42ODc1IEwgNzAuNDUzMTI1IC0zMS41IEwgMTI1LjA0Njg3NSAtMzEuNSBMIDEyNS4wNDY4NzUgMCBMIDEuMTcxODc1IDAgTCA2MC40MjE4NzUgLTg4LjE4NzUgTCAxMC45Njg3NSAtODguMTg3NSBMIDEwLjk2ODc1IC0xMTkuNjg3NSBaIE0gMTI5LjcxODc1IC0xMTkuNjg3NSAiLz48L2c+PC9nPjwvZz48ZyBmaWxsPSIjZmZmZmZmIiBmaWxsLW9wYWNpdHk9IjEiPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDEwOS44MDUyNzcsIDIxMS4wMzg4OTgpIj48Zz48cGF0aCBkPSJNIDEzNS4wNzgxMjUgLTU0LjEyNSBMIDQ4LjI5Njg3NSAtNTQuMTI1IEMgNDguMjk2ODc1IC00NS43MjY1NjIgNTEuMDE1NjI1IC0zOS41MDM5MDYgNTYuNDUzMTI1IC0zNS40NTMxMjUgQyA2MS44OTg0MzggLTMxLjQxMDE1NiA2Ny44MTI1IC0yOS4zOTA2MjUgNzQuMTg3NSAtMjkuMzkwNjI1IEMgODAuODc1IC0yOS4zOTA2MjUgODYuMTYwMTU2IC0zMC4yODUxNTYgOTAuMDQ2ODc1IC0zMi4wNzgxMjUgQyA5My45NDE0MDYgLTMzLjg2NzE4OCA5OC4zNzUgLTM3LjQwNjI1IDEwMy4zNDM3NSAtNDIuNjg3NSBMIDEzMy4yMTg3NSAtMjcuNzY1NjI1IEMgMTIwLjc2OTUzMSAtNi45MjE4NzUgMTAwLjA4MjAzMSAzLjUgNzEuMTU2MjUgMy41IEMgNTMuMTEzMjgxIDMuNSAzNy42MzI4MTIgLTIuNjc5Njg4IDI0LjcxODc1IC0xNS4wNDY4NzUgQyAxMS44MTI1IC0yNy40MTAxNTYgNS4zNTkzNzUgLTQyLjMwMDc4MSA1LjM1OTM3NSAtNTkuNzE4NzUgQyA1LjM1OTM3NSAtNzcuMTQ0NTMxIDExLjgxMjUgLTkyLjA3ODEyNSAyNC43MTg3NSAtMTA0LjUxNTYyNSBDIDM3LjYzMjgxMiAtMTE2Ljk2MDkzOCA1My4xMTMyODEgLTEyMy4xODc1IDcxLjE1NjI1IC0xMjMuMTg3NSBDIDkwLjEzMjgxMiAtMTIzLjE4NzUgMTA1LjU3MDMxMiAtMTE3LjcwMzEyNSAxMTcuNDY4NzUgLTEwNi43MzQzNzUgQyAxMjkuMzYzMjgxIC05NS43NjU2MjUgMTM1LjMxMjUgLTgwLjA5Mzc1IDEzNS4zMTI1IC01OS43MTg3NSBDIDEzNS4zMTI1IC01Ni45MjU3ODEgMTM1LjIzNDM3NSAtNTUuMDYyNSAxMzUuMDc4MTI1IC01NC4xMjUgWiBNIDQ5LjQ1MzEyNSAtNzYuOTg0Mzc1IEwgOTQuOTUzMTI1IC03Ni45ODQzNzUgQyA5NC4wMTU2MjUgLTgzLjIwMzEyNSA5MS41NjI1IC04Ny45ODQzNzUgODcuNTkzNzUgLTkxLjMyODEyNSBDIDgzLjYzMjgxMiAtOTQuNjc5Njg4IDc4LjU0Njg3NSAtOTYuMzU5Mzc1IDcyLjMyODEyNSAtOTYuMzU5Mzc1IEMgNjUuNDg0Mzc1IC05Ni4zNTkzNzUgNjAuMDM1MTU2IC05NC41NjY0MDYgNTUuOTg0Mzc1IC05MC45ODQzNzUgQyA1MS45NDE0MDYgLTg3LjQxMDE1NiA0OS43NjU2MjUgLTgyLjc0MjE4OCA0OS40NTMxMjUgLTc2Ljk4NDM3NSBaIE0gNDkuNDUzMTI1IC03Ni45ODQzNzUgIi8+PC9nPjwvZz48L2c+PGcgZmlsbD0iI2ZmZmZmZiIgZmlsbC1vcGFjaXR5PSIxIj48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMjguNTUyNDM4LCAyMTEuMDM4ODk4KSI+PGc+PHBhdGggZD0iTSAxMzUuMDc4MTI1IC01NC4xMjUgTCA0OC4yOTY4NzUgLTU0LjEyNSBDIDQ4LjI5Njg3NSAtNDUuNzI2NTYyIDUxLjAxNTYyNSAtMzkuNTAzOTA2IDU2LjQ1MzEyNSAtMzUuNDUzMTI1IEMgNjEuODk4NDM4IC0zMS40MTAxNTYgNjcuODEyNSAtMjkuMzkwNjI1IDc0LjE4NzUgLTI5LjM5MDYyNSBDIDgwLjg3NSAtMjkuMzkwNjI1IDg2LjE2MDE1NiAtMzAuMjg1MTU2IDkwLjA0Njg3NSAtMzIuMDc4MTI1IEMgOTMuOTQxNDA2IC0zMy44NjcxODggOTguMzc1IC0zNy40MDYyNSAxMDMuMzQzNzUgLTQyLjY4NzUgTCAxMzMuMjE4NzUgLTI3Ljc2NTYyNSBDIDEyMC43Njk1MzEgLTYuOTIxODc1IDEwMC4wODIwMzEgMy41IDcxLjE1NjI1IDMuNSBDIDUzLjExMzI4MSAzLjUgMzcuNjMyODEyIC0yLjY3OTY4OCAyNC43MTg3NSAtMTUuMDQ2ODc1IEMgMTEuODEyNSAtMjcuNDEwMTU2IDUuMzU5Mzc1IC00Mi4zMDA3ODEgNS4zNTkzNzUgLTU5LjcxODc1IEMgNS4zNTkzNzUgLTc3LjE0NDUzMSAxMS44MTI1IC05Mi4wNzgxMjUgMjQuNzE4NzUgLTEwNC41MTU2MjUgQyAzNy42MzI4MTIgLTExNi45NjA5MzggNTMuMTEzMjgxIC0xMjMuMTg3NSA3MS4xNTYyNSAtMTIzLjE4NzUgQyA5MC4xMzI4MTIgLTEyMy4xODc1IDEwNS41NzAzMTIgLTExNy43MDMxMjUgMTE3LjQ2ODc1IC0xMDYuNzM0Mzc1IEMgMTI5LjM2MzI4MSAtOTUuNzY1NjI1IDEzNS4zMTI1IC04MC4wOTM3NSAxMzUuMzEyNSAtNTkuNzE4NzUgQyAxMzUuMzEyNSAtNTYuOTI1NzgxIDEzNS4yMzQzNzUgLTU1LjA2MjUgMTM1LjA3ODEyNSAtNTQuMTI1IFogTSA0OS40NTMxMjUgLTc2Ljk4NDM3NSBMIDk0Ljk1MzEyNSAtNzYuOTg0Mzc1IEMgOTQuMDE1NjI1IC04My4yMDMxMjUgOTEuNTYyNSAtODcuOTg0Mzc1IDg3LjU5Mzc1IC05MS4zMjgxMjUgQyA4My42MzI4MTIgLTk0LjY3OTY4OCA3OC41NDY4NzUgLTk2LjM1OTM3NSA3Mi4zMjgxMjUgLTk2LjM1OTM3NSBDIDY1LjQ4NDM3NSAtOTYuMzU5Mzc1IDYwLjAzNTE1NiAtOTQuNTY2NDA2IDU1Ljk4NDM3NSAtOTAuOTg0Mzc1IEMgNTEuOTQxNDA2IC04Ny40MTAxNTYgNDkuNzY1NjI1IC04Mi43NDIxODggNDkuNDUzMTI1IC03Ni45ODQzNzUgWiBNIDQ5LjQ1MzEyNSAtNzYuOTg0Mzc1ICIvPjwvZz48L2c+PC9nPjwvZz48L2c+PGcgZmlsbD0iIzM4YjZmZiIgZmlsbC1vcGFjaXR5PSIxIj48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgxMzYuNzQ0OTUyLCAzNDMuOTc0NjgpIj48Zz48cGF0aCBkPSJNIDI0LjA1ODU5NCAxLjU5NzY1NiBMIDExLjMwMDc4MSAtMjcuOTAyMzQ0IEwgNi4xNDA2MjUgMCBMIDEuMzc1IDAgTCA5LjcwMzEyNSAtNDIuNjc5Njg4IEwgMjQuMDU4NTk0IC04LjcyMjY1NiBMIDM4LjQxNzk2OSAtNDIuNjc5Njg4IEwgNDYuNzQ2MDk0IDAgTCA0MS45ODA0NjkgMCBMIDM2Ljc2MTcxOSAtMjcuOTAyMzQ0IFogTSAyNC4wNTg1OTQgMS41OTc2NTYgIi8+PC9nPjwvZz48L2c+PGcgZmlsbD0iIzM4YjZmZiIgZmlsbC1vcGFjaXR5PSIxIj48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMDguNDA4MTY4LCAzNDMuOTc0NjgpIj48Zz48cGF0aCBkPSJNIDQuOTMzNTk0IDAgTCA0LjkzMzU5NCAtNDEuMDU0Njg4IEwgMjYuNTgyMDMxIC00MS4wNTQ2ODggTCAyNi41ODIwMzEgLTM2LjU5Mzc1IEwgOS44MTY0MDYgLTM2LjU5Mzc1IEwgOS44MTY0MDYgLTI0LjgxNjQwNiBMIDI2LjU4MjAzMSAtMjQuODE2NDA2IEwgMjYuNTgyMDMxIC0yMC4yNzM0MzggTCA5LjgxNjQwNiAtMjAuMjczNDM4IEwgOS44MTY0MDYgLTQuNTQyOTY5IEwgMjYuNTgyMDMxIC00LjU0Mjk2OSBMIDI2LjU4MjAzMSAwIFogTSA0LjkzMzU5NCAwICIvPjwvZz48L2c+PC9nPjxnIGZpbGw9IiMzOGI2ZmYiIGZpbGwtb3BhY2l0eT0iMSI+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMjYxLjg3NDAyNywgMzQzLjk3NDY4KSI+PGc+PHBhdGggZD0iTSA5Ljg3MTA5NCAtNC41OTc2NTYgTCAxMi45ODQzNzUgLTQuNTk3NjU2IEMgMTguMDMxMjUgLTQuNTk3NjU2IDIxLjUyNzM0NCAtNC44MjAzMTIgMjMuNDcyNjU2IC01LjI1NzgxMiBDIDI1LjQxNDA2MiAtNS42OTUzMTIgMjcuMDMxMjUgLTYuNDQ5MjE5IDI4LjMyNDIxOSAtNy41MTU2MjUgQyAzMC4wMDM5MDYgLTguOTE3OTY5IDMxLjI4NTE1NiAtMTAuNzI2NTYyIDMyLjE2NDA2MiAtMTIuOTQxNDA2IEMgMzMuMDQyOTY5IC0xNS4xNTYyNSAzMy40ODA0NjkgLTE3LjY5NTMxMiAzMy40ODA0NjkgLTIwLjU1NDY4OCBDIDMzLjQ4MDQ2OSAtMjMuNDMzNTk0IDMzLjA0Njg3NSAtMjUuOTYwOTM4IDMyLjE3OTY4OCAtMjguMTQwNjI1IEMgMzEuMzA4NTk0IC0zMC4zMTY0MDYgMzAuMDIzNDM4IC0zMi4xMTcxODggMjguMzI0MjE5IC0zMy41MzkwNjIgQyAyNy4wMzEyNSAtMzQuNjIxMDk0IDI1LjM5MDYyNSAtMzUuMzk0NTMxIDIzLjQwMjM0NCAtMzUuODUxNTYyIEMgMjEuNDEwMTU2IC0zNi4zMDg1OTQgMTcuOTM3NSAtMzYuNTM5MDYyIDEyLjk4NDM3NSAtMzYuNTM5MDYyIEwgOS44NzEwOTQgLTM2LjUzOTA2MiBaIE0gNC45MzM1OTQgMCBMIDQuOTMzNTk0IC00MS4wNTQ2ODggTCAxMi44MTY0MDYgLTQxLjA1NDY4OCBDIDE4LjY0ODQzOCAtNDEuMDU0Njg4IDIyLjc1NzgxMiAtNDAuNzU3ODEyIDI1LjE0MDYyNSAtNDAuMTcxODc1IEMgMjcuNTIzNDM4IC0zOS41ODIwMzEgMjkuNjEzMjgxIC0zOC41OTM3NSAzMS40MDYyNSAtMzcuMjEwOTM4IEMgMzMuNzYxNzE5IC0zNS4zOTg0MzggMzUuNTQ2ODc1IC0zMy4wODIwMzEgMzYuNzYxNzE5IC0zMC4yNTc4MTIgQyAzNy45NzY1NjIgLTI3LjQzMzU5NCAzOC41ODU5MzggLTI0LjE3OTY4OCAzOC41ODU5MzggLTIwLjUgQyAzOC41ODU5MzggLTE2LjgzNTkzOCAzNy45ODQzNzUgLTEzLjU5NzY1NiAzNi43NzczNDQgLTEwLjc4MTI1IEMgMzUuNTcwMzEyIC03Ljk2ODc1IDMzLjc4MTI1IC01LjY1NjI1IDMxLjQwNjI1IC0zLjgzOTg0NCBDIDI5LjYxMzI4MSAtMi40NTcwMzEgMjcuNTcwMzEyIC0xLjQ3MjY1NiAyNS4yODEyNSAtMC44ODI4MTIgQyAyMi45ODgyODEgLTAuMjkyOTY5IDE5LjQyMTg3NSAwIDE0LjU4MjAzMSAwIFogTSA0LjkzMzU5NCAwICIvPjwvZz48L2c+PC9nPjxnIGZpbGw9IiMzOGI2ZmYiIGZpbGwtb3BhY2l0eT0iMSI+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzI3LjA2MDIyMSwgMzQzLjk3NDY4KSI+PGc+PHBhdGggZD0iTSA0Ljk5MjE4OCAtNDEuMDU0Njg4IEwgOS44NzEwOTQgLTQxLjA1NDY4OCBMIDkuODcxMDk0IDAgTCA0Ljk5MjE4OCAwIFogTSA0Ljk5MjE4OCAtNDEuMDU0Njg4ICIvPjwvZz48L2c+PC9nPjxnIGZpbGw9IiMzOGI2ZmYiIGZpbGwtb3BhY2l0eT0iMSI+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzY1LjQ2OTA4NywgMzQzLjk3NDY4KSI+PGc+PHBhdGggZD0iTSAxNy45MTc5NjkgLTMxLjg4MjgxMiBMIDExLjM4NjcxOSAtMTYuNzY5NTMxIEwgMjQuNDUzMTI1IC0xNi43Njk1MzEgWiBNIDE3LjkxNzk2OSAtNDIuNjc5Njg4IEwgMzYuNTkzNzUgMCBMIDMxLjI5Njg3NSAwIEwgMjUuOTY4NzUgLTEyLjU4OTg0NCBMIDkuOTI1NzgxIC0xMi41ODk4NDQgTCA0LjU5NzY1NiAwIEwgLTAuNjk5MjE5IDAgWiBNIDE3LjkxNzk2OSAtNDIuNjc5Njg4ICIvPjwvZz48L2c+PC9nPjwvc3ZnPg==" alt="Zee.Media"><span id="clogo"></span></div>
+    <div class="leyebrow">Client Reporting</div>
+    <div class="jclient" id="jclient">Checking your link…</div>
+    <div class="lsub" id="jsub">One moment.</div>
+    <div id="jfields" hidden>
+      <label style="margin-bottom:14px">Email<input type="email" id="jemail" autocomplete="email" required></label>
+      <label>Password<input type="password" id="jpass" autocomplete="new-password" required minlength="8"></label>
+      <div class="jhint" id="jhint">At least 8 characters. You choose it, we never see it.</div>
+    </div>
+    <div class="lerr" id="jerr" hidden></div>
+    <div class="jok" id="jmsg" hidden></div>
+    <button type="submit" id="jbtn" hidden>Create my access</button>
+    <div class="jalt" id="jalt" hidden>
+      <span id="jaltq">Already set up?</span>
+      <button type="button" id="jtoggle">Sign in</button>
+      <span id="jforgotwrap" hidden> · <button type="button" id="jforgot">Forgot password</button></span>
+    </div>
+    <div class="lfoot">Reporting by Zee.Media</div>
+  </form>
+</div>
+<script src="../vendor/supabase.js"></script>
+<script>
+const SB_URL='https://dxocfmwjwzzseepujfji.supabase.co';
+const SB_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4b2NmbXdqd3p6c2VlcHVqZmppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyMDYxODEsImV4cCI6MjEwMDc4MjE4MX0.id5f4bAwWHSYmIumwvSQ0X1g7R6PqUH-HnGs_5SKFq4';
+const sb=window.supabase.createClient(SB_URL,SB_ANON,{auth:{persistSession:true,autoRefreshToken:true}});
+const $=id=>document.getElementById(id);
+const qs=new URLSearchParams(location.search);
+const TOKEN=qs.get('t')||'';
+let SLUG='', NAME='', MODE='signup';
+const show=(el,on)=>{el.hidden=!on;};
+function err(m){$('jerr').textContent=m;show($('jerr'),!!m);if(m)show($('jmsg'),false);}
+function ok(m){$('jmsg').textContent=m;show($('jmsg'),!!m);if(m)err('');}
+
+// A recovery link from the password-reset email lands here with a session
+// already attached, so the only thing to ask for is the new password.
+const hash=new URLSearchParams(location.hash.replace(/^#/,''));
+const RECOVERY=hash.get('type')==='recovery';
+
+function setMode(m){
+  MODE=m;
+  $('jbtn').textContent = m==='signup' ? 'Create my access' : 'Sign in';
+  $('jpass').setAttribute('autocomplete', m==='signup'?'new-password':'current-password');
+  $('jaltq').textContent = m==='signup' ? 'Already set up?' : 'First time here?';
+  $('jtoggle').textContent = m==='signup' ? 'Sign in' : 'Create access';
+  show($('jforgotwrap'), m==='signin');
+  $('jhint').textContent = m==='signup'
+    ? 'At least 8 characters. You choose it, we never see it.'
+    : 'Use the password you chose.';
+  err('');
+}
+
+async function boot(){
+  if(RECOVERY){
+    $('jclient').textContent='Choose a new password';
+    $('jsub').textContent='Enter a new password for your account.';
+    show($('jfields'),true); show($('jbtn'),true);
+    $('jemail').closest('label').hidden=true;
+    $('jbtn').textContent='Save new password';
+    MODE='recover';
+    return;
+  }
+  if(!TOKEN){
+    $('jclient').textContent='This link is missing its code';
+    $('jsub').textContent='Ask your account manager to resend it.';
+    return;
+  }
+  const {data,error}=await sb.rpc('peek_invite',{p_token:TOKEN});
+  const row=(data&&data[0])||null;
+  if(error||!row){
+    $('jclient').textContent='This link is no longer valid';
+    $('jsub').textContent='Ask your account manager for a new one.';
+    return;
+  }
+  SLUG=row.client_slug; NAME=row.client_name||row.client_slug;
+  $('jclient').textContent=NAME;
+  $('jsub').textContent='Set up your access to the reporting dashboard.';
+  const img=new Image();
+  img.className='cl'; img.alt=NAME;
+  img.onload=()=>$('clogo').appendChild(img);
+  img.src='../logos/'+SLUG+'.png';
+  show($('jfields'),true); show($('jbtn'),true); show($('jalt'),true);
+  setMode('signup');
+  // already signed in on this device: just take the access and go
+  const {data:s}=await sb.auth.getSession();
+  if(s&&s.session){
+    ok('Signed in already, opening your dashboard…');
+    await grant();
+  }
+}
+
+async function grant(){
+  const {data,error}=await sb.rpc('redeem_invite',{p_token:TOKEN});
+  if(error){err(error.message||'Could not complete your access.');return;}
+  location.href='../'+(data||SLUG)+'/';
+}
+
+$('jtoggle').addEventListener('click',()=>setMode(MODE==='signup'?'signin':'signup'));
+
+$('jforgot').addEventListener('click',async()=>{
+  const email=$('jemail').value.trim();
+  if(!email){err('Enter your email first, then press Forgot password.');return;}
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.href});
+  if(error){err(error.message);return;}
+  ok('Check your email for a link to set a new password.');
+});
+
+$('jform').addEventListener('submit',async e=>{
+  e.preventDefault(); err('');
+  const btn=$('jbtn'); btn.disabled=true;
+  const email=$('jemail').value.trim(), pass=$('jpass').value;
+  try{
+    if(MODE==='recover'){
+      const {error}=await sb.auth.updateUser({password:pass});
+      if(error)throw error;
+      ok('Password saved. Opening your dashboard…');
+      const {data:s}=await sb.auth.getSession();
+      const uid=s&&s.session&&s.session.user&&s.session.user.id;
+      const {data:acc}=await sb.from('report_access').select('client_slug').limit(1);
+      location.href='../'+((acc&&acc[0]&&acc[0].client_slug)||'')+'/';
+      return;
+    }
+    if(MODE==='signup'){
+      const {data,error}=await sb.auth.signUp({email:email,password:pass});
+      if(error)throw error;
+      const u=data&&data.user;
+      if(u&&u.identities&&u.identities.length===0){
+        setMode('signin');
+        err('That email already has a login. Enter your password to sign in, or use Forgot password.');
+        btn.disabled=false; return;
+      }
+      if(!(data&&data.session)){
+        const r=await sb.auth.signInWithPassword({email:email,password:pass});
+        if(r.error)throw r.error;
+      }
+    }else{
+      const {error}=await sb.auth.signInWithPassword({email:email,password:pass});
+      if(error)throw error;
+    }
+    ok('Setting up your dashboard…');
+    await grant();
+  }catch(ex){
+    err((ex&&ex.message)||'Something went wrong. Try again.');
+  }finally{ btn.disabled=false; }
+});
+
+boot();
+</script>
+</body>
+</html>
