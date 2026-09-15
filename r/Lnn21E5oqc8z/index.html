@@ -330,6 +330,23 @@
   .todobox .vidclose{position:static;color:var(--muted);font-size:26px}
   .todoactions{display:flex;align-items:center;gap:10px;padding:2px 20px 12px;flex-wrap:wrap}
   .todohint{font-size:12px;color:var(--good);font-weight:600}
+  .tm-name{display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:800;
+    letter-spacing:.05em;text-transform:uppercase;color:var(--muted);flex:1}
+  .tm-name input{font:inherit;font-size:14px;font-weight:600;text-transform:none;
+    letter-spacing:0;color:var(--ink);padding:9px 11px;border:1px solid var(--border);
+    border-radius:9px;background:var(--surface-2)}
+  .tm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:4px}
+  .tm-grid label{display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:600;
+    color:var(--ink);padding:8px 10px;border-radius:9px;cursor:pointer}
+  .tm-grid label:hover{background:var(--surface-2)}
+  .tm-grid input{width:16px;height:16px;accent-color:var(--flow)}
+  .tm-row{display:flex;align-items:center;gap:10px;justify-content:space-between;
+    font-size:12.5px;color:var(--ink2);padding:8px 2px;border-top:1px solid var(--border)}
+  .tm-row b{color:var(--ink);font-weight:700}
+  .tm-row .who{flex:1;min-width:0}
+  .tm-row button{font:inherit;font-size:12px;font-weight:700;border:1px solid var(--border);
+    background:var(--surface-2);color:var(--ink2);border-radius:8px;padding:5px 10px;cursor:pointer}
+  .tm-row button:hover{color:var(--ink)}
   .todoscroll{overflow:auto;padding:0 20px 20px}
   .todotbl{width:100%;border-collapse:collapse;font-size:13px}
   .todotbl th{position:sticky;top:0;background:var(--surface);text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;padding:6px 10px;border-bottom:1px solid var(--border)}
@@ -706,7 +723,18 @@
   body.shared #viewSeg,body.shared #refreshBtn,body.shared #outBtn,body.shared .cmt-fab,
   body.shared #cmenu,body.shared .totop,body.shared #repBack,body.shared #todoBtn,
   body.shared #auditBack,body.shared #vidBtn,body.shared #boardBack,
-  body.shared #auditShare,body.shared #boardShare,body.shared #inviteBtn,
+  .invwrap{position:relative;display:inline-block}
+  .invmenu{position:absolute;right:0;top:calc(100% + 6px);z-index:60;min-width:270px;
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    box-shadow:0 18px 44px -18px rgba(0,0,0,.45);padding:6px;display:none}
+  .invmenu.open{display:block}
+  .invmenu button{display:block;width:100%;text-align:left;font:inherit;font-size:13px;
+    font-weight:600;color:var(--ink);background:none;border:0;border-radius:8px;
+    padding:9px 11px;cursor:pointer}
+  .invmenu button:hover{background:var(--surface-2)}
+  .invmenu .sep{height:1px;background:var(--border);margin:5px 4px}
+  .invmenu .adm{color:var(--flow)}
+  body.shared #auditShare,body.shared #boardShare,body.shared .invwrap,
   body.shared #view-reports>.eyebrow{display:none!important}
   body.shared #reports-title{font-size:0;height:0;margin:0}
   body.shared .clogo-btn{pointer-events:none}
@@ -1361,7 +1389,7 @@
       <button role="tab" aria-selected="false" data-view="reports">Reports</button>
       <button role="tab" aria-selected="false" data-view="map">Retention Map</button>
     </div>
-    <button class="themeBtn" id="inviteBtn" style="display:none" title="Copy this client's self-serve access link">✉ Send invite link</button>
+    <span class="invwrap" id="inviteWrap" style="display:none"><button class="themeBtn" id="inviteBtn" title="Copy a self-serve access link">✉ Send invite link</button><div class="invmenu" id="inviteMenu"></div></span>
     <button class="themeBtn" id="refreshBtn" style="display:none" title="Reload for the latest version, staying on this client and tab">⟳ Refresh</button>
     <button class="themeBtn" id="themeBtn">◑ Theme</button>
     <button class="outBtn" id="outBtn">Log out</button>
@@ -1597,6 +1625,32 @@
         <span class="todohint" id="todoCopied"></span>
       </div>
       <div class="todoscroll"><table class="todotbl"><thead><tr><th>Task</th><th>Notes</th></tr></thead><tbody id="todoRows"></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="vidmodal" id="teamModal" hidden>
+    <div class="vidbackdrop" id="teamBackdrop"></div>
+    <div class="todobox" style="width:min(680px,95vw)">
+      <div class="todohead">
+        <div><div class="todotitle">Invite a team member</div>
+          <div class="todosub">They pick their own email and password. Tick the clients they should see.</div></div>
+        <button class="vidclose" id="teamClose" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="todoactions">
+        <label class="tm-name">Who is it for
+          <input type="text" id="teamLabel" placeholder="e.g. Ally, account manager"></label>
+      </div>
+      <div class="todoactions" style="padding-top:0">
+        <button class="btn ghost" type="button" id="teamAll">Select all</button>
+        <button class="btn ghost" type="button" id="teamNone">Clear</button>
+        <span class="todohint" id="teamCount"></span>
+      </div>
+      <div class="todoscroll" style="padding:0 20px"><div class="tm-grid" id="teamList"></div></div>
+      <div class="todoactions" style="padding-top:12px">
+        <button class="btn" id="teamMake" type="button">Create invite link</button>
+        <span class="todohint" id="teamMsg"></span>
+      </div>
+      <div class="todoscroll" style="padding:0 20px 16px"><div id="teamExisting"></div></div>
     </div>
   </div>
 
@@ -2474,21 +2528,83 @@ function renderReports(){
 // one for a while; these two were the odd ones out.
 // Owner-only: hand a client their own sign-up link without going near a
 // terminal. One link per account, so two brands under one owner share it.
+// ---- team access: Danny picks the clients, the link does the rest ----------
+const JOIN_BASE=location.origin+(location.pathname.indexOf('/dashboard/')===0?'/dashboard':'')+'/join/?t=';
+async function teamRefresh(){
+  const box=document.getElementById('teamExisting'); if(!box)return;
+  const {data,error}=await sb.rpc('list_team_invites');
+  if(error||!data||!data.length){box.innerHTML='';return;}
+  const nm=s=>((SERIES[s]||{}).name)||s;
+  box.innerHTML='<div class="tm-row" style="border:0;font-weight:800;color:var(--muted);'
+    +'text-transform:uppercase;letter-spacing:.05em;font-size:11px">Links you have made</div>'
+    +data.map(r=>'<div class="tm-row"><span class="who"><b>'+esc(r.label||'team member')+'</b> · '
+      +esc((r.slugs||[]).map(nm).join(', '))+' · used '+r.uses+'</span>'
+      +(r.active?'<button data-cp="'+esc(r.token)+'">Copy</button>'
+                +'<button data-rv="'+esc(r.token)+'">Revoke</button>'
+                :'<span style="color:var(--muted)">revoked</span>')+'</div>').join('');
+  box.querySelectorAll('[data-cp]').forEach(b=>b.addEventListener('click',()=>{
+    const u=JOIN_BASE+b.dataset.cp;
+    if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(u)
+      .then(()=>{b.textContent='✓ Copied';setTimeout(()=>{b.textContent='Copy';},1800);});
+    else window.prompt('Invite link',u);}));
+  box.querySelectorAll('[data-rv]').forEach(b=>b.addEventListener('click',async()=>{
+    await sb.rpc('revoke_invite',{p_token:b.dataset.rv}); teamRefresh();}));
+}
+function teamCount(){
+  const n=document.querySelectorAll('#teamList input:checked').length;
+  document.getElementById('teamCount').textContent=n?(n+' selected'):'';
+}
+function openTeamInvite(){
+  const list=document.getElementById('teamList');
+  const slugs=ORDER.slice();
+  list.innerHTML=slugs.map(s=>'<label><input type="checkbox" value="'+esc(s)+'">'
+    +esc(((SERIES[s]||{}).name)||s)+'</label>').join('');
+  list.querySelectorAll('input').forEach(i=>i.addEventListener('change',teamCount));
+  document.getElementById('teamMsg').textContent='';
+  document.getElementById('teamLabel').value='';
+  teamCount();
+  document.getElementById('teamModal').hidden=false;
+  teamRefresh();
+}
+function copyInvite(url,note){
+  const b=document.getElementById('inviteBtn');
+  const done=()=>{b.textContent='✓ '+(note||'Link copied');
+    setTimeout(()=>{b.textContent='✉ Send invite link';},2400);};
+  if(navigator.clipboard&&window.isSecureContext)
+    navigator.clipboard.writeText(url).then(done).catch(()=>window.prompt('Invite link',url));
+  else window.prompt('Invite link',url);
+}
 function updateInviteBtn(){
-  const b=document.getElementById('inviteBtn'); if(!b)return;
-  const u=((SERIES[ACTIVE]||{}).invite)||'';
-  b.dataset.url=u;
-  b.style.display=(IS_OWNER&&u&&!SHARE_MODE)?'':'none';
+  const wrap=document.getElementById('inviteWrap'),b=document.getElementById('inviteBtn'),
+        menu=document.getElementById('inviteMenu');
+  if(!wrap||!b)return;
+  const S=SERIES[ACTIVE]||{};
+  const opts=(S.invites&&S.invites.length)?S.invites
+            :(S.invite?[{label:'Copy invite link',url:S.invite}]:[]);
+  wrap.style.display=(IS_OWNER&&!SHARE_MODE)?'':'none';
+  if(!IS_OWNER||SHARE_MODE)return;
+  // one brand: straight copy. A shared account: a menu, so the agency owner and
+  // each end client can be handed the link that fits them.
+  menu.innerHTML=opts.map((o,i)=>'<button type="button" data-i="'+i+'">'+esc(o.label)+'</button>').join('')
+    +(opts.length?'<div class="sep"></div>':'')
+    +'<button type="button" class="adm" data-team="1">Invite a team member…</button>';
+  menu.querySelectorAll('button').forEach(el=>{
+    el.addEventListener('click',ev=>{
+      ev.stopPropagation(); menu.classList.remove('open');
+      if(el.dataset.team){openTeamInvite();return;}
+      const o=opts[+el.dataset.i]; if(o)copyInvite(o.url,'Copied: '+o.label.replace(/^Invite /,''));
+    });
+  });
   if(b.dataset.wired)return;
   b.dataset.wired='1';
-  b.addEventListener('click',()=>{
-    const url=b.dataset.url||''; if(!url)return;
-    const done=()=>{b.textContent='✓ Link copied';
-      setTimeout(()=>{b.textContent='✉ Send invite link';},2200);};
-    if(navigator.clipboard&&window.isSecureContext)
-      navigator.clipboard.writeText(url).then(done).catch(()=>window.prompt('Invite link',url));
-    else window.prompt('Invite link',url);
+  b.addEventListener('click',ev=>{
+    ev.stopPropagation();
+    const S2=SERIES[ACTIVE]||{};
+    const many=(S2.invites&&S2.invites.length>1);
+    if(many||!S2.invite)menu.classList.toggle('open');
+    else copyInvite(S2.invite,'Link copied');
   });
+  document.addEventListener('click',()=>menu.classList.remove('open'));
 }
 function wireShare(btnId, url){
   const b=document.getElementById(btnId); if(!b)return;
@@ -4904,6 +5020,30 @@ function wireControls(){
     document.getElementById('vidClose').addEventListener('click',close);
     document.getElementById('vidBackdrop').addEventListener('click',close);
     document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!vm.hidden)close();});})();
+  (function(){const m=document.getElementById('teamModal');if(!m)return;
+    const close=()=>{m.hidden=true;};
+    document.getElementById('teamClose').addEventListener('click',close);
+    document.getElementById('teamBackdrop').addEventListener('click',close);
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!m.hidden)close();});
+    document.getElementById('teamAll').addEventListener('click',()=>{
+      document.querySelectorAll('#teamList input').forEach(i=>i.checked=true);teamCount();});
+    document.getElementById('teamNone').addEventListener('click',()=>{
+      document.querySelectorAll('#teamList input').forEach(i=>i.checked=false);teamCount();});
+    document.getElementById('teamMake').addEventListener('click',async()=>{
+      const picked=[...document.querySelectorAll('#teamList input:checked')].map(i=>i.value);
+      const msg=document.getElementById('teamMsg');
+      if(!picked.length){msg.style.color='var(--crit)';msg.textContent='Tick at least one client.';return;}
+      const label=document.getElementById('teamLabel').value.trim()||'team member';
+      const {data,error}=await sb.rpc('create_team_invite',{p_slugs:picked,p_label:label});
+      if(error){msg.style.color='var(--crit)';msg.textContent=error.message;return;}
+      const u=JOIN_BASE+data;
+      msg.style.color='var(--good)';
+      if(navigator.clipboard&&window.isSecureContext)
+        navigator.clipboard.writeText(u).then(()=>{msg.textContent='✓ Link copied, ready to send';})
+          .catch(()=>{window.prompt('Invite link',u);msg.textContent='Link made';});
+      else {window.prompt('Invite link',u);msg.textContent='Link made';}
+      teamRefresh();
+    });})();
   (function(){const tm=document.getElementById('todoModal');if(!tm)return;const close=()=>{tm.hidden=true;};
     const tb=document.getElementById('todoBtn');if(tb)tb.addEventListener('click',e=>{e.stopPropagation();openTodos();});
     document.getElementById('todoClose').addEventListener('click',close);
