@@ -4648,7 +4648,11 @@ function drawChangeMarks(svg,i0,i1,x,top,bottom){
 // actually on the page so a new section appears here without being wired up.
 function buildJumpBar(){
   const bar=document.getElementById('jumpBar'); if(!bar)return;
-  const secs=[...document.querySelectorAll('#dash-sections .asection')];
+  // Only sections that actually rendered. Repeat purchase, for instance, is
+  // dropped for a client with no order-bucket data, and a link to a zero-height
+  // element just scrolls you nowhere.
+  const secs=[...document.querySelectorAll('#dash-sections .asection')]
+    .filter(sec=>sec.offsetParent!==null&&sec.getBoundingClientRect().height>8);
   if(secs.length<2){bar.innerHTML='';return;}
   bar.innerHTML='<span class="jlab">Jump to</span>'
     +secs.map((sec,i)=>{
@@ -4681,8 +4685,7 @@ function markJumpActive(){
   if(cur)cur.classList.add('on');
 }
 window.addEventListener('scroll',()=>{if(!document.getElementById('view-dash').hidden)markJumpActive();},{passive:true});
-function renderDash(){const _snap=dashSnap();
-  try{buildJumpBar();}catch(e){}clearDash();const{cur}=windows();renderTiles();renderRpr();renderPor();renderTests();renderBuckets();renderRightSize();
+function renderDash(){const _snap=dashSnap();clearDash();const{cur}=windows();renderTiles();renderRpr();renderPor();renderTests();renderBuckets();renderRightSize();
   const ipT=IP?{idx:IP.idx,project:!!(PROJ&&PROJ.total),
                 proj:[PROJ&&PROJ.total?PROJ.total.point:null,null]}:null;
   const ipS=IP?{idx:IP.idx,project:!!(PROJ&&PROJ.subs),
@@ -4712,7 +4715,8 @@ function renderDash(){const _snap=dashSnap();
   renderSms();
   renderIpNote();
   renderBoard();
-  if(IS_OWNER)renderPins();}
+  if(IS_OWNER)renderPins();
+  try{buildJumpBar();}catch(e){}}
 
 function renderIpNote(){const el=document.getElementById('ipnote');
   if(!IP){el.hidden=true;return;}
