@@ -666,6 +666,8 @@
   @media print{.rep-tldr{padding:11px 15px;margin:14px 0 4px}.rep-tldr li{margin:4px 0}}
   .rep-callouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin:24px 0}
   .rep-callout{border:1px solid var(--border);border-left:3px solid var(--aqua);border-radius:11px;padding:16px 18px;background:var(--surface-2)}
+  .rc-eye{font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:6px}
   .rc-big{font-size:26px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
   .rc-lab{font-size:12.5px;color:var(--ink2);line-height:1.45;margin-top:5px}
   .rep-prose{font-size:14.5px;color:var(--ink2);line-height:1.65;margin:6px 0}
@@ -2479,7 +2481,7 @@ function repPlain(r){
   const out=[r.title||'', r.summary||''];
   (r.blocks||[]).forEach(bl=>{
     if(bl.t==='tldr'){out.push((bl.items||[]).join('. '));}
-    else if(bl.t==='callouts'){out.push((bl.items||[]).map(i=>i.big+', '+i.lab).join('. '));}
+    else if(bl.t==='callouts'){out.push((bl.items||[]).map(i=>(i.eye?i.eye+': ':'')+i.big+', '+i.lab).join('. '));}
     else if(bl.t==='h'||bl.t==='method'){
       const d=document.createElement('div');d.innerHTML=bl.html||'';
       out.push((d.textContent||'').replace(/\s+/g,' ').trim());}
@@ -2537,7 +2539,10 @@ function renderReports(){
   body.innerHTML='';body.appendChild(wrap);
   (r.blocks||[]).forEach(bl=>{
     if(bl.t==='callouts'){const c=document.createElement('div');c.className='rep-callouts';
-      c.innerHTML=bl.items.map(it=>'<div class="rep-callout"><div class="rc-big">'+esc(it.big)+'</div><div class="rc-lab">'+esc(it.lab)+'</div></div>').join('');wrap.appendChild(c);}
+      c.innerHTML=bl.items.map(it=>'<div class="rep-callout">'
+        +(it.eye?'<div class="rc-eye">'+esc(it.eye)+'</div>':'')
+        +'<div class="rc-big">'+esc(it.big)+'</div>'
+        +'<div class="rc-lab">'+esc(it.lab)+'</div></div>').join('');wrap.appendChild(c);}
     else if(bl.t==='tldr'){const d=document.createElement('div');d.className='rep-tldr';
       d.innerHTML='<div class="rep-tldr-h">'+esc(bl.label||'The short of it')+'</div><ul>'
         +(bl.items||[]).map(x=>'<li>'+x+'</li>').join('')+'</ul>';wrap.appendChild(d);}
@@ -3099,27 +3104,45 @@ function repChart(host,name,data){
   // that sends as much as its neighbour but earns a tenth as much is obvious.
   else if(name==='stagecurve'){
     const d=data,n=d.x.length,sym=d.sym||'$';
-    const W=760,H=300,L=52,R=62,PT=20,PB=52,iw=W-L-R,ih=H-PT-PB;
+    const hasU=!!(d.unsub&&d.unsub.length);
+    const W=780,H=316,L=52,R=hasU?106:62,PT=34,PB=54,iw=W-L-R,ih=H-PT-PB;
     const mxB=Math.max.apply(null,d.deliv)*1.1, mxL=Math.max.apply(null,d.rpr)*1.12;
+    const mxU=hasU?Math.max.apply(null,d.unsub)*1.25:1;
     const cx=i=>L+iw*(i+0.5)/n, yB=v=>PT+ih-ih*v/mxB, yL=v=>PT+ih-ih*v/mxL;
+    const yU=v=>PT+ih-ih*v/mxU;
     const bw=Math.min(34,iw/n*0.56), nf=v=>Math.round(v).toLocaleString();
-    const mf=v=>sym+(+v).toFixed(3);
+    const mf=v=>sym+(+v).toFixed(3), uf=v=>(+v).toFixed(3)+'%';
     const sg=svg(W,H);
+    // phase bands first, so everything else draws over them
+    (d.phases||[]).forEach((p,pi)=>{
+      const x0=L+iw*p.from/n, x1=L+iw*(p.to+1)/n;
+      if(pi%2===0)sg.appendChild(el('rect',{x:x0,y:PT,width:x1-x0,height:ih,
+        fill:'var(--ink)','fill-opacity':0.035}));
+      if(pi)sg.appendChild(el('line',{x1:x0,x2:x0,y1:PT,y2:PT+ih,
+        stroke:'var(--border)','stroke-width':1,'stroke-dasharray':'4 4'}));
+      const t=el('text',{x:(x0+x1)/2,y:PT-16,'text-anchor':'middle',fill:'var(--ink2)',
+        'font-size':11,'font-weight':800,'font-family':'system-ui'});
+      t.textContent=p.label;sg.appendChild(t);
+      if(p.note){const t2=el('text',{x:(x0+x1)/2,y:PT-4,'text-anchor':'middle',
+        fill:'var(--muted)','font-size':9.5,'font-family':'system-ui'});
+        t2.textContent=p.note;sg.appendChild(t2);}
+    });
     for(let g=0;g<=4;g++){const f=g/4,yy=PT+ih-ih*f;
       sg.appendChild(el('line',{x1:L,x2:W-R,y1:yy,y2:yy,stroke:'var(--border)','stroke-width':1}));
       const lt=el('text',{x:L-8,y:yy+3,'text-anchor':'end',fill:'var(--muted)','font-size':10.5,'font-family':'system-ui'});
       lt.textContent=Math.round(mxB*f/1000)+'k';sg.appendChild(lt);
       const rt=el('text',{x:W-R+8,y:yy+3,'text-anchor':'start',fill:'var(--flow)','font-size':10.5,'font-family':'system-ui'});
-      rt.textContent=sym+(mxL*f).toFixed(2);sg.appendChild(rt);}
-    if(d.split!=null&&d.split>0&&d.split<n){const xx=L+iw*d.split/n;
-      sg.appendChild(el('line',{x1:xx,x2:xx,y1:PT,y2:PT+ih,stroke:'var(--crit)','stroke-width':1.5,'stroke-dasharray':'5 4'}));
-      if(d.splitLabel){const t=el('text',{x:xx+6,y:PT+12,'text-anchor':'start',fill:'var(--crit)','font-size':10.5,'font-weight':800,'font-family':'system-ui'});
-        t.textContent=d.splitLabel;sg.appendChild(t);}}
+      rt.textContent=sym+(mxL*f).toFixed(2);sg.appendChild(rt);
+      if(hasU){const r2=el('text',{x:W-R+52,y:yy+3,'text-anchor':'start',fill:'var(--crit)','font-size':10.5,'font-family':'system-ui'});
+        r2.textContent=(mxU*f).toFixed(2)+'%';sg.appendChild(r2);}}
     d.deliv.forEach((v,i)=>{const bh=Math.max(2,ih*v/mxB);
       sg.appendChild(el('rect',{x:cx(i)-bw/2,y:PT+ih-bh,width:bw,height:bh,rx:4,fill:OFF,'fill-opacity':0.75}));});
     let p2='';d.rpr.forEach((v,i)=>p2+=(i?'L':'M')+cx(i)+' '+yL(v));
     sg.appendChild(el('path',{d:p2,fill:'none',stroke:ON,'stroke-width':2.5,'stroke-linejoin':'round'}));
     d.rpr.forEach((v,i)=>sg.appendChild(el('circle',{cx:cx(i),cy:yL(v),r:3.5,fill:ON,stroke:'var(--card)','stroke-width':1.5})));
+    if(hasU){let p3='';d.unsub.forEach((v,i)=>p3+=(i?'L':'M')+cx(i)+' '+yU(v));
+      sg.appendChild(el('path',{d:p3,fill:'none',stroke:'var(--crit)','stroke-width':2,
+        'stroke-dasharray':'5 4','stroke-linejoin':'round'}));}
     d.x.forEach((lb,i)=>{const t=el('text',{x:cx(i),y:PT+ih+18,'text-anchor':'middle',fill:'var(--muted)','font-size':10,'font-family':'system-ui'});
       t.textContent=lb;sg.appendChild(t);});
     if(d.xTitle){const t=el('text',{x:L+iw/2,y:PT+ih+40,'text-anchor':'middle',fill:'var(--muted)','font-size':10.5,'font-weight':700,'font-family':'system-ui'});
@@ -3127,13 +3150,16 @@ function repChart(host,name,data){
     const guide=el('line',{x1:L,x2:L,y1:PT,y2:PT+ih,stroke:'var(--ink)','stroke-width':1,'stroke-dasharray':'3 3','stroke-opacity':0});sg.appendChild(guide);
     for(let i=0;i<n;i++){const hit=el('rect',{x:L+iw*i/n,y:PT,width:iw/n,height:ih,fill:'transparent'});hit.style.cursor='pointer';sg.appendChild(hit);
       hit.addEventListener('mousemove',e=>{guide.setAttribute('x1',cx(i));guide.setAttribute('x2',cx(i));guide.setAttribute('stroke-opacity',0.3);
-        showTip(host,e,d.x[i],[['Emails delivered',d.deliv[i],OFF,nf],
-          ['Revenue per recipient',d.rpr[i],ON,mf],['Revenue',d.rev[i],ACC,v=>sym+nf(v)]],nf);});
+        const rows=[['Emails delivered',d.deliv[i],OFF,nf],
+          ['Revenue per recipient',d.rpr[i],ON,mf],['Revenue',d.rev[i],ACC,v=>sym+nf(v)]];
+        if(hasU)rows.push(['Unsubscribe rate',d.unsub[i],'var(--crit)',uf]);
+        showTip(host,e,d.x[i],rows,nf);});
       hit.addEventListener('mouseleave',()=>{hideTip(host);guide.setAttribute('stroke-opacity',0);});}
     host.appendChild(sg);
     const lg=document.createElement('div');lg.className='rep-lg';
     lg.innerHTML='<span><i style="background:var(--camp)"></i>Emails delivered</span>'
-      +'<span><i style="background:var(--flow)"></i>Revenue per recipient</span>';
+      +'<span><i style="background:var(--flow)"></i>Revenue per recipient</span>'
+      +(hasU?'<span><i style="background:var(--crit)"></i>Unsubscribe rate</span>':'');
     host.appendChild(lg);
   }
   else if(name==='pcttrend'||name.indexOf('pcttrend')===0){   // one or more % series over time
