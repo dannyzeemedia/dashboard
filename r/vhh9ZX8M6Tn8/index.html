@@ -3031,44 +3031,73 @@ function repChart(host,name,data){
   // not fall, which is the whole case for holding cadence.
   else if(name==='campmonths'){
     const d=data,n=d.x.length,sym=d.sym||'$';
-    const W=760,H=310,L=54,R=66,PT=22,PB=54,iw=W-L-R,ih=H-PT-PB;
-    const mxR=Math.max.apply(null,d.rev)*1.15, mxB=Math.max.apply(null,d.sends)*1.9;
+    const hasU=!!(d.unsub&&d.unsub.length), hasR=!!(d.recip&&d.recip.length);
+    // four scales, each labelled in its own colour: revenue and recipients on
+    // the left, revenue per recipient and unsubscribe rate on the right. The
+    // send-count bar carries its number on top instead of a fifth axis.
+    const W=820,H=330,L=hasR?104:54,R=hasU?112:66,PT=24,PB=56,iw=W-L-R,ih=H-PT-PB;
+    const mxR=Math.max.apply(null,d.rev)*1.15, mxB=Math.max.apply(null,d.sends)*2.1;
     const mxL=Math.max.apply(null,d.rpr)*1.35;
-    const cx=i=>L+iw*(i+0.5)/n, yR=v=>PT+ih-ih*v/mxR, yB=v=>PT+ih-ih*v/mxB, yL=v=>PT+ih-ih*v/mxL;
-    const bw=Math.min(30,iw/n*0.44), nf=v=>Math.round(v).toLocaleString();
+    const mxU=hasU?Math.max.apply(null,d.unsub)*1.5:1;
+    const mxC=hasR?Math.max.apply(null,d.recip)*1.35:1;
+    const cx=i=>L+iw*(i+0.5)/n, yR=v=>PT+ih-ih*v/mxR, yB=v=>PT+ih-ih*v/mxB;
+    const yL=v=>PT+ih-ih*v/mxL, yU=v=>PT+ih-ih*v/mxU, yC=v=>PT+ih-ih*v/mxC;
+    const bw=Math.min(26,iw/n*0.30), nf=v=>Math.round(v).toLocaleString();
     const mf=v=>sym+Math.round(v).toLocaleString(), pf=v=>sym+(+v).toFixed(3);
+    const kf=v=>v>=1e6?(v/1e6).toFixed(1)+'M':Math.round(v/1000)+'k';
     const sg=svg(W,H);
     for(let g=0;g<=4;g++){const f=g/4,yy=PT+ih-ih*f;
       sg.appendChild(el('line',{x1:L,x2:W-R,y1:yy,y2:yy,stroke:'var(--border)','stroke-width':1}));
-      const lt=el('text',{x:L-8,y:yy+3,'text-anchor':'end',fill:'var(--muted)','font-size':10.5,'font-family':'system-ui'});
+      const lt=el('text',{x:L-8,y:yy+3,'text-anchor':'end',fill:'var(--aqua)','font-size':10.5,'font-family':'system-ui'});
       lt.textContent=sym+Math.round(mxR*f/1000)+'k';sg.appendChild(lt);
+      if(hasR){const l2=el('text',{x:L-52,y:yy+3,'text-anchor':'end',fill:'var(--muted)','font-size':10.5,'font-family':'system-ui'});
+        l2.textContent=kf(mxC*f);sg.appendChild(l2);}
       const rt=el('text',{x:W-R+8,y:yy+3,'text-anchor':'start',fill:'var(--flow)','font-size':10.5,'font-family':'system-ui'});
-      rt.textContent=sym+(mxL*f).toFixed(3);sg.appendChild(rt);}
+      rt.textContent=sym+(mxL*f).toFixed(3);sg.appendChild(rt);
+      if(hasU){const r2=el('text',{x:W-R+58,y:yy+3,'text-anchor':'start',fill:'var(--crit)','font-size':10.5,'font-family':'system-ui'});
+        r2.textContent=(mxU*f).toFixed(2)+'%';sg.appendChild(r2);}}
     let ar='M'+cx(0)+' '+(PT+ih);d.rev.forEach((v,i)=>ar+='L'+cx(i)+' '+yR(v));
     ar+='L'+cx(n-1)+' '+(PT+ih)+'Z';
     sg.appendChild(el('path',{d:ar,fill:ACC,'fill-opacity':0.18}));
     let rl='';d.rev.forEach((v,i)=>rl+=(i?'L':'M')+cx(i)+' '+yR(v));
     sg.appendChild(el('path',{d:rl,fill:'none',stroke:ACC,'stroke-width':2}));
-    d.sends.forEach((v,i)=>{const bh=Math.max(2,ih*v/mxB);
-      sg.appendChild(el('rect',{x:cx(i)-bw/2,y:PT+ih-bh,width:bw,height:bh,rx:4,fill:OFF,'fill-opacity':0.8}));
-      const t=el('text',{x:cx(i),y:PT+ih-bh-5,'text-anchor':'middle',fill:'var(--ink2)','font-size':10.5,'font-weight':800,'font-family':'system-ui'});
-      t.textContent=v;sg.appendChild(t);});
+    d.sends.forEach((v,i)=>{
+      const x0=hasR?cx(i)-bw-2:cx(i)-bw/2;
+      const bh=Math.max(2,ih*v/mxB);
+      sg.appendChild(el('rect',{x:x0,y:PT+ih-bh,width:bw,height:bh,rx:4,fill:OFF,'fill-opacity':0.85}));
+      const t=el('text',{x:x0+bw/2,y:PT+ih-bh-5,'text-anchor':'middle',fill:'var(--ink2)','font-size':10.5,'font-weight':800,'font-family':'system-ui'});
+      t.textContent=v;sg.appendChild(t);
+      if(hasR){const rh=Math.max(2,ih*(d.recip[i]||0)/mxC);
+        sg.appendChild(el('rect',{x:cx(i)+2,y:PT+ih-rh,width:bw,height:rh,rx:4,
+          fill:'var(--muted)','fill-opacity':0.42}));
+        const t2=el('text',{x:cx(i)+2+bw/2,y:PT+ih-rh-5,'text-anchor':'middle',fill:'var(--muted)','font-size':10,'font-weight':800,'font-family':'system-ui'});
+        t2.textContent=kf(d.recip[i]||0);sg.appendChild(t2);}});
     let lp='';d.rpr.forEach((v,i)=>lp+=(i?'L':'M')+cx(i)+' '+yL(v));
     sg.appendChild(el('path',{d:lp,fill:'none',stroke:ON,'stroke-width':2.5,'stroke-linejoin':'round'}));
     d.rpr.forEach((v,i)=>sg.appendChild(el('circle',{cx:cx(i),cy:yL(v),r:3.5,fill:ON,stroke:'var(--card)','stroke-width':1.5})));
+    if(hasU){let up='';d.unsub.forEach((v,i)=>up+=(i?'L':'M')+cx(i)+' '+yU(v));
+      sg.appendChild(el('path',{d:up,fill:'none',stroke:'var(--crit)','stroke-width':2,
+        'stroke-dasharray':'5 4','stroke-linejoin':'round'}));
+      d.unsub.forEach((v,i)=>sg.appendChild(el('circle',{cx:cx(i),cy:yU(v),r:3,fill:'var(--crit)',
+        stroke:'var(--card)','stroke-width':1.5})));}
     d.x.forEach((lb,i)=>{const t=el('text',{x:cx(i),y:PT+ih+18,'text-anchor':'middle',fill:'var(--muted)','font-size':10,'font-family':'system-ui'});
       t.textContent=lb;sg.appendChild(t);});
     const guide=el('line',{x1:L,x2:L,y1:PT,y2:PT+ih,stroke:'var(--ink)','stroke-width':1,'stroke-dasharray':'3 3','stroke-opacity':0});sg.appendChild(guide);
     for(let i=0;i<n;i++){const hit=el('rect',{x:L+iw*i/n,y:PT,width:iw/n,height:ih,fill:'transparent'});hit.style.cursor='pointer';sg.appendChild(hit);
       hit.addEventListener('mousemove',e=>{guide.setAttribute('x1',cx(i));guide.setAttribute('x2',cx(i));guide.setAttribute('stroke-opacity',0.3);
-        showTip(host,e,d.x[i],[['Campaigns sent',d.sends[i],OFF,nf],['Campaign revenue',d.rev[i],ACC,mf],
-          ['Revenue per recipient',d.rpr[i],ON,pf]],nf);});
+        const rows=[['Campaigns sent',d.sends[i],OFF,nf]];
+        if(hasR)rows.push(['Recipients reached',d.recip[i],'var(--muted)',nf]);
+        rows.push(['Campaign revenue',d.rev[i],ACC,mf],['Revenue per recipient',d.rpr[i],ON,pf]);
+        if(hasU)rows.push(['Unsubscribe rate',d.unsub[i],'var(--crit)',v=>(+v).toFixed(3)+'%']);
+        showTip(host,e,d.x[i],rows,nf);});
       hit.addEventListener('mouseleave',()=>{hideTip(host);guide.setAttribute('stroke-opacity',0);});}
     host.appendChild(sg);
     const lg=document.createElement('div');lg.className='rep-lg';
     lg.innerHTML='<span><i style="background:var(--camp)"></i>Campaigns sent</span>'
+      +(hasR?'<span><i style="background:var(--muted)"></i>Recipients reached</span>':'')
       +'<span><i style="background:var(--aqua)"></i>Campaign revenue</span>'
-      +'<span><i style="background:var(--flow)"></i>Revenue per recipient</span>';
+      +'<span><i style="background:var(--flow)"></i>Revenue per recipient</span>'
+      +(hasU?'<span><i style="background:var(--crit)"></i>Unsubscribe rate</span>':'');
     host.appendChild(lg);
   }
   // ---- two series of the same channel side by side, by month. Built for SMS,
@@ -3105,7 +3134,7 @@ function repChart(host,name,data){
   else if(name==='stagecurve'){
     const d=data,n=d.x.length,sym=d.sym||'$';
     const hasU=!!(d.unsub&&d.unsub.length);
-    const W=780,H=316,L=52,R=hasU?106:62,PT=34,PB=54,iw=W-L-R,ih=H-PT-PB;
+    const W=780,H=316,L=52,R=62,PT=34,PB=54,iw=W-L-R,ih=H-PT-PB;
     const mxB=Math.max.apply(null,d.deliv)*1.1, mxL=Math.max.apply(null,d.rpr)*1.12;
     const mxU=hasU?Math.max.apply(null,d.unsub)*1.25:1;
     const cx=i=>L+iw*(i+0.5)/n, yB=v=>PT+ih-ih*v/mxB, yL=v=>PT+ih-ih*v/mxL;
@@ -3133,16 +3162,18 @@ function repChart(host,name,data){
       lt.textContent=Math.round(mxB*f/1000)+'k';sg.appendChild(lt);
       const rt=el('text',{x:W-R+8,y:yy+3,'text-anchor':'start',fill:'var(--flow)','font-size':10.5,'font-family':'system-ui'});
       rt.textContent=sym+(mxL*f).toFixed(2);sg.appendChild(rt);
-      if(hasU){const r2=el('text',{x:W-R+52,y:yy+3,'text-anchor':'start',fill:'var(--crit)','font-size':10.5,'font-family':'system-ui'});
-        r2.textContent=(mxU*f).toFixed(2)+'%';sg.appendChild(r2);}}
+      }
     d.deliv.forEach((v,i)=>{const bh=Math.max(2,ih*v/mxB);
       sg.appendChild(el('rect',{x:cx(i)-bw/2,y:PT+ih-bh,width:bw,height:bh,rx:4,fill:OFF,'fill-opacity':0.75}));});
     let p2='';d.rpr.forEach((v,i)=>p2+=(i?'L':'M')+cx(i)+' '+yL(v));
     sg.appendChild(el('path',{d:p2,fill:'none',stroke:ON,'stroke-width':2.5,'stroke-linejoin':'round'}));
     d.rpr.forEach((v,i)=>sg.appendChild(el('circle',{cx:cx(i),cy:yL(v),r:3.5,fill:ON,stroke:'var(--card)','stroke-width':1.5})));
-    if(hasU){let p3='';d.unsub.forEach((v,i)=>p3+=(i?'L':'M')+cx(i)+' '+yU(v));
-      sg.appendChild(el('path',{d:p3,fill:'none',stroke:'var(--crit)','stroke-width':2,
-        'stroke-dasharray':'5 4','stroke-linejoin':'round'}));}
+    if(d.split!=null&&d.split>0&&d.split<n){const xx=L+iw*d.split/n;
+      sg.appendChild(el('line',{x1:xx,x2:xx,y1:PT,y2:PT+ih,stroke:'var(--crit)',
+        'stroke-width':1.5,'stroke-dasharray':'5 4'}));
+      if(d.splitLabel){const t=el('text',{x:xx+6,y:PT+13,'text-anchor':'start',fill:'var(--crit)',
+        'font-size':10.5,'font-weight':800,'font-family':'system-ui'});
+        t.textContent=d.splitLabel;sg.appendChild(t);}}
     d.x.forEach((lb,i)=>{const t=el('text',{x:cx(i),y:PT+ih+18,'text-anchor':'middle',fill:'var(--muted)','font-size':10,'font-family':'system-ui'});
       t.textContent=lb;sg.appendChild(t);});
     if(d.xTitle){const t=el('text',{x:L+iw/2,y:PT+ih+40,'text-anchor':'middle',fill:'var(--muted)','font-size':10.5,'font-weight':700,'font-family':'system-ui'});
@@ -3158,8 +3189,7 @@ function repChart(host,name,data){
     host.appendChild(sg);
     const lg=document.createElement('div');lg.className='rep-lg';
     lg.innerHTML='<span><i style="background:var(--camp)"></i>Emails delivered</span>'
-      +'<span><i style="background:var(--flow)"></i>Revenue per recipient</span>'
-      +(hasU?'<span><i style="background:var(--crit)"></i>Unsubscribe rate</span>':'');
+      +'<span><i style="background:var(--flow)"></i>Revenue per recipient</span>';
     host.appendChild(lg);
   }
   else if(name==='pcttrend'||name.indexOf('pcttrend')===0){   // one or more % series over time
