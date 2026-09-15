@@ -507,9 +507,14 @@
   .jumpbar .jl.on{color:var(--flow);background:color-mix(in srgb,var(--flow) 15%,transparent)}
   .jumpbar .jlab{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
     color:var(--muted);margin-right:6px}
-  .legend .lgk{cursor:pointer;user-select:none;border-radius:7px;padding:2px 6px;margin:-2px -2px}
-  .legend .lgk:hover{background:var(--surface-2)}
-  .legend .lgk.off{opacity:.42;text-decoration:line-through}
+  .legend .lgk{cursor:pointer;user-select:none;border-radius:999px;padding:3px 10px 3px 8px;
+    border:1px solid color-mix(in srgb,var(--ink) 16%,transparent);
+    background:var(--surface-2);transition:background .12s,border-color .12s,opacity .12s}
+  .legend .lgk:hover{border-color:var(--ink2)}
+  .legend .lgk.off{opacity:.5;background:transparent;
+    border-color:color-mix(in srgb,var(--ink) 10%,transparent);text-decoration:line-through}
+  .legend .lghint{font-size:11px;color:var(--muted);align-self:center}
+  @media(max-width:620px){.legend .lghint{display:none}}
   @media print{.jumpbar{display:none}}
   .filters{display:flex;align-items:center;justify-content:center;gap:9px 24px;flex-wrap:wrap;
     background:color-mix(in srgb,var(--flow) 8%,var(--surface));border:1px solid color-mix(in srgb,var(--flow) 18%,var(--border));
@@ -2368,13 +2373,15 @@ function stackedCols(id,win){const card=document.getElementById(id);const[i0,i1]
   // Clicking a series in the legend hides it, so either half can be read on
   // its own without losing the axis or the trend line.
   const offA=!!revOff.a, offB=!!revOff.b;
+  const PP=(offA?0:P1)+(offB?0:P2);          // projected total for what is shown
   const fv=offA?S1.slice(i0,i1+1).map(()=>0):S1.slice(i0,i1+1),
         cv=offB?S2.slice(i0,i1+1).map(()=>0):S2.slice(i0,i1+1),
         tv=fv.map((v,i)=>v+(cv[i]||0));
   const lg=document.getElementById('crev-legend');
   if(lg){
     lg.innerHTML=`<span class="lgk${offA?' off':''}" data-k="a"><i style="background:${C1}"></i>${N1}</span>`
-      +`<span class="lgk${offB?' off':''}" data-k="b"><i style="background:${C2}"></i>${N2}</span>`;
+      +`<span class="lgk${offB?' off':''}" data-k="b"><i style="background:${C2}"></i>${N2}</span>`
+      +`<span class="lghint">click to isolate</span>`;
   }
   const ttl=document.getElementById('crev-title');if(ttl)ttl.textContent='Attributed revenue — '+(chan?'email vs SMS':'flow vs campaign');
   const grp=revGroup;
@@ -2392,11 +2399,11 @@ function stackedCols(id,win){const card=document.getElementById(id);const[i0,i1]
     if(grp){const cx=PL+step*i+step/2,x1=cx-bw-gap/2,x2=cx+gap/2;
       svg.appendChild(el('rect',{x:x1,y:PT+ih-hf,width:bw,height:Math.max(hf,0),rx:3,fill:C1,'fill-opacity':op}));
       svg.appendChild(el('rect',{x:x2,y:PT+ih-hc,width:bw,height:Math.max(hc,0),rx:3,fill:C2,'fill-opacity':op}));
-      if(ip&&P1+P2>0){ghost(x1,bw,P1);ghost(x2,bw,P2);}}
+      if(ip&&PP>0){if(!offA)ghost(x1,bw,P1);if(!offB)ghost(x2,bw,P2);}}
     else{const x=PL+step*i+(step-bw)/2;
       svg.appendChild(el('rect',{x,y:PT+ih-hf,width:bw,height:Math.max(hf,0),rx:3,fill:C1,'fill-opacity':op}));
       svg.appendChild(el('rect',{x,y:PT+ih-hf-hc-2,width:bw,height:Math.max(hc,0),rx:3,fill:C2,'fill-opacity':op}));
-      if(ip&&P1+P2>0)ghost(x,bw,P1+P2);}
+      if(ip&&PP>0)ghost(x,bw,PP);}
     const lx=PL+step*i+step/2;
     if(labIdx(n).has(i)){mlab(svg,lx,PT+ih+16,mlabel(m)+(ip?'*':''));}
     const hit=el('rect',{x:PL+step*i,y:PT,width:step,height:ih,fill:'transparent'});
@@ -2406,12 +2413,13 @@ function stackedCols(id,win){const card=document.getElementById(id);const[i0,i1]
       if(!offA&&!offB)rows.push(['Total',tv[i],'var(--ink2)']);
       let title=mlabel(m);
       if(ip){title+=` · MTD ${IP.days}/${IP.dim}d`;
-        if(P1+P2>0){rows.push(['Projected total',P1+P2,'var(--ink2)']);
+        if(PP>0){rows.push([(offA||offB)?'Projected':'Projected total',PP,'var(--ink2)']);
           const b=_p1&&_p1.e2!=null?_p1:null;
           if(_p1&&_p2){
-            rows.push(['· run-rate',(_p1.e1||0)+(_p2.e1||0),'var(--muted)']);
+            rows.push(['· run-rate',(offA?0:(_p1.e1||0))+(offB?0:(_p2.e1||0)),'var(--muted)']);
             if(_p1.e2!=null&&_p2.e2!=null)
-              rows.push(['· same month last yr x growth',(_p1.e2||0)+(_p2.e2||0),'var(--muted)']);
+              rows.push(['· same month last yr x growth',
+                (offA?0:(_p1.e2||0))+(offB?0:(_p2.e2||0)),'var(--muted)']);
           }}}
       showTip(card,e,title,rows,money);});
     hit.addEventListener('mouseleave',()=>hideTip(card));svg.appendChild(hit);});
