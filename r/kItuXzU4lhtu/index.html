@@ -492,6 +492,15 @@
   a.ft-l{color:var(--flow);text-decoration:none;font-weight:600} a.ft-l:hover{text-decoration:underline}
 
   .filters-wrap{position:sticky;top:70px;z-index:15;margin:20px 0 4px;padding-top:12px;background:var(--plane)}
+  /* jump links, built from the sections themselves so they cannot drift */
+  .jumpbar{display:flex;flex-wrap:wrap;align-items:center;gap:4px 2px;margin:7px 2px 0}
+  .jumpbar .jl{font:inherit;font-size:12px;font-weight:700;color:var(--ink2);background:none;
+    border:0;border-radius:7px;padding:5px 9px;cursor:pointer;white-space:nowrap}
+  .jumpbar .jl:hover{background:var(--surface-2);color:var(--ink)}
+  .jumpbar .jl.on{color:var(--ink);background:var(--surface-2)}
+  .jumpbar .jlab{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted);margin-right:6px}
+  @media print{.jumpbar{display:none}}
   .filters{display:flex;align-items:center;justify-content:center;gap:9px 24px;flex-wrap:wrap;
     background:color-mix(in srgb,var(--flow) 8%,var(--surface));border:1px solid color-mix(in srgb,var(--flow) 18%,var(--border));
     border-radius:12px;padding:13px 16px;box-shadow:var(--shadow)}
@@ -1475,7 +1484,8 @@
       <div class="fgroup"><span class="flabel">Month</span>
         <button class="togBtn" id="curTog" aria-pressed="false" title="Show the current, in-progress month (month-to-date + projected outcome)"><span class="dot"></span>Include current (in&#8209;progress)</button></div>
       <span class="frange" id="rangeText"></span>
-    </div></div>
+    </div>
+    <div class="jumpbar" id="jumpBar"></div></div>
     <div class="ipnote" id="ipnote" hidden></div>
     <div id="dash-sections">
       <div class="asection dsection open">
@@ -1952,7 +1962,7 @@ function switchTo(slug){ACTIVE=slug;
   RM_FLOW=null;RM_SEL=null;RM_Z=1;RM_L=null;if(RM_FULL)rmFullscreen(false);
   if(hasMap)ensureMap(slug).then(renderMap);
   REPORT_OPEN=null;
-  loadChanges().then(()=>{renderChanges();renderDash();});
+  loadChanges().then(()=>{renderChanges();renderDash();buildJumpBar();});
   renderDash();renderBoard();renderReports();
   if(IS_OWNER)updateFab();}
 
@@ -4602,7 +4612,45 @@ function drawChangeMarks(svg,i0,i1,x,top,bottom){
     svg.appendChild(g);
   });
 }
-function renderDash(){const _snap=dashSnap();clearDash();const{cur}=windows();renderTiles();renderRpr();renderPor();renderTests();renderBuckets();renderRightSize();
+// Jump links across the top of the dashboard, read from the sections that are
+// actually on the page so a new section appears here without being wired up.
+function buildJumpBar(){
+  const bar=document.getElementById('jumpBar'); if(!bar)return;
+  const secs=[...document.querySelectorAll('#dash-sections .asection')];
+  if(secs.length<2){bar.innerHTML='';return;}
+  bar.innerHTML='<span class="jlab">Jump to</span>'
+    +secs.map((sec,i)=>{
+      const nm=(sec.querySelector('.asec-name')||{}).textContent||('Section '+(i+1));
+      if(!sec.id)sec.id='dsec-'+i;
+      return '<button class="jl" type="button" data-sec="'+sec.id+'">'+esc(nm)+'</button>';
+    }).join('');
+  bar.querySelectorAll('[data-sec]').forEach(b=>b.addEventListener('click',()=>{
+    const sec=document.getElementById(b.dataset.sec); if(!sec)return;
+    sec.classList.add('open');                       // a collapsed section opens rather than jumping to a title
+    const bar2=document.querySelector('.filters-wrap');
+    const off=(document.querySelector('header.top')||{offsetHeight:0}).offsetHeight
+            +(bar2?bar2.offsetHeight:0)+10;
+    const y=sec.getBoundingClientRect().top+window.scrollY-off;
+    window.scrollTo({top:Math.max(0,y),behavior:'smooth'});
+  }));
+}
+// which section is under the sticky bar right now
+function markJumpActive(){
+  const bar=document.getElementById('jumpBar'); if(!bar||!bar.children.length)return;
+  const bar2=document.querySelector('.filters-wrap');
+  const off=(document.querySelector('header.top')||{offsetHeight:0}).offsetHeight
+          +(bar2?bar2.offsetHeight:0)+16;
+  let cur=null;
+  bar.querySelectorAll('[data-sec]').forEach(b=>{
+    const sec=document.getElementById(b.dataset.sec); if(!sec)return;
+    if(sec.getBoundingClientRect().top-off<=0)cur=b;
+    b.classList.remove('on');
+  });
+  if(cur)cur.classList.add('on');
+}
+window.addEventListener('scroll',()=>{if(!document.getElementById('view-dash').hidden)markJumpActive();},{passive:true});
+function renderDash(){const _snap=dashSnap();
+  try{buildJumpBar();}catch(e){}clearDash();const{cur}=windows();renderTiles();renderRpr();renderPor();renderTests();renderBuckets();renderRightSize();
   const ipT=IP?{idx:IP.idx,project:!!(PROJ&&PROJ.total),
                 proj:[PROJ&&PROJ.total?PROJ.total.point:null,null]}:null;
   const ipS=IP?{idx:IP.idx,project:!!(PROJ&&PROJ.subs),
