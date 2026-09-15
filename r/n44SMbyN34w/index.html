@@ -739,6 +739,31 @@
     .rep-method-b{grid-template-rows:1fr!important}
   }
   .dsection .grid{margin-top:6px}
+  .chg-t{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+  .chg-t th{text-align:left;font-size:10.5px;font-weight:800;letter-spacing:.07em;
+    text-transform:uppercase;color:var(--muted);padding:0 10px 7px 0;white-space:nowrap}
+  .chg-t th.num,.chg-t td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .chg-t td{padding:9px 10px 9px 0;border-top:1px solid var(--border);vertical-align:top}
+  .chg-t td.d{white-space:nowrap;color:var(--ink2);font-weight:700}
+  .chg-t td.w{color:var(--ink);line-height:1.5}
+  .chg-t .up{color:var(--good);font-weight:700}
+  .chg-t .dn{color:var(--crit);font-weight:700}
+  .chg-t .na{color:var(--muted)}
+  .chg-t .rm{opacity:0;font:inherit;font-size:15px;line-height:1;border:0;background:none;
+    color:var(--muted);cursor:pointer;padding:0 2px}
+  .chg-t tr:hover .rm{opacity:1}
+  .chg-t .rm:hover{color:var(--crit)}
+  .chg-add{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:14px}
+  .chg-add label{display:flex;flex-direction:column;gap:5px;font-size:10.5px;font-weight:800;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .chg-add input{font:inherit;font-size:14px;font-weight:600;text-transform:none;letter-spacing:0;
+    color:var(--ink);padding:8px 10px;border:1px solid var(--border);border-radius:9px;
+    background:var(--surface-2)}
+  .chg-add input.what{min-width:340px}
+  .chg-empty{color:var(--muted);font-size:13px;margin-top:10px}
+  /* the moment of a change, on any monthly chart */
+  .chgmark{stroke:var(--ink);stroke-width:1.2;stroke-dasharray:3 3;opacity:.45}
+  .chgflag{fill:var(--ink2);font-size:9.5px;font-weight:800;font-family:system-ui}
 
   @media print{ header.top,.toolbar,.banner,.note,#view-dash,#view-audit,#view-map,.eyebrow,.view-h,.view-sub,.totop,.cmt-fab{display:none!important}
     body{background:#fff}.paper{box-shadow:none;border:0;border-radius:0;width:auto;padding:0}
@@ -1539,6 +1564,16 @@
           </div>
         </div></div>
       </div>
+      <div class="asection dsection open" id="sec-changes">
+        <button class="asec-head" type="button"><span class="asec-chev">▸</span><span class="asec-name">Tracking changes</span><span class="asec-note" id="chg-note"></span></button>
+        <div class="asec-body"><div class="asec-inner">
+          <div class="grid">
+            <div class="card wide" id="c-changes"><h3>What we changed, and what happened after</h3>
+              <div class="cap">Every change is marked on the monthly charts. The movement columns compare the months since the change against the same number of months before it, so a change with one month behind it is read with care.</div>
+              <div id="chg-body"></div></div>
+          </div>
+        </div></div>
+      </div>
       <div class="asection dsection open">
         <button class="asec-head" type="button"><span class="asec-chev">▸</span><span class="asec-name">Testing</span></button>
         <div class="asec-body"><div class="asec-inner">
@@ -1910,6 +1945,7 @@ function switchTo(slug){ACTIVE=slug;
   RM_FLOW=null;RM_SEL=null;RM_Z=1;RM_L=null;if(RM_FULL)rmFullscreen(false);
   if(hasMap)ensureMap(slug).then(renderMap);
   REPORT_OPEN=null;
+  loadChanges().then(()=>{renderChanges();renderDash();});
   renderDash();renderBoard();renderReports();
   if(IS_OWNER)updateFab();}
 
@@ -2347,7 +2383,9 @@ function stackedCols(id,win){const card=document.getElementById(id);const[i0,i1]
         +`<span><i style="background:${C2};border-radius:9px"></i>${N2} trend</span>`
       : '<span><i style="background:var(--ink);border-radius:9px"></i>Total, 3-mo average</span>';
   }
-  svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));card.appendChild(svg);}
+  svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
+  drawChangeMarks(svg,i0,i1,k=>PL+step*k+step/2,PT,PT+ih);
+  card.appendChild(svg);}
 
 function lineChart(id,win,series,fmt,opts){opts=opts||{};const card=document.getElementById(id);const[i0,i1]=win;const L=MONTHS.slice(i0,i1+1);
   const S=series.map(s=>({...s,data:s.data.slice(i0,i1+1)}));
@@ -2378,7 +2416,9 @@ function lineChart(id,win,series,fmt,opts){opts=opts||{};const card=document.get
     let i=Math.round((px-PL)/iw*(n-1));i=Math.max(0,Math.min(n-1,i));cross.setAttribute('x1',x(i));cross.setAttribute('x2',x(i));cross.setAttribute('opacity',1);
     showTip(card,e,mlabel(L[i]),S.filter(s=>s.data[i]!=null).map(s=>[s.name,s.data[i],s.color]),fmt);});
   hit.addEventListener('mouseleave',()=>{cross.setAttribute('opacity',0);hideTip(card);});
-  svg.appendChild(hit);card.appendChild(svg);}
+  svg.appendChild(hit);
+  drawChangeMarks(svg,i0,i1,k=>PL+(iw/Math.max(n-1,1))*k,PT,PT+ih);
+  card.appendChild(svg);}
 
 function miniCols(card,win,vals0,color,fmt,labhint,area,ip){const[i0,i1]=win;const L=MONTHS.slice(i0,i1+1),vals=vals0.slice(i0,i1+1);
    const areas=(!area?[]:(Array.isArray(area)?area:[area])).filter(a=>a&&a.data);
@@ -2412,7 +2452,9 @@ function miniCols(card,win,vals0,color,fmt,labhint,area,ip){const[i0,i1]=win;con
          A.forEach(({a})=>{if(ip.project&&a.proj!=null)rows.push(['Projected '+a.label,a.proj,a.color,a.fmt]);});}
        showTip(card,e,title,rows,fmt);});
      hit.addEventListener('mouseleave',()=>hideTip(card));svg.appendChild(hit);});
-   svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));card.appendChild(svg);}
+   svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
+   drawChangeMarks(svg,i0,i1,k=>PL+step*k+step/2,PT,PT+ih);
+   card.appendChild(svg);}
 
 function miniCols2(card,win,a0,b0,ca,cb,fmt,la,lb,ip){const[i0,i1]=win;const L=MONTHS.slice(i0,i1+1),A=a0.slice(i0,i1+1),B=b0.slice(i0,i1+1);
   const W=520,H=240,PL=44,PR=10,PT=12,PB=44,iw=W-PL-PR,ih=H-PT-PB,n=L.length,step=iw/n,bw=step*0.32,gap=2;
@@ -2428,7 +2470,9 @@ function miniCols2(card,win,a0,b0,ca,cb,fmt,la,lb,ip){const[i0,i1]=win;const L=M
     const hit=el('rect',{x:PL+step*i,y:PT,width:step,height:ih,fill:'transparent'});
     hit.addEventListener('mousemove',e=>showTip(card,e,mlabel(m),[[la,A[i],ca],[lb,B[i],cb]],fmt));
     hit.addEventListener('mouseleave',()=>hideTip(card));svg.appendChild(hit);});
-  svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));card.appendChild(svg);}
+  svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
+  drawChangeMarks(svg,i0,i1,k=>PL+step*k+step/2,PT,PT+ih);
+  card.appendChild(svg);}
 
 function reportShareChart(host,months,share,baseline,accent){
   if(!host)return;host.innerHTML='';const n=(share||[]).length;if(!n)return;
@@ -4391,6 +4435,129 @@ function dashAnimate(snap){
   }));
 }
 
+// ---- change log: what we changed, when, and what moved after ---------------
+let CHANGES=[];
+async function loadChanges(){
+  CHANGES=[];
+  if(SHARE_MODE||!sb)return;
+  try{
+    const {data,error}=await sb.from('client_changes').select('*')
+      .eq('client_slug',ACTIVE).order('happened_on',{ascending:false});
+    if(!error&&data)CHANGES=data;
+  }catch(e){}
+}
+// index of the month a change lands in, within the full MONTHS array
+function chgIdx(d){
+  const m=(d||'').slice(0,7);
+  return MONTHS.indexOf(m);
+}
+// What moved since a change: the months after it against the same number of
+// months before it. A change with one month behind it is one month of evidence,
+// which the caption says out loud rather than dressing up as a trend.
+function chgWindows(idx){
+  const last=MONTHS.length-1;
+  const after=last-idx;                        // whole months since (excludes the month itself)
+  if(after<1||idx<1)return null;
+  const n=Math.min(after,idx);
+  const sum=(a,s,e)=>a.slice(s,e+1).reduce((x,y)=>x+(y||0),0);
+  const pre=[idx-n,idx-1], post=[idx+1,idx+n];
+  const attr=(s,e)=>sum(flow,s,e)+sum(camp,s,e);
+  const rec=(s,e)=>sum(crecip,s,e);
+  const st=(s,e)=>sum(store||[],s,e);
+  const out={n:n,
+    attr:[attr(pre[0],pre[1]),attr(post[0],post[1])],
+    rpr:[null,null], share:[null,null]};
+  const r0=rec(pre[0],pre[1]),r1=rec(post[0],post[1]);
+  if(r0&&r1)out.rpr=[out.attr[0]/r0,out.attr[1]/r1];
+  const s0=st(pre[0],pre[1]),s1=st(post[0],post[1]);
+  if(s0&&s1)out.share=[out.attr[0]/s0*100,out.attr[1]/s1*100];
+  return out;
+}
+function chgDelta(pair,pct){
+  if(!pair||pair[0]==null||pair[1]==null||!pair[0])return '<span class="na">—</span>';
+  const d=(pair[1]/pair[0]-1)*100;
+  const cls=d>=0?'up':'dn', sign=d>=0?'+':'';
+  return '<span class="'+cls+'">'+sign+d.toFixed(0)+'%</span>';
+}
+function renderChanges(){
+  const host=document.getElementById('chg-body'); if(!host)return;
+  const sec=document.getElementById('sec-changes');
+  if(sec)sec.style.display=(SHARE_MODE?'none':'');
+  const note=document.getElementById('chg-note');
+  if(note)note.textContent=CHANGES.length?(CHANGES.length+' logged'):'';
+
+  let html='';
+  if(CHANGES.length){
+    html+='<table class="chg-t"><thead><tr><th>Date</th><th>What happened</th>'
+      +'<th class="num">Months since</th><th class="num">Attributed revenue</th>'
+      +'<th class="num">$ / recipient</th><th class="num">Share of store</th>'
+      +(IS_OWNER?'<th></th>':'')+'</tr></thead><tbody>';
+    CHANGES.forEach(c=>{
+      const i=chgIdx(c.happened_on), w=(i>=0)?chgWindows(i):null;
+      html+='<tr><td class="d">'+esc(mlabel((c.happened_on||'').slice(0,7)))+'</td>'
+        +'<td class="w">'+esc(c.what)+'</td>'
+        +'<td class="num">'+(w?(w.n+' vs '+w.n+' before'):'<span class="na">too soon</span>')+'</td>'
+        +'<td class="num">'+(w?chgDelta(w.attr):'<span class="na">—</span>')+'</td>'
+        +'<td class="num">'+(w?chgDelta(w.rpr):'<span class="na">—</span>')+'</td>'
+        +'<td class="num">'+(w?chgDelta(w.share):'<span class="na">—</span>')+'</td>'
+        +(IS_OWNER?'<td class="num"><button class="rm" data-del="'+esc(c.id)+'" title="Remove">×</button></td>':'')
+        +'</tr>';
+    });
+    html+='</tbody></table>';
+  }else{
+    html+='<div class="chg-empty">Nothing logged yet. Add the first change below and it will '
+      +'appear on every monthly chart.</div>';
+  }
+  if(IS_OWNER&&!SHARE_MODE){
+    html+='<div class="chg-add">'
+      +'<label>Date<input type="date" id="chgDate"></label>'
+      +'<label>What happened<input type="text" class="what" id="chgWhat" '
+      +'placeholder="e.g. Rebuilt the welcome series"></label>'
+      +'<button class="btn" type="button" id="chgAdd">Add</button>'
+      +'<span class="todohint" id="chgMsg"></span></div>';
+  }
+  host.innerHTML=html;
+  const add=document.getElementById('chgAdd');
+  if(add){
+    const dt=document.getElementById('chgDate');
+    if(dt&&!dt.value)dt.value=new Date().toISOString().slice(0,10);
+    add.addEventListener('click',async()=>{
+      const d=document.getElementById('chgDate').value,
+            wt=document.getElementById('chgWhat').value.trim(),
+            msg=document.getElementById('chgMsg');
+      if(!d||!wt){msg.style.color='var(--crit)';msg.textContent='Both a date and a note, please.';return;}
+      const {error}=await sb.from('client_changes')
+        .insert({client_slug:ACTIVE,happened_on:d,what:wt});
+      if(error){msg.style.color='var(--crit)';msg.textContent=error.message;return;}
+      await loadChanges(); renderChanges(); renderDash();
+    });
+  }
+  host.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',async()=>{
+    await sb.from('client_changes').delete().eq('id',b.dataset.del);
+    await loadChanges(); renderChanges(); renderDash();
+  }));
+}
+// Draw every logged change onto a monthly chart. `x(i)` maps a month index in
+// the visible window to a pixel, so each chart passes its own geometry.
+function drawChangeMarks(svg,i0,i1,x,top,bottom){
+  if(!CHANGES.length)return;
+  CHANGES.forEach(c=>{
+    const i=chgIdx(c.happened_on);
+    if(i<i0||i>i1)return;
+    const xx=x(i-i0);
+    const ln=el('line',{x1:xx,x2:xx,y1:top,y2:bottom,class:'chgmark'});
+    const t=el('title',{});
+    t.textContent=mlabel((c.happened_on||'').slice(0,7))+': '+c.what;
+    ln.appendChild(t);
+    svg.appendChild(ln);
+    const fl=el('text',{x:xx+4,y:top+10,class:'chgflag'});
+    fl.textContent='◆';
+    const t2=el('title',{});
+    t2.textContent=mlabel((c.happened_on||'').slice(0,7))+': '+c.what;
+    fl.appendChild(t2);
+    svg.appendChild(fl);
+  });
+}
 function renderDash(){const _snap=dashSnap();clearDash();const{cur}=windows();renderTiles();renderRpr();renderPor();renderTests();renderBuckets();renderRightSize();
   const ipT=IP?{idx:IP.idx,project:!!(PROJ&&PROJ.total),
                 proj:[PROJ&&PROJ.total?PROJ.total.point:null,null]}:null;
