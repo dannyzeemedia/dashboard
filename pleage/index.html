@@ -705,7 +705,8 @@
     .wrap{padding:0}section.view{padding:0}}
   body.shared #viewSeg,body.shared #refreshBtn,body.shared #outBtn,body.shared .cmt-fab,
   body.shared #cmenu,body.shared .totop,body.shared #repBack,body.shared #todoBtn,
-  body.shared #auditBack,body.shared #vidBtn,
+  body.shared #auditBack,body.shared #vidBtn,body.shared #boardBack,
+  body.shared #auditShare,body.shared #boardShare,
   body.shared #view-reports>.eyebrow{display:none!important}
   body.shared #reports-title{font-size:0;height:0;margin:0}
   body.shared .clogo-btn{pointer-events:none}
@@ -1575,7 +1576,9 @@
       <div style="display:flex;gap:8px;align-items:center">
         <button class="vidbtn" id="vidBtn" type="button" style="display:none">▶ Video walk-thru</button>
         <button class="btn ghost" id="todoBtn" type="button" style="display:none">📋 To-do list</button>
-        <button class="btn ghost" id="auditBack">← All reports</button></div></div>
+        <button class="btn ghost" id="auditBack">← All reports</button>
+        <button class="btn ghost" id="auditShare" type="button" style="display:none">🔗 Share link</button>
+        <button class="btn" onclick="window.print()">⤓ Save as PDF</button></div></div>
     <p class="view-sub" id="audit-sub"></p>
     <div id="audit-body"></div>
   </section>
@@ -1611,6 +1614,7 @@
       <div class="board-ctl">
         <button class="btn ghost" id="boardBack">← All reports</button>
         <label class="board-msel-l">Month <select id="boardMonth" class="board-msel"></select></label>
+        <button class="btn ghost" id="boardShare" type="button" style="display:none">🔗 Share link</button>
         <button class="btn" onclick="window.print()">⤓ Save as PDF</button>
       </div>
     </div>
@@ -2343,6 +2347,7 @@ function reportShareChart(host,months,share,baseline,accent){
   const step=n>8?2:1;for(let i=0;i<n;i+=step){const t=el('text',{x:x(i),y:H-9,'text-anchor':'middle',fill:'var(--muted)','font-size':10,'font-family':'system-ui'});t.textContent=(months&&months[i])||'';svg.appendChild(t);}
   host.appendChild(svg);}
 function renderBoard(){const r=REPORT;const paper=document.getElementById('paper');if(!paper)return;
+  wireShare('boardShare',((SERIES[ACTIVE]||{}).monthly_share)||'');
   if(!r){paper.innerHTML='<div style="padding:48px 8px;color:var(--muted)">No monthly report has been generated for this account yet.</div>';return;}
   const kpis=r.kpis.map(k=>'<div class="p-kpi'+(k.lead?' lead':'')+'"><div class="l">'+esc(k.label)+'</div><div class="v">'+esc(k.value)+'</div><div class="d">'+esc(k.delta||'')+'</div></div>').join('');
   const narr=r.narrative.map(b=>{const fl=b.flag==='win'?'<span class="flag win">Win</span>':b.flag==='watch'?'<span class="flag watch">Watch</span>':'';return '<li>'+fl+b.html+'</li>';}).join('');
@@ -2463,6 +2468,21 @@ function renderReports(){
 }
 // The video walk-thru button belongs to the account audit, so it only shows
 // while the Audit view is open (and only when that audit has a video).
+// Share link on the audit and the monthly report. The custom reports have had
+// one for a while; these two were the odd ones out.
+function wireShare(btnId, url){
+  const b=document.getElementById(btnId); if(!b)return;
+  b.style.display=(url&&!SHARE_MODE)?'':'none';
+  if(!url||b.dataset.wired)return;
+  b.dataset.wired='1';
+  b.addEventListener('click',e=>{e.stopPropagation();
+    const u=b.dataset.url||'';if(!u)return;
+    const done=()=>{b.textContent='✓ Link copied';setTimeout(()=>{b.textContent='🔗 Share link';},2200);};
+    if(navigator.clipboard&&window.isSecureContext)
+      navigator.clipboard.writeText(u).then(done).catch(()=>window.prompt('Share link',u));
+    else window.prompt('Share link',u);});
+  b.dataset.url=url;
+}
 function updateVidBtn(){
   const vb=document.getElementById('vidBtn'); if(!vb)return;
   const A=(SERIES[ACTIVE]||{}).audit, vu=(A&&A.video_url)||'';
@@ -3078,6 +3098,7 @@ function openTodos(){const S=SERIES[ACTIVE],A=S&&S.audit;if(!A)return;
   document.getElementById('todoCsv').onclick=()=>{const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=((S.client_slug||'audit')+'-todos.csv');document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);};}
 function renderAudit(){const S=SERIES[ACTIVE],A=S&&S.audit,body=document.getElementById('audit-body');
   {const tb=document.getElementById('todoBtn');if(tb)tb.style.display=(IS_OWNER&&A&&A.findings)?'':'none';}
+  wireShare('auditShare',(A&&A.share)||'');
   document.getElementById('audit-title').textContent=(A&&A.title)||'Account audit';
   document.getElementById('audit-eyebrow').textContent=(S.name||'')+' · audit';
   updateVidBtn();
@@ -4789,7 +4810,16 @@ function renderSms(){const{cur}=windows();const cc=document.getElementById('c-sm
 
 function toggleTheme(){const r=document.documentElement;
   const dark=r.getAttribute('data-theme')==='dark'||(!r.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme:dark)').matches);
-  r.setAttribute('data-theme',dark?'light':'dark');applyPalette();buildSwitcher();renderDash();}
+  r.setAttribute('data-theme',dark?'light':'dark');
+  applyPalette();
+  // A share link has no dashboard and no switcher, so re-rendering them threw
+  // and the charts kept their old theme's colours. Redraw whatever is open.
+  try{buildSwitcher();}catch(e){}
+  try{if(!document.getElementById('view-dash').hidden)renderDash();}catch(e){}
+  try{if(!document.getElementById('view-reports').hidden)renderReports();}catch(e){}
+  try{if(!document.getElementById('view-board').hidden)renderBoard();}catch(e){}
+  try{if(!document.getElementById('view-audit').hidden)renderAudit();}catch(e){}
+  try{if(!document.getElementById('view-map').hidden)renderMap();}catch(e){}}
 
 function wireControls(){
   document.getElementById('view-dash').addEventListener('click',e=>{const h=e.target.closest('.asec-head');if(h)h.closest('.asection').classList.toggle('open');});   // collapsible dashboard sections
@@ -7135,6 +7165,14 @@ async function shareBoot(){
       // an audit is the prospect deliverable, so a share link opens it directly
       document.getElementById('view-audit').hidden=false;
       renderAudit();
+    }else if(pkg.kind==='monthly'){
+      REPORTS[ACTIVE]=pkg.monthly||[];
+      REPORT=REPORTS[ACTIVE][0]||null;
+      const sel=document.getElementById('boardMonth');
+      if(sel)sel.innerHTML=REPORTS[ACTIVE].map((m,i)=>'<option value="'+i+'">'
+        +esc(m.month_label||m.month||'')+'</option>').join('');
+      document.getElementById('view-board').hidden=false;
+      renderBoard();
     }else{
       document.getElementById('view-reports').hidden=false;
       REPORT_OPEN=(pkg.reports&&pkg.reports[0]&&pkg.reports[0].id)||null;
