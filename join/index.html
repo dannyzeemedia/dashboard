@@ -127,14 +127,21 @@ async function boot(){
     ? names.slice(0,-1).join(', ')+' and '+names[names.length-1]
     : names[0];
   $('jclient').textContent=NAME;
-  $('jsub').textContent=rows.length>1
+  $('jsub').textContent=rows.length>2
     ? 'Set up your access to all '+rows.length+' dashboards.'
+    : rows.length===2 ? 'Set up your access to both dashboards.'
     : 'Set up your access to the reporting dashboard.';
+  // logos are .png for some clients and .svg for others, so try both quietly
   rows.slice(0,3).forEach(r=>{
-    const img=new Image();
-    img.className='cl'; img.alt=r.client_name||r.client_slug;
-    img.onload=()=>$('clogo').appendChild(img);
-    img.src='../logos/'+r.client_slug+'.png';
+    const tryExt=(exts)=>{
+      if(!exts.length)return;
+      const img=new Image();
+      img.className='cl'; img.alt=r.client_name||r.client_slug;
+      img.onload=()=>$('clogo').appendChild(img);
+      img.onerror=()=>tryExt(exts.slice(1));
+      img.src='../logos/'+r.client_slug+'.'+exts[0];
+    };
+    tryExt(['png','svg']);
   });
   show($('jfields'),true); show($('jbtn'),true); show($('jalt'),true);
   setMode('signup');
