@@ -7092,7 +7092,11 @@ async function loadAndRender(){ try{
   REPORTS={}; (rep.data||[]).forEach(r=>{ if(r.client_slug){(REPORTS[r.client_slug]=REPORTS[r.client_slug]||[]).push(r.data);} });   // all months, newest-first (query orders month desc)
   const slugs=Object.keys(SERIES).filter(s=>!((SERIES[s]||{}).hidden));
   ORDER=[...CORDER.filter(s=>slugs.includes(s)), ...slugs.filter(s=>!CORDER.includes(s)).sort()];
-  const m=location.pathname.match(/dashboard\/([^\/]+)\//);
+  // The client folder is the last path segment, whether the site is served
+  // from clients.zee.media/<client>/ or the old github.io/dashboard/<client>/.
+  const segs=location.pathname.split('/').filter(Boolean)
+    .filter(x=>x.toLowerCase()!=='index.html'&&x.toLowerCase()!=='dashboard');
+  const m=segs.length?[null,segs[segs.length-1]]:null;
   const folder=m?m[1]:null;
   const groupClients=folder?ORDER.filter(s=>(SERIES[s].group||s)===folder):[];   // folder may be a group slug (e.g. /igloo/)
   const folderIsClient=!!(folder&&SERIES[folder]);
