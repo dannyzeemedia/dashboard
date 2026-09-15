@@ -767,8 +767,10 @@
   .chgmark{stroke:var(--ink);stroke-width:1.2;stroke-dasharray:3 3;opacity:.45}
   .chgflag{opacity:.75}
   .chgflag:hover{opacity:1}
-  .tt-chg{font-size:11.5px;line-height:1.4;color:var(--ink);background:var(--surface-2);
-    border-radius:7px;padding:6px 8px;margin:0 0 7px;max-width:250px;white-space:normal}
+  .tt-chg{display:flex;gap:7px;align-items:flex-start;font-size:11.5px;line-height:1.4;
+    color:var(--ink);background:var(--surface-2);border-radius:7px;padding:6px 8px;
+    margin:0 0 7px;max-width:250px;white-space:normal}
+  .tt-chg svg{flex:none;margin-top:1px}
 
   @media print{ header.top,.toolbar,.banner,.note,#view-dash,#view-audit,#view-map,.eyebrow,.view-h,.view-sub,.totop,.cmt-fab{display:none!important}
     body{background:#fff}.paper{box-shadow:none;border:0;border-radius:0;width:auto;padding:0}
@@ -2310,6 +2312,11 @@ const NS='http://www.w3.org/2000/svg';
 const el=(t,a)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
 const niceMax=m=>{if(m<=0)return 1;const p=Math.pow(10,Math.floor(Math.log10(m)));const n=m/p;const s=n<=1?1:n<=1.5?1.5:n<=2?2:n<=2.5?2.5:n<=3?3:n<=4?4:n<=5?5:n<=7.5?7.5:10;return s*p;};
 const tipEl=c=>{let t=c.querySelector('.tip');if(!t){if(getComputedStyle(c).position==='static')c.style.position='relative';t=document.createElement('div');t.className='tip';c.appendChild(t);}return t;};
+const CHG_ICON='<svg width="10" height="12" viewBox="0 0 9 11" aria-hidden="true">'
+  +'<rect x="0.6" y="0.6" width="7.8" height="9.8" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".75"/>'
+  +'<line x1="2.2" y1="3.2" x2="6.8" y2="3.2" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity=".75"/>'
+  +'<line x1="2.2" y1="5.6" x2="6.8" y2="5.6" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity=".75"/>'
+  +'<line x1="2.2" y1="8" x2="5.4" y2="8" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity=".75"/></svg>';
 function showTip(card,ev,title,rows,fmt){const t=tipEl(card);
   // A change logged in the hovered month belongs in this tooltip, not in a
   // native title attribute the browser shows a second later, if at all.
@@ -2317,7 +2324,7 @@ function showTip(card,ev,title,rows,fmt){const t=tipEl(card);
   try{
     (CHANGES||[]).forEach(c=>{
       if(mlabel((c.happened_on||'').slice(0,7))===title)
-        chg+='<div class="tt-chg">◆ '+esc(c.what)+'</div>';});
+        chg+='<div class="tt-chg">'+CHG_ICON+'<span>'+esc(c.what)+'</span></div>';});
   }catch(e){}
   t.innerHTML=`<div class="tt-m">${title}</div>`+chg+rows.map(([n,v,c,f])=>`<div class="tt-r"><span style="display:flex;gap:7px;align-items:center;color:var(--ink2)"><i style="background:${c}"></i>${n}</span><b>${(f||fmt)(v)}</b></div>`).join('');
   t.style.opacity=1;   // make it measurable before positioning
