@@ -3263,15 +3263,56 @@ async function saveComments(){try{
 }catch(e){console.warn('note save failed',e);}}
 function delComment(id){COMMENTS=COMMENTS.filter(c=>c.id!==id);saveComments();}
 function curView(){const a=document.getElementById('view-audit');return (a&&!a.hidden)?'audit':'dash';}
-function nearestAnchor(el){const root=document.getElementById('app');let n=el;
+// The things worth commenting on, smallest first: one tile, one bar, one
+// paragraph, one card. Before this the note landed on whatever nearest ancestor
+// happened to carry an id, which on the dashboard meant the whole tile grid.
+const CMT_TARGETS=['.tile','.abar','.p-kpi','.rep-callout','.rs-call','.win',
+  '.rep-fig','.afind','.rm-node','.rep-prose > p','.rep-prose > ul',
+  '.rep-ask','.rep-ans','.rep-tldr','.rep-callouts','.card','.rep-prose'];
+function cmtHash(t){let h=5381;for(let i=0;i<t.length;i++)h=((h<<5)+h+t.charCodeAt(i))|0;
+  return Math.abs(h).toString(36);}
+function stableId(el){
+  if(el.id)return el.id;
+  const key=curView()+'|'+(el.className||'')+'|'
+    +(el.textContent||'').replace(/\s+/g,' ').trim().slice(0,140);
+  el.id='cmt-'+cmtHash(key);
+  return el.id;
+}
+function tagTargets(){
+  const root=document.getElementById('app'); if(!root)return;
+  root.querySelectorAll(CMT_TARGETS.join(',')).forEach(el=>{if(!el.id)stableId(el);});
+}
+function nearestAnchor(el){const root=document.getElementById('app');
   // the view containers are a last resort: landing on one means the note has no
   // real target and its position is a fraction of the whole page
   const views={'view-dash':1,'view-audit':1,'view-reports':1,'view-board':1,'view-map':1};
+  for(const sel of CMT_TARGETS){
+    const hit=el.closest?el.closest(sel):null;
+    if(hit&&hit!==root&&!views[hit.id]){stableId(hit);return hit;}
+  }
+  let n=el;
   while(n&&n!==document.body){
     if(n.id&&n.id!=='app'&&n!==root&&!views[n.id])return n;
     n=n.parentElement;}
   return document.getElementById(curView()==='audit'?'view-audit':'view-dash')||root;}
 function anchorTitle(c){if(!c)return'';const id=c.id||'';
+  // name the small things by what they say, so a note reads back unambiguously
+  if(c.classList){
+    if(c.classList.contains('tile')){
+      const l=c.querySelector('.lab');
+      return 'tile: '+((l?l.textContent:'')||'').replace(/\s+/g,' ').trim();}
+    if(c.classList.contains('abar')){
+      const l=c.querySelector('.abl'),v=c.querySelector('.abv');
+      return 'bar: '+((l?l.textContent:'')+' '+(v?v.textContent:'')).trim();}
+    if(c.classList.contains('p-kpi')){
+      const l=c.querySelector('.l');return 'KPI: '+((l?l.textContent:'')||'').trim();}
+    if(c.classList.contains('rep-callout')){
+      const b=c.querySelector('.rc-big');return 'summary box: '+((b?b.textContent:'')||'').trim();}
+    if(c.classList.contains('rep-fig')){
+      const t=c.querySelector('.rep-fig-t');return 'chart: '+((t?t.textContent:'')||'').trim();}
+    if(c.tagName==='P'||c.tagName==='UL')
+      return 'text: “'+(c.textContent||'').replace(/\s+/g,' ').trim().slice(0,60)+'…”';
+  }
   if(id.indexOf('afind-')===0){const h=c.querySelector('h3');return h?h.textContent:id;}
   if(id.indexOf('rblk-')===0){
     if(c.dataset.chart)return 'chart: '+(c.dataset.blkTitle||c.dataset.chart);
@@ -3287,6 +3328,7 @@ function anchorTitle(c){if(!c)return'';const id=c.id||'';
   if(id==='view-audit')return 'Audit';if(id==='view-dash')return 'Dashboard';
   const h=c.querySelector('h3,h2');return h?h.textContent:id;}
 function renderPins(){document.querySelectorAll('.cmt-pin').forEach(p=>p.remove());if(!IS_OWNER)return;ensureFab();
+  tagTargets();
   const view=curView();
   COMMENTS.filter(c=>c.slug===ACTIVE&&c.view===view&&c.containerId&&c.relX!=null&&c.status!=='resolved').forEach(c=>{
     const cont=document.getElementById(c.containerId);if(!cont)return;
