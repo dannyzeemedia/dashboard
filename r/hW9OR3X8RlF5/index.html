@@ -745,7 +745,7 @@
     .wrap{padding:0}section.view{padding:0}}
   body.shared #viewSeg,body.shared #refreshBtn,body.shared #outBtn,body.shared #acctWrap,body.shared .cmt-fab,
   body.shared #cmenu,body.shared .totop,body.shared #repBack,body.shared #todoBtn,
-  body.shared #auditBack,body.shared #vidBtn,body.shared #boardBack,
+  body.shared #auditBack,body.shared #boardBack,
   .invwrap{position:relative;display:inline-block}
   .invmenu{position:absolute;right:0;top:calc(100% + 6px);z-index:60;min-width:270px;
     background:var(--surface);border:1px solid var(--border);border-radius:12px;
@@ -2538,8 +2538,12 @@ function renderReports(){
   const r=list.find(x=>x.id===REPORT_OPEN);if(!r){REPORT_OPEN=null;return renderReports();}
   if(tt)tt.textContent=r.title;
   if(ctl)ctl.innerHTML='<button class="btn ghost" id="repBack">← All reports</button> '
+    +(r.video_url?'<button class="vidbtn" id="repVid" type="button">▶ Video walk-thru</button> ':'')
     +(r.share&&!SHARE_MODE?'<button class="btn ghost" id="repShare">🔗 Share link</button> ':'')
     +'<button class="btn" onclick="window.print()">⤓ Save as PDF</button>';
+  {const vb=document.getElementById('repVid');
+   if(vb)vb.addEventListener('click',e=>{e.stopPropagation();
+     if(window.openVideo)window.openVideo(r.video_url);});}
   const wrap=document.createElement('div');wrap.className='rep-detail';
   wrap.innerHTML='<div class="rep-head"><div class="rep-ey">'+esc(r.date_range||'')
     +'<span class="rep-rt">'+repReadTime(r)+' min read</span></div>'
@@ -5232,9 +5236,11 @@ function wireControls(){
     document.querySelectorAll('#smsRevSeg .csg').forEach(x=>x.classList.toggle('on',x===b));renderSms();});}
   (function(){
     const vm=document.getElementById('vidModal'),vif=document.getElementById('vidIframe');
-    const open=()=>{const u=document.getElementById('vidBtn').dataset.embed||'';if(!u)return;vif.src=u;vm.hidden=false;};
+    const open=u=>{if(!u)return;vif.src=u;vm.hidden=false;};
     const close=()=>{vm.hidden=true;vif.src='about:blank';};   // blanking the frame stops playback
-    document.getElementById('vidBtn').addEventListener('click',e=>{e.stopPropagation();open();});
+    window.openVideo=open;
+    document.getElementById('vidBtn').addEventListener('click',e=>{e.stopPropagation();
+      open(document.getElementById('vidBtn').dataset.embed||'');});
     document.getElementById('vidClose').addEventListener('click',close);
     document.getElementById('vidBackdrop').addEventListener('click',close);
     document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!vm.hidden)close();});})();
