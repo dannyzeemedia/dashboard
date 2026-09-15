@@ -733,7 +733,8 @@
     padding:9px 11px;cursor:pointer}
   .invmenu button:hover{background:var(--surface-2)}
   .invmenu .sep{height:1px;background:var(--border);margin:5px 4px}
-  .invmenu .adm{color:var(--flow)}
+  .invmenu .adm{color:var(--ink2)}
+  .invmenu .adm:hover{color:var(--ink)}
   body.shared #auditShare,body.shared #boardShare,body.shared .invwrap,
   body.shared #view-reports>.eyebrow{display:none!important}
   body.shared #reports-title{font-size:0;height:0;margin:0}
@@ -1389,7 +1390,7 @@
       <button role="tab" aria-selected="false" data-view="reports">Reports</button>
       <button role="tab" aria-selected="false" data-view="map">Retention Map</button>
     </div>
-    <span class="invwrap" id="inviteWrap" style="display:none"><button class="themeBtn" id="inviteBtn" title="Copy a self-serve access link">✉ Send invite link</button><div class="invmenu" id="inviteMenu"></div></span>
+    <span class="invwrap" id="inviteWrap" style="display:none"><button class="themeBtn" id="inviteBtn" title="Copy a self-serve access link">✉ Invite</button><div class="invmenu" id="inviteMenu"></div></span>
     <button class="themeBtn" id="refreshBtn" style="display:none" title="Reload for the latest version, staying on this client and tab">⟳ Refresh</button>
     <button class="themeBtn" id="themeBtn">◑ Theme</button>
     <button class="outBtn" id="outBtn">Log out</button>
@@ -2569,7 +2570,7 @@ function openTeamInvite(){
 function copyInvite(url,note){
   const b=document.getElementById('inviteBtn');
   const done=()=>{b.textContent='✓ '+(note||'Link copied');
-    setTimeout(()=>{b.textContent='✉ Send invite link';},2400);};
+    setTimeout(()=>{b.textContent='✉ Invite';},2400);};
   if(navigator.clipboard&&window.isSecureContext)
     navigator.clipboard.writeText(url).then(done).catch(()=>window.prompt('Invite link',url));
   else window.prompt('Invite link',url);
@@ -2587,7 +2588,7 @@ function updateInviteBtn(){
   // each end client can be handed the link that fits them.
   menu.innerHTML=opts.map((o,i)=>'<button type="button" data-i="'+i+'">'+esc(o.label)+'</button>').join('')
     +(opts.length?'<div class="sep"></div>':'')
-    +'<button type="button" class="adm" data-team="1">Invite a team member…</button>';
+    +'<button type="button" class="adm" data-team="1">+ Invite a team member…</button>';
   menu.querySelectorAll('button').forEach(el=>{
     el.addEventListener('click',ev=>{
       ev.stopPropagation(); menu.classList.remove('open');
