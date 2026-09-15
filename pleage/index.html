@@ -4808,6 +4808,14 @@ function renderSms(){const{cur}=windows();const cc=document.getElementById('c-sm
   }
   cap.innerHTML=out;}
 
+// The theme button lives in the top bar on every page, including a share link,
+// which never ran wireControls — so it had no handler at all there.
+function wireTheme(){
+  const b=document.getElementById('themeBtn');
+  if(!b||b.dataset.wired)return;
+  b.dataset.wired='1';
+  b.addEventListener('click',toggleTheme);
+}
 function toggleTheme(){const r=document.documentElement;
   const dark=r.getAttribute('data-theme')==='dark'||(!r.getAttribute('data-theme')&&matchMedia('(prefers-color-scheme:dark)').matches);
   r.setAttribute('data-theme',dark?'light':'dark');
@@ -4892,7 +4900,7 @@ function wireControls(){
        if(ACTIVE)parts[parts.length-1]=ACTIVE;
        location.href=parts.join('/')+'/?v='+encodeURIComponent(v)+'&c='+encodeURIComponent(ACTIVE||'')+'&r='+Date.now();
      });}}
-  document.getElementById('themeBtn').addEventListener('click',toggleTheme);
+  wireTheme();
   document.getElementById('outBtn').addEventListener('click',()=>sb.auth.signOut().then(()=>location.reload()));
   matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{applyPalette();buildSwitcher();renderDash();});
   document.addEventListener('click',()=>{const p=document.querySelector('.cmenu-panel');if(p)p.hidden=true;});
@@ -7157,6 +7165,7 @@ async function shareBoot(){
     SERIES[ACTIVE]=pkg.data||{}; SERIES[ACTIVE].reports=pkg.reports||[];
     document.getElementById('app').hidden=false;
     document.body.classList.add('shared');
+    wireTheme();
     applyPalette();
     try{ORDER=[ACTIVE];buildSwitcher();}catch(e){}
     ['view-dash','view-board','view-audit','view-map'].forEach(id=>{
