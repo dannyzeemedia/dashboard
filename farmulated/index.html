@@ -720,7 +720,7 @@
   @media print{ header.top,.toolbar,.banner,.note,#view-dash,#view-audit,#view-map,.eyebrow,.view-h,.view-sub,.totop,.cmt-fab{display:none!important}
     body{background:#fff}.paper{box-shadow:none;border:0;border-radius:0;width:auto;padding:0}
     .wrap{padding:0}section.view{padding:0}}
-  body.shared #viewSeg,body.shared #refreshBtn,body.shared #outBtn,body.shared .cmt-fab,
+  body.shared #viewSeg,body.shared #refreshBtn,body.shared #outBtn,body.shared #acctWrap,body.shared .cmt-fab,
   body.shared #cmenu,body.shared .totop,body.shared #repBack,body.shared #todoBtn,
   body.shared #auditBack,body.shared #vidBtn,body.shared #boardBack,
   .invwrap{position:relative;display:inline-block}
@@ -734,6 +734,8 @@
   .invmenu button:hover{background:var(--surface-2)}
   .invmenu .sep{height:1px;background:var(--border);margin:5px 4px}
   .invmenu .adm{color:var(--ink2)}
+  .invmenu .who{padding:8px 11px 6px;font-size:11.5px;color:var(--muted);font-weight:700;
+    word-break:break-all;line-height:1.35}
   .invmenu .adm:hover{color:var(--ink)}
   body.shared #auditShare,body.shared #boardShare,body.shared .invwrap,
   body.shared #view-reports>.eyebrow{display:none!important}
@@ -1393,7 +1395,8 @@
     <span class="invwrap" id="inviteWrap" style="display:none"><button class="themeBtn" id="inviteBtn" title="Copy a self-serve access link">✉ Invite</button><div class="invmenu" id="inviteMenu"></div></span>
     <button class="themeBtn" id="refreshBtn" style="display:none" title="Reload for the latest version, staying on this client and tab">⟳ Refresh</button>
     <button class="themeBtn" id="themeBtn">◑ Theme</button>
-    <button class="outBtn" id="outBtn">Log out</button>
+    <span class="invwrap" id="acctWrap"><button class="outBtn" id="acctBtn">Account</button><div class="invmenu" id="acctMenu" style="min-width:220px"></div></span>
+    <button class="outBtn" id="outBtn" style="display:none">Log out</button>
   </div></header>
 
   <div class="wrap"><div class="banner" id="banner"><span class="dot"></span><span></span></div></div>
@@ -1626,6 +1629,27 @@
         <span class="todohint" id="todoCopied"></span>
       </div>
       <div class="todoscroll"><table class="todotbl"><thead><tr><th>Task</th><th>Notes</th></tr></thead><tbody id="todoRows"></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="vidmodal" id="pwModal" hidden>
+    <div class="vidbackdrop" id="pwBackdrop"></div>
+    <div class="todobox" style="width:min(460px,95vw)">
+      <div class="todohead">
+        <div><div class="todotitle">Change your password</div>
+          <div class="todosub" id="pwWho"></div></div>
+        <button class="vidclose" id="pwClose" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="todoactions" style="flex-direction:column;align-items:stretch;gap:12px">
+        <label class="tm-name">New password
+          <input type="password" id="pwNew" autocomplete="new-password" minlength="8"></label>
+        <label class="tm-name">Type it again
+          <input type="password" id="pwNew2" autocomplete="new-password" minlength="8"></label>
+      </div>
+      <div class="todoactions">
+        <button class="btn" id="pwSave" type="button">Save password</button>
+        <span class="todohint" id="pwMsg"></span>
+      </div>
     </div>
   </div>
 
@@ -2529,6 +2553,33 @@ function renderReports(){
 // one for a while; these two were the odd ones out.
 // Owner-only: hand a client their own sign-up link without going near a
 // terminal. One link per account, so two brands under one owner share it.
+// ---- account menu: who you are signed in as, and a way to change it --------
+async function wireAccount(){
+  const wrap=document.getElementById('acctWrap'),b=document.getElementById('acctBtn'),
+        menu=document.getElementById('acctMenu');
+  if(!wrap||!b||SHARE_MODE){if(wrap)wrap.style.display='none';return;}
+  let email='';
+  try{const {data}=await sb.auth.getUser();email=(data&&data.user&&data.user.email)||'';}catch(e){}
+  menu.innerHTML=(email?'<div class="who">'+esc(email)+'</div><div class="sep"></div>':'')
+    +'<button type="button" data-pw="1">Change password</button>'
+    +'<div class="sep"></div><button type="button" data-out="1">Log out</button>';
+  menu.querySelector('[data-pw]').addEventListener('click',ev=>{
+    ev.stopPropagation();menu.classList.remove('open');
+    document.getElementById('pwWho').textContent=email?('Signed in as '+email):'';
+    document.getElementById('pwNew').value='';document.getElementById('pwNew2').value='';
+    document.getElementById('pwMsg').textContent='';
+    document.getElementById('pwModal').hidden=false;
+    setTimeout(()=>document.getElementById('pwNew').focus(),60);
+  });
+  menu.querySelector('[data-out]').addEventListener('click',ev=>{
+    ev.stopPropagation();sb.auth.signOut().then(()=>location.reload());
+  });
+  if(b.dataset.wired)return;
+  b.dataset.wired='1';
+  b.addEventListener('click',ev=>{ev.stopPropagation();menu.classList.toggle('open');});
+  document.addEventListener('click',()=>menu.classList.remove('open'));
+}
+
 // ---- team access: Danny picks the clients, the link does the rest ----------
 const JOIN_BASE=location.origin+(location.pathname.indexOf('/dashboard/')===0?'/dashboard':'')+'/join/?t=';
 async function teamRefresh(){
@@ -5063,6 +5114,23 @@ function wireControls(){
      });}}
   wireTheme();
   document.getElementById('outBtn').addEventListener('click',()=>sb.auth.signOut().then(()=>location.reload()));
+  wireAccount();
+  (function(){const m=document.getElementById('pwModal');if(!m)return;
+    const close=()=>{m.hidden=true;};
+    document.getElementById('pwClose').addEventListener('click',close);
+    document.getElementById('pwBackdrop').addEventListener('click',close);
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!m.hidden)close();});
+    document.getElementById('pwSave').addEventListener('click',async()=>{
+      const a=document.getElementById('pwNew').value,
+            b2=document.getElementById('pwNew2').value,
+            msg=document.getElementById('pwMsg');
+      if(a.length<8){msg.style.color='var(--crit)';msg.textContent='At least 8 characters.';return;}
+      if(a!==b2){msg.style.color='var(--crit)';msg.textContent='The two do not match.';return;}
+      const {error}=await sb.auth.updateUser({password:a});
+      if(error){msg.style.color='var(--crit)';msg.textContent=error.message;return;}
+      msg.style.color='var(--good)';msg.textContent='✓ Saved. Use it next time you sign in.';
+      setTimeout(close,1600);
+    });})();
   matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>{applyPalette();buildSwitcher();renderDash();});
   document.addEventListener('click',()=>{const p=document.querySelector('.cmenu-panel');if(p)p.hidden=true;});
 }
