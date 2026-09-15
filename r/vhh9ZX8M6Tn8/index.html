@@ -765,7 +765,8 @@
   .chg-empty{color:var(--muted);font-size:13px;margin-top:10px}
   /* the moment of a change, on any monthly chart */
   .chgmark{stroke:var(--ink);stroke-width:1.2;stroke-dasharray:3 3;opacity:.45}
-  .chgflag{fill:var(--ink2);font-size:9.5px;font-weight:800;font-family:system-ui}
+  .chgflag{opacity:.75}
+  .chgflag:hover{opacity:1}
   .tt-chg{font-size:11.5px;line-height:1.4;color:var(--ink);background:var(--surface-2);
     border-radius:7px;padding:6px 8px;margin:0 0 7px;max-width:250px;white-space:normal}
 
@@ -4581,12 +4582,17 @@ function drawChangeMarks(svg,i0,i1,x,top,bottom){
     t.textContent=mlabel((c.happened_on||'').slice(0,7))+': '+c.what;
     ln.appendChild(t);
     svg.appendChild(ln);
-    const fl=el('text',{x:xx+4,y:top+10,class:'chgflag'});
-    fl.textContent='◆';
+    // a little notepad, drawn rather than set in a glyph so it stays crisp at
+    // chart scale and reads as "a note was made here"
+    const g=el('g',{class:'chgflag',transform:'translate('+(xx+3)+' '+(top+1)+')'});
+    g.appendChild(el('rect',{x:0,y:0,width:9,height:11,rx:1.6,
+      fill:'var(--surface)',stroke:'var(--ink2)','stroke-width':1.1}));
+    [3.2,5.6,8].forEach((y,i)=>g.appendChild(el('line',{x1:2.2,x2:i===2?5.4:6.8,y1:y,y2:y,
+      stroke:'var(--ink2)','stroke-width':1,'stroke-linecap':'round'})));
     const t2=el('title',{});
     t2.textContent=mlabel((c.happened_on||'').slice(0,7))+': '+c.what;
-    fl.appendChild(t2);
-    svg.appendChild(fl);
+    g.appendChild(t2);
+    svg.appendChild(g);
   });
 }
 function renderDash(){const _snap=dashSnap();clearDash();const{cur}=windows();renderTiles();renderRpr();renderPor();renderTests();renderBuckets();renderRightSize();
