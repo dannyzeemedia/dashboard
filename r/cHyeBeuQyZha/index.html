@@ -500,6 +500,9 @@
   .jumpbar .jl.on{color:var(--ink);background:var(--surface-2)}
   .jumpbar .jlab{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
     color:var(--muted);margin-right:6px}
+  .legend .lgk{cursor:pointer;user-select:none;border-radius:7px;padding:2px 6px;margin:-2px -2px}
+  .legend .lgk:hover{background:var(--surface-2)}
+  .legend .lgk.off{opacity:.42;text-decoration:line-through}
   @media print{.jumpbar{display:none}}
   .filters{display:flex;align-items:center;justify-content:center;gap:9px 24px;flex-wrap:wrap;
     background:color-mix(in srgb,var(--flow) 8%,var(--surface));border:1px solid color-mix(in srgb,var(--flow) 18%,var(--border));
@@ -2355,9 +2358,17 @@ function stackedCols(id,win){const card=document.getElementById(id);const[i0,i1]
   const N1=chan?'Email':'Flow', N2=chan?'SMS':'Campaign';
   const _p1=PROJ&&(chan?PROJ.remail:PROJ.flow), _p2=PROJ&&(chan?PROJ.rsms:PROJ.camp);
   const P1=_p1?_p1.point:0, P2=_p2?_p2.point:0;
-  const fv=S1.slice(i0,i1+1),cv=S2.slice(i0,i1+1),tv=fv.map((v,i)=>v+(cv[i]||0));
+  // Clicking a series in the legend hides it, so either half can be read on
+  // its own without losing the axis or the trend line.
+  const offA=!!revOff.a, offB=!!revOff.b;
+  const fv=offA?S1.slice(i0,i1+1).map(()=>0):S1.slice(i0,i1+1),
+        cv=offB?S2.slice(i0,i1+1).map(()=>0):S2.slice(i0,i1+1),
+        tv=fv.map((v,i)=>v+(cv[i]||0));
   const lg=document.getElementById('crev-legend');
-  if(lg)lg.innerHTML=`<span><i style="background:${C1}"></i>${N1}</span><span><i style="background:${C2}"></i>${N2}</span>`;
+  if(lg){
+    lg.innerHTML=`<span class="lgk${offA?' off':''}" data-k="a"><i style="background:${C1}"></i>${N1}</span>`
+      +`<span class="lgk${offB?' off':''}" data-k="b"><i style="background:${C2}"></i>${N2}</span>`;
+  }
   const ttl=document.getElementById('crev-title');if(ttl)ttl.textContent='Attributed revenue — '+(chan?'email vs SMS':'flow vs campaign');
   const grp=revGroup;
   const W=1100,H=320,PL=52,PR=16,PT=14,PB=44,iw=W-PL-PR,ih=H-PT-PB,n=L.length,step=iw/n;
@@ -2382,7 +2393,10 @@ function stackedCols(id,win){const card=document.getElementById(id);const[i0,i1]
     const lx=PL+step*i+step/2;
     if(labIdx(n).has(i)){mlab(svg,lx,PT+ih+16,mlabel(m)+(ip?'*':''));}
     const hit=el('rect',{x:PL+step*i,y:PT,width:step,height:ih,fill:'transparent'});
-    hit.addEventListener('mousemove',e=>{const rows=[[N1,fv[i],C1],[N2,cv[i],C2],['Total',tv[i],'var(--ink2)']];
+    hit.addEventListener('mousemove',e=>{const rows=[];
+      if(!offA)rows.push([N1,fv[i],C1]);
+      if(!offB)rows.push([N2,cv[i],C2]);
+      if(!offA&&!offB)rows.push(['Total',tv[i],'var(--ink2)']);
       let title=mlabel(m);
       if(ip){title+=` · MTD ${IP.days}/${IP.dim}d`;
         if(P1+P2>0){rows.push(['Projected total',P1+P2,'var(--ink2)']);
@@ -2406,15 +2420,25 @@ function stackedCols(id,win){const card=document.getElementById(id);const[i0,i1]
         'stroke-linejoin':'round','stroke-linecap':'round',opacity:.92}));
       ma(vals).forEach((v,i)=>svg.appendChild(el('circle',{cx:cx(i),cy:y(v),r:2.6,
         fill:col,opacity:.92})));};
-    if(grp){draw(fv,C1);draw(cv,C2);}
+    if(grp){if(!offA)draw(fv,C1);if(!offB)draw(cv,C2);}
     else draw(tv,'var(--ink)');
     if(lg)lg.innerHTML+=grp
-      ? `<span><i style="background:${C1};border-radius:9px"></i>${N1} trend</span>`
-        +`<span><i style="background:${C2};border-radius:9px"></i>${N2} trend</span>`
-      : '<span><i style="background:var(--ink);border-radius:9px"></i>Total, 3-mo average</span>';
+      ? ((offA?'':`<span><i style="background:${C1};border-radius:9px"></i>${N1} trend</span>`)
+        +(offB?'':`<span><i style="background:${C2};border-radius:9px"></i>${N2} trend</span>`))
+      : ('<span><i style="background:var(--ink);border-radius:9px"></i>'
+        +((offA||offB)?((offA?N2:N1)+', 3-mo average'):'Total, 3-mo average')+'</span>');
   }
   svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
   drawChangeMarks(svg,i0,i1,k=>PL+step*k+step/2,PT,PT+ih);
+  // wired last: the trend line appends to the legend with innerHTML, which
+  // would throw away handlers attached any earlier
+  if(lg)lg.querySelectorAll('[data-k]').forEach(el2=>el2.addEventListener('click',()=>{
+    const k=el2.dataset.k;
+    if(revOff[k]){revOff[k]=false;}
+    else if(!(revOff.a||revOff.b)){revOff[k]=true;}      // first click hides that one
+    else {revOff.a=false;revOff.b=false;revOff[k]=true;} // clicking the other swaps
+    renderDash();
+  }));
   card.appendChild(svg);}
 
 function lineChart(id,win,series,fmt,opts){opts=opts||{};const card=document.getElementById(id);const[i0,i1]=win;const L=MONTHS.slice(i0,i1+1);
@@ -4467,6 +4491,7 @@ function dashAnimate(snap){
 
 // ---- change log: what we changed, when, and what moved after ---------------
 let CHANGES=[];
+let revOff={a:false,b:false};   // which half of the revenue chart is hidden
 async function loadChanges(){
   CHANGES=[];
   if(SHARE_MODE||!sb)return;
