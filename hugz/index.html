@@ -831,6 +831,9 @@
     padding:9px 10px;cursor:pointer;white-space:nowrap;user-select:none}
   .off-t th:first-child,.off-t th:nth-child(2){text-align:left}
   .off-t th.on{color:var(--ink)}
+  .off-over{display:inline-block;margin-left:6px;font-size:10.5px;font-weight:800;
+    color:var(--crit);background:color-mix(in srgb,var(--crit) 12%,transparent);
+    border-radius:5px;padding:1px 5px;vertical-align:1px}
   .off-t th .ar{opacity:.5;font-size:9px;margin-left:3px}
   .off-t td{border-bottom:1px solid var(--border);padding:9px 10px;text-align:right;
     color:var(--ink2);font-variant-numeric:tabular-nums}
@@ -6444,6 +6447,15 @@ function offBand(v, kind){
   return {cls:b[1], label:b[2]};
 }
 const offCol=(v,kind)=>offBand(v,kind).cls;
+// How far past the line a message sits. A percentage of a percentage gets silly
+// fast (0.30% against 2.9% is "+871%"), so anything at double the line or worse
+// is shown as a multiple instead.
+function offOver(v, line){
+  if(v==null||!line||v<=line)return '';
+  const x=v/line;
+  const txt=x>=2?('\u00d7'+x.toFixed(1)):('+'+Math.round((x-1)*100)+'%');
+  return '<span class="off-over" title="'+line+'% is the top of normal for this">'+txt+'</span>';
+}
 const OFF_FLOOR=100;   // below this a rate is one or two people, not a rate
 function offRows(){
   const M=rmData(); if(!M)return [];
@@ -6530,9 +6542,10 @@ function renderOffenders(){
         +'<td><a class="fl" href="https://www.klaviyo.com/flow/'+esc(r.flowId)
         +'/edit" target="_blank" rel="noopener">'+esc(r.flow)+'</a></td>'
         +'<td>'+nfmt(r.delivered)+'</td>'
-        +'<td class="'+uCls+'" title="'+esc(uB2.label)+'">'+r.unsub.toFixed(3)+'%</td>'
+        +'<td class="'+uCls+'" title="'+esc(uB2.label)+'">'+r.unsub.toFixed(3)+'%'
+        +offOver(r.unsub,0.30)+'</td>'
         +'<td class="'+sCls+'" title="'+esc(sB2.label)+'">'
-        +(r.spam==null?'\u2014':r.spam.toFixed(4)+'%')+'</td>'
+        +(r.spam==null?'\u2014':(r.spam.toFixed(4)+'%'+offOver(r.spam,0.05)))+'</td>'
         +'<td>'+rmMoney(r.rev)+'</td></tr>';}).join('')
     +'</tbody></table>';
   host2.querySelectorAll('th[data-os]').forEach(th=>th.addEventListener('click',()=>{
