@@ -4177,9 +4177,12 @@ function auditReentry(host,S){
   const rows=(S.flow_reentry||[]).filter(f=>!/buyer property assignment|update property|category interest/i.test(f[1]||'')).map(f=>{
     const c=cls(f[1]),init=(f.length>3?f[3]:null);
     const slowReentry=c.want&&c.max!=null&&(f[2]==null||f[2]>c.max);
+    // the other direction: a flow that should be enter-once but re-opens. A
+    // welcome series that re-opens sends the new-customer discount twice.
+    const wrongOpen=(c.want===false&&c.cat!=='Other'&&f[2]!=null);
     const slowStart=c.startMax!=null&&init!=null&&init>c.startMax;
     return{fid:f[0],name:f[1],days:f[2],init,cat:c.cat,rec:c.rec,startRec:c.startRec,want:c.want,
-      flag:!!(slowReentry||slowStart),slowStart};});
+      flag:!!(slowReentry||wrongOpen||slowStart),slowStart,wrongOpen};});
   const shown=rows.filter(r=>r.cat!=='Other');   // focus on the flows where timing is actionable
   shown.sort((a,b)=>(b.flag-a.flag)||(a.cat.localeCompare(b.cat)));
   const wrap=document.createElement('div');wrap.className='conc rntbl';
@@ -4188,11 +4191,12 @@ function auditReentry(host,S){
       +'<a href="https://www.klaviyo.com/flow/'+r.fid+'/edit" target="_blank" rel="noopener" title="'+r.name+'">'+r.name+' ↗</a>'
       +'<span class="rn-cat">'+r.cat+'</span>'
       +'<span class="cn"'+(r.slowStart?' style="color:var(--crit);font-weight:700"':'')+'>'+dfmt(r.init)+'</span>'
-      +'<span class="cn"'+((r.flag&&!r.slowStart)?' style="color:var(--crit);font-weight:700"':'')+'>'+(r.days==null?'Once':r.days+' days')+'</span>'
+      +'<span class="cn"'+(((r.flag&&!r.slowStart)||r.wrongOpen)?' style="color:var(--crit);font-weight:700"':'')+'>'
+      +(r.days==null?'Once':(r.days===0?'No wait':r.days+' days'))+'</span>'
       +'<span class="cn">'+r.rec+(r.startRec&&r.startRec!=='—'?' · start '+r.startRec:'')+'</span></div>').join('');
   host.appendChild(wrap);
   const note=document.createElement('div');note.style.cssText='font-size:12px;color:var(--muted);margin-top:10px';
-  note.textContent='Two timing checks per flow: "First msg" is how soon the first email fires after someone enters (abandonment should fire fast, within about an hour), and "Re-entry" is how long before the same person can enter again (abandonment should re-open in 4 to 7 days, not stay enter-once). Red marks a value that is too slow.';
+  note.textContent='Two timing checks per flow: "First msg" is how soon the first email fires after someone enters (abandonment should fire fast, within about an hour), and "Re-entry" is how long before the same person can enter again. Abandonment should re-open in 4 to 7 days rather than stay enter-once; a welcome series should stay enter-once rather than re-open. Red marks a value on the wrong side of that.';
   host.appendChild(note);}
 function auditVolume(host,S,spec){
   const fs=(S.flow_summary||[]).slice().sort((a,b)=>b[3]-a[3]).slice(0,10),mx=Math.max(...fs.map(r=>r[3]),1);
