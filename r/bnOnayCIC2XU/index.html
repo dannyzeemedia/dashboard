@@ -5742,7 +5742,7 @@ const RE_GLYPH={has:'\u2713',miss:'\u2715',holdok:'\u2715',na:'?'};
 function reWant(rr,short){
   if(!rr)return null;
   if(rr.prescribed_label)return short
-    ?rr.prescribed_label.replace(/^re-entry to be allowed$/,'any')
+    ?rr.prescribed_label.replace(/^re-entry (?:to be allowed|with no waiting period)$/,'any')
       .replace(/^no re-entry$/,'none').replace(/^(\d+) days?$/,'$1d')
     :rr.prescribed_label;
   if(rr.prescribed_days==null)return null;
