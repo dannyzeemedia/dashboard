@@ -967,12 +967,18 @@
   .rm-fcchip.c{background:color-mix(in srgb,var(--crit) 13%,transparent);color:var(--crit)}
   .rm-fcchip.w{background:color-mix(in srgb,var(--warn) 15%,transparent);color:var(--warn)}
   .rm-fcchip.b{background:color-mix(in srgb,var(--flow) 13%,transparent);color:var(--flow)}
+  .rm-fclink{text-decoration:none}
+  .rm-fclink:hover .rm-fcchip{background:color-mix(in srgb,var(--flow) 26%,transparent)}
 
   .rm-flist.rm-fclist li{position:relative;padding-right:40px}
   .rm-fclist .pice{position:absolute;right:4px;top:2px;border:0;background:transparent;
     cursor:pointer;font-size:12px;line-height:1;padding:3px 4px;border-radius:6px;
     color:var(--muted);opacity:0;transition:opacity .12s}
   .rm-fclist li:hover .pice,.rm-fclist .pice:focus{opacity:1}
+  /* an off-spec row is the one place the ❄ has to advertise itself: it is the
+     only way to accept the setting, and a control nobody can see is a control
+     nobody uses */
+  .rm-fclist li.miss .pice{opacity:.45}
   .rm-fclist li.hold .pice,.rm-fclist li.holdok .pice{opacity:.75}
   .rm-fclist li.hold .pice{color:var(--ice-no)}
   .rm-fclist li.holdok .pice{color:var(--ice-ok)}
@@ -5743,6 +5749,26 @@ function reWant(rr,short){
   if(rr.prescribed_days===0)return short?'none':'no re-entry';
   return short?(rr.prescribed_days+'d'):(rr.prescribed_days+' days');
 }
+// Is this flow represented in Airtable? The pipeline joins ZM: Clients > Task
+// List to the map on the Flow URL field, which carries Klaviyo's own flow ID,
+// so a renamed flow still matches. A flow with no row there is a flow nobody
+// has work booked against, which is worth seeing beside the filter verdict.
+const AT_TASK_URL='https://airtable.com/appjECFZpDz5d6Gr4/tblkZccXX8jVBUdEZ/';
+function atTaskChip(f){
+  const t=f&&f.tasks;
+  if(!t)return '';               // built before the join existed: say nothing
+  if(!t.n)return '<span class="rm-fcchip w" title="No task in the Task List '
+    +'points at this flow, so nobody has work booked against it">NOT IN AIRTABLE</span>';
+  const lines=(t.items||[]).map(i=>'\u2022 '+i.name
+    +(i.status?(' \u2014 '+i.status):'')+(i.launch?(' \u2014 '+i.launch):''));
+  if(t.n>lines.length)lines.push('\u2026 and '+(t.n-lines.length)+' more');
+  const rec=(t.items&&t.items[0]&&t.items[0].rec)||'';
+  const body='<span class="rm-fcchip b" title="'
+    +esc(t.n+(t.n>1?' tasks':' task')+' in the Task List point at this flow:\n'
+         +lines.join('\n'))+'">IN AIRTABLE \u00b7 '+t.n+'</span>';
+  return rec?('<a class="rm-fclink" href="'+AT_TASK_URL+esc(rec)
+    +'" target="_blank" rel="noopener">'+body+'</a>'):body;
+}
 function rmFcRow(cls,line,note,raw,flowId,canIce,isHold,key){
   const btn=(IS_OWNER&&canIce&&raw&&[].concat(raw).length)
     ? '<button class="pice" type="button" data-ice="'+(isHold?'off':'on')+'"'
@@ -6049,6 +6075,8 @@ function rmFilterCheck(M){
       chips.push('<span class="rm-fcchip">NOT ON THE MAP</span>');
     }
     chips.push('<span class="rm-fcchip">'+((fl.groups||fl.lines||[]).length)+' SET</span>');
+    // the Airtable tag sits last: it is about the work, not the settings
+    const atc=atTaskChip(f); if(atc)chips.push(atc);
 
     // the flow's re-entry verdict, needed by both the prescribed column and the
     // header strip below, so it is worked out before either is built
