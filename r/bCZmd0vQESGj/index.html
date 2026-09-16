@@ -1582,6 +1582,7 @@
             <div class="card" id="c-health"><h3>List health</h3>
               <div class="chartseg" id="healthChanSeg" hidden style="margin-bottom:6px"><button class="csg on" data-hc="email">Email</button><button class="csg" data-hc="sms">SMS</button></div>
               <div class="chartseg" id="healthSeg"><button class="csg on" data-h="both">Both</button><button class="csg" data-h="unsub">Unsub</button><button class="csg" data-h="spam">Spam</button></div>
+              <div class="chartseg" id="healthSrcSeg" style="margin-top:6px"><button class="csg on" data-hs="all">All sends</button><button class="csg" data-hs="camp">Campaign</button><button class="csg" data-hs="flow">Flow</button></div>
               <div class="cap">Unsub &amp; spam rate (% of delivered). SMS shows opt-out rate (no spam signal on SMS).</div>
               <div class="legend"><span><i style="background:var(--flow)"></i>Unsub %</span><span><i style="background:var(--camp)"></i>Spam %</span></div></div>
           </div>
@@ -1803,6 +1804,7 @@ const sb=(window.supabase&&window.supabase.createClient)?window.supabase.createC
 // ---- data globals (filled from Supabase) ----
 let MONTHS=[],flow=[],camp=[],subs=[],csends=[],crecip=[],unsub=[],spam=[],FLOWDATA=[],MI={};
 let total=[],flowPct=[],campPct=[],roll3=[],SYM='$',store=[];
+let unsubCamp=[],unsubFlow=[];   // unsubscribe rate split by what sent it
 let remail=[],rsms=[],smsDeliv=[],rsmsFlow=[],rsmsCamp=[];
 let campRev=false, campSubs=false;
 let revGroup=false;
@@ -1833,6 +1835,7 @@ let smsUnsub=[];           // derived SMS unsub RATE (opt-outs / delivered) for 
 let subsChannel='email';   // New-subscribers channel: 'email' (Subscribed to List), 'sms', or 'combined' (email+sms)
 let subsNet=false;         // New-subscribers "Net (after unsubscribes)" toggle
 let healthMode='both';     // List health metric: 'both' | 'unsub' | 'spam'
+let healthSrc='all';       // and whose sends: 'all' | 'camp' | 'flow'
 let healthChannel='email'; // List health channel: 'email' | 'sms'
 function updateSubsCap(){const cap=document.getElementById('subs-cap');if(!cap)return;
   const src=subsChannel==='sms'?'new SMS opt-ins':subsChannel==='combined'?'new email + SMS opt-ins':'new “Subscribed to List” profiles';
@@ -2035,6 +2038,9 @@ function applyMode(){
   csends=cat(Bcsends,on&&CUR.mtd.csends);
   crecip=cat(Bcrecip,on&&CUR.mtd.crecip); unsub=cat(Bunsub,on&&CUR.mtd.unsub);
   spam=cat(Bspam,on&&CUR.mtd.spam); store=cat(Bstore,on&&(CUR.mtd.store||0));
+  {const _S=SERIES[ACTIVE]||{};
+   unsubCamp=cat((_S.unsub_camp||[]).slice(0,Bunsub.length),on&&CUR.mtd.unsub_camp);
+   unsubFlow=cat((_S.unsub_flow||[]).slice(0,Bunsub.length),on&&CUR.mtd.unsub_flow);}
   remail=cat(Bremail,on&&CUR.mtd.remail); rsms=cat(Brsms,on&&CUR.mtd.rsms); smsDeliv=cat(Bsmsd,on&&CUR.mtd.sms_deliv);
   rsmsFlow=cat(Brsms_flow,on&&(CUR.mtd.rsms_flow||0)); rsmsCamp=cat(Brsms_camp,on&&(CUR.mtd.rsms_camp||0));
   // SMS opt-outs are keyword/STOP events not attributable to a month's delivered
@@ -4710,12 +4716,22 @@ function renderDash(){const _snap=dashSnap();clearDash();const{cur}=windows();re
    const seg=document.getElementById('healthSeg');if(seg)seg.style.display=sms?'none':'';
    const cap=document.querySelector('#c-health .cap');
    if(cap)cap.textContent=sms?'SMS opt-outs (STOP / keyword) per month. Whole-list events, not tied to a month’s sends, so shown as a count not a rate.':'Unsub & spam rate (% of delivered).';
+   // Unsubscribes are stored split by source; spam is not, so the source
+   // toggle only drives the unsub line and says so rather than pretending.
+   const srcArr=healthSrc==='camp'?unsubCamp:healthSrc==='flow'?unsubFlow:null;
+   const uData=(srcArr&&srcArr.length===unsub.length)?srcArr:unsub;
+   const uName=healthSrc==='camp'?'Campaign unsub %':healthSrc==='flow'?'Flow unsub %':'Unsub %';
+   const srcSeg=document.getElementById('healthSrcSeg');
+   if(srcSeg)srcSeg.style.display=(sms||healthMode==='spam')?'none':'';
    const lg=document.querySelectorAll('#c-health .legend span');
-   if(lg[0]){lg[0].style.display=(!sms&&healthMode==='spam')?'none':'';lg[0].lastChild.textContent=sms?'SMS opt-outs':'Unsub %';}
+   if(lg[0]){lg[0].style.display=(!sms&&healthMode==='spam')?'none':'';lg[0].lastChild.textContent=sms?'SMS opt-outs':uName;}
    if(lg[1])lg[1].style.display=(sms||healthMode==='unsub')?'none':'';
+   if(cap&&!sms&&healthSrc!=='all'&&healthMode!=='spam')
+     cap.textContent='Unsub rate (% of delivered) on '+(healthSrc==='camp'?'campaign':'flow')
+       +' sends'+(healthMode==='both'?'. Spam is not split by source, so that line is all sends.':'.');
    const hser=[];
    if(sms)hser.push({name:'SMS opt-outs',color:'var(--flow)',data:smsUnsub});
-   else{if(healthMode!=='spam')hser.push({name:'Unsub %',color:'var(--flow)',data:unsub});if(healthMode!=='unsub')hser.push({name:'Spam %',color:'var(--camp)',data:spam});}
+   else{if(healthMode!=='spam')hser.push({name:uName,color:'var(--flow)',data:uData});if(healthMode!=='unsub')hser.push({name:'Spam %',color:'var(--camp)',data:spam});}
    lineChart('c-health',cur,hser,sms?nfmt:(v=>v.toFixed(2)+'%'),{ip:ipR});}
   lineChart('c-mix',cur,[{name:'Flow %',color:'var(--flow)',data:flowPct},{name:'Campaign %',color:'var(--camp)',data:campPct}],v=>v+'%',{yfmt:v=>v+'%',ip:ipR});
   renderCamp();
@@ -5549,6 +5565,9 @@ function wireControls(){
     updateSubsCap();applyMode();renderDash();});
   document.getElementById('healthSeg').addEventListener('click',e=>{const b=e.target.closest('.csg');if(!b)return;healthMode=b.dataset.h;
     document.querySelectorAll('#healthSeg .csg').forEach(x=>x.classList.toggle('on',x===b));renderDash();});
+  {const ss=document.getElementById('healthSrcSeg');
+   if(ss)ss.addEventListener('click',e=>{const b=e.target.closest('.csg');if(!b)return;healthSrc=b.dataset.hs;
+     ss.querySelectorAll('.csg').forEach(x=>x.classList.toggle('on',x===b));renderDash();});}
   {const hcs=document.getElementById('healthChanSeg');if(hcs)hcs.addEventListener('click',e=>{const b=e.target.closest('.csg');if(!b)return;healthChannel=b.dataset.hc;
     document.querySelectorAll('#healthChanSeg .csg').forEach(x=>x.classList.toggle('on',x===b));renderDash();});}
   {const srs=document.getElementById('smsRevSeg');if(srs)srs.addEventListener('click',e=>{const b=e.target.closest('.csg');if(!b)return;e.stopPropagation();smsRevSeg=b.dataset.sr;
