@@ -6291,7 +6291,9 @@ function renderMap(){
     b.addEventListener('click',()=>{
       const grp=b.closest('.rm-group'), shut=grp.classList.toggle('shut');
       rmGroupState(grp.dataset.group,!shut);}));
-  document.querySelectorAll('#map-coverage .rm-allbtns button').forEach(b=>
+  // [data-all] only: the re-score button shares this bar, and matching on the
+  // bar alone had it read as "collapse all" and shut the section it sits in
+  document.querySelectorAll('#map-coverage .rm-allbtns button[data-all]').forEach(b=>
     b.addEventListener('click',()=>{
       const open=b.dataset.all==='open';
       document.querySelectorAll('#map-coverage .rm-group').forEach(g=>{
