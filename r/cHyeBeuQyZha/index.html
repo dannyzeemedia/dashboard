@@ -1625,7 +1625,7 @@
         <div class="asec-body"><div class="asec-inner">
           <div class="grid">
             <div class="card wide" id="c-tests"><h3>Testing program — win rate &amp; volume</h3>
-              <div class="cap">A/B tests concluded each month, and the share of the <b>decided</b> ones that beat control. A test still waiting on a call is undecided, not a loss. Wins bank permanently, so the program compounds at any strike rate.</div></div>
+              <div class="cap">The share of <b>decided</b> tests that beat control, beside everything shipped that month. Hotfixes and new messages are work, not tests, so they are counted separately and never as a test that lost. Wins bank permanently, so the program compounds at any strike rate.</div></div>
           </div>
         </div></div>
       </div>
@@ -1829,7 +1829,7 @@ let REPORT=null, SLUG='', RANGE=12, CMP='prev', REPORT_OPEN=null;
 // no auth code runs and no client switcher is built.
 const SHARE_MODE=/\/r\/[A-Za-z0-9_-]+\/?$/.test(location.pathname);
 const LOGO_BASE=SHARE_MODE?'../../logos/':'../logos/';
-let tlaunched=[], tconcluded=[], tdecisive=[], twon=[], subsR3=[];
+let tlaunched=[], tconcluded=[], tdecisive=[], twon=[], thotfix=[], tnewmsg=[], subsR3=[];
 // multi-client: all series/reports the logged-in user may read, keyed by slug
 let SERIES={}, REPORTS={}, ORDER=[], ACTIVE='';
 // Per-client feature flags (Supabase client_series.data.features). Lets a change be
@@ -1840,7 +1840,7 @@ const feat=n=>((SERIES[ACTIVE]||{}).features||{})[n];
 let auditUnsubBlended=false;   // audit #3 unsub chart: false = flow vs campaign split, true = blended
 // base (complete-month) series + the in-progress block; applyMode() derives the
 // working arrays above from these depending on the "include current" toggle.
-let BM=[],Bflow=[],Bcamp=[],Bsubs=[],Bcsends=[],Bcrecip=[],Bunsub=[],Bspam=[],BFLOW=[],Btl=[],Btc=[],Btd=[],Btw=[],Bucount=[],Bstore=[];
+let BM=[],Bflow=[],Bcamp=[],Bsubs=[],Bcsends=[],Bcrecip=[],Bunsub=[],Bspam=[],BFLOW=[],Btl=[],Btc=[],Btd=[],Btw=[],Bth=[],Btn=[],Bucount=[],Bstore=[];
 let Bremail=[],Brsms=[],Bsmsd=[],Bsubs_sms=[],Brsms_flow=[],Brsms_camp=[];
 var smsRevSeg='all';   // SMS program card: 'all' | 'flow' | 'camp' revenue
 let Bsubs_unsub=[],Bsubs_sms_unsub=[];   // list-consent opt-OUTs per month, by channel (net growth)
@@ -1861,7 +1861,7 @@ function hydrate(series){
   Bcsends=series.csends; Bcrecip=series.crecip; Bunsub=series.unsub; Bspam=series.spam;
   BFLOW=series.flows; SYM=series.currency_symbol||'$';
   Btl=series.tlaunched||[]; Btc=series.tconcluded||[]; Btw=series.twon||[];
-  Btd=series.tdecisive||[];
+  Btd=series.tdecisive||[]; Bth=series.thotfix||[]; Btn=series.tnewmsg||[];
   Bremail=series.remail||[]; Brsms=series.rsms||[]; Bsmsd=series.sms_deliv||[];
   Brsms_flow=series.rsms_flow||[]; Brsms_camp=series.rsms_camp||[];
   {const seg=document.getElementById('smsRevSeg');const hasSplit=Brsms_flow.some(v=>v)||Brsms_camp.some(v=>v);
@@ -2065,6 +2065,7 @@ function applyMode(){
   const ct=on&&CUR.tests?CUR.tests:null;
   tlaunched=cat(Btl,ct?ct.launched:0); tconcluded=cat(Btc,ct?ct.concluded:0); twon=cat(Btw,ct?ct.won:0);
   tdecisive=cat(Btd,ct?(ct.decisive!=null?ct.decisive:ct.concluded):0);
+  thotfix=cat(Bth,ct?(ct.hotfix||0):0); tnewmsg=cat(Btn,ct?(ct.newmsg||0):0);
   total=flow.map((f,i)=>f+(camp[i]||0));
   flowPct=flow.map((f,i)=>total[i]?Math.round(f/total[i]*100):0);
   campPct=flowPct.map(p=>100-p);
@@ -2325,11 +2326,20 @@ function renderTests(){const cc=document.getElementById('c-tests');let sm=cc.que
   const wrR3=wr.map((_,i)=>{const s=[wr[i],wr[i-1],wr[i-2]].filter(v=>v!=null);return i<2||s.length<3?null:Math.round(s.reduce((a,b)=>a+b,0)/3);});
   sm=document.createElement('div');sm.className='sm';
   const a=document.createElement('div');a.innerHTML='<div class="lab">Win rate %</div><div class="legend" style="margin:-2px 0 4px"><span><i style="background:var(--flow)"></i>Win rate</span><span><i style="background:var(--camp)"></i>3-mo avg</span></div>';const ac=document.createElement('div');a.appendChild(ac);
-  const b=document.createElement('div');b.innerHTML='<div class="lab">Tests launched vs concluded / month</div><div class="legend" style="margin:-2px 0 4px"><span><i style="background:var(--camp)"></i>Launched</span><span><i style="background:var(--flow)"></i>Concluded</span></div>';const bc=document.createElement('div');b.appendChild(bc);
+  const hasWork=(thotfix&&thotfix.some(v=>v))||(tnewmsg&&tnewmsg.some(v=>v));
+  const b=document.createElement('div');
+  b.innerHTML=hasWork
+    ? '<div class="lab">Work shipped / month</div><div class="legend" style="margin:-2px 0 4px">'
+      +'<span><i style="background:var(--muted)"></i>Hotfixes</span>'
+      +'<span><i style="background:var(--camp)"></i>New messages</span>'
+      +'<span><i style="background:var(--flow)"></i>Tests launched</span></div>'
+    : '<div class="lab">Tests launched vs concluded / month</div><div class="legend" style="margin:-2px 0 4px"><span><i style="background:var(--camp)"></i>Launched</span><span><i style="background:var(--flow)"></i>Concluded</span></div>';
+  const bc=document.createElement('div');b.appendChild(bc);
   sm.appendChild(a);sm.appendChild(b);cc.appendChild(sm);
   const ipt=IP?{idx:IP.idx}:null;
   miniLine(ac,cur,wr,'var(--flow)',v=>v+'%',wrR3,'Win rate',ipt);
-  miniCols2(bc,cur,tlaunched,tconcluded,'var(--camp)','var(--flow)',v=>Math.round(v),'Launched','Concluded',ipt);}
+  if(hasWork)miniStack3(bc,cur,thotfix,tnewmsg,tlaunched,tconcluded,v=>Math.round(v),ipt);
+  else miniCols2(bc,cur,tlaunched,tconcluded,'var(--camp)','var(--flow)',v=>Math.round(v),'Launched','Concluded',ipt);}
 
 // Order buckets — lifetime orders per profile (all-time, from live Klaviyo segments; range-independent).
 function renderBuckets(){
@@ -2564,6 +2574,43 @@ function miniCols2(card,win,a0,b0,ca,cb,fmt,la,lb,ip){const[i0,i1]=win;const L=M
     if(labIdx(n).has(i)){mlab(svg,cx,PT+ih+16,mlabel(m)+((i===ipK)?'*':''));}   // angled to avoid end-of-axis overlap
     const hit=el('rect',{x:PL+step*i,y:PT,width:step,height:ih,fill:'transparent'});
     hit.addEventListener('mousemove',e=>showTip(card,e,mlabel(m),[[la,A[i],ca],[lb,B[i],cb]],fmt));
+    hit.addEventListener('mouseleave',()=>hideTip(card));svg.appendChild(hit);});
+  svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
+  drawChangeMarks(svg,i0,i1,k=>PL+step*k+step/2,PT,PT+ih);
+  card.appendChild(svg);}
+
+// Work shipped per month, stacked: hotfixes, new messages and tests launched.
+// Tests are the smallest slice of what actually goes out, so a chart that plots
+// only tests makes a busy month look empty and makes the totals in a report
+// impossible to reconcile. Concluded tests ride in the tooltip.
+function miniStack3(card,win,h0,m0,t0,c0,fmt,ip){
+  const[i0,i1]=win;const L=MONTHS.slice(i0,i1+1);
+  const cut=a=>(a||[]).slice(i0,i1+1);
+  const Hf=cut(h0),Nm=cut(m0),Tl=cut(t0),Tc=cut(c0);
+  const W=520,H=240,PL=44,PR=10,PT=12,PB=44,iw=W-PL-PR,ih=H-PT-PB,n=L.length;
+  const step=iw/n,bw=Math.min(26,step*0.52);
+  const ipK=ip&&ip.idx>=i0&&ip.idx<=i1?ip.idx-i0:-1;
+  const tot=L.map((_,i)=>(Hf[i]||0)+(Nm[i]||0)+(Tl[i]||0));
+  const max=niceMax(Math.max(...tot,0));
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
+  const y=v=>PT+ih-(v/max)*ih;
+  for(let g=0;g<=2;g++){const gv=max*g/2;
+    svg.appendChild(el('line',{class:'gl',x1:PL,x2:W-PR,y1:y(gv),y2:y(gv)}));
+    const tx=el('text',{class:'ax',x:PL-7,y:y(gv)+4,'text-anchor':'end'});
+    tx.textContent=fmt(gv);svg.appendChild(tx);}
+  const COL=['var(--muted)','var(--camp)','var(--flow)'];
+  L.forEach((m,i)=>{const cx=PL+step*i+step/2,op=(i===ipK)?0.5:1;
+    let base=0;
+    [Hf[i]||0,Nm[i]||0,Tl[i]||0].forEach((v,k)=>{
+      if(v<=0)return;
+      const hgt=v/max*ih;base+=hgt;
+      svg.appendChild(el('rect',{x:cx-bw/2,y:PT+ih-base,width:bw,height:hgt,
+        rx:k===2?2:0,fill:COL[k],'fill-opacity':op}));});
+    if(labIdx(n).has(i)){mlab(svg,cx,PT+ih+16,mlabel(m)+((i===ipK)?'*':''));}
+    const hit=el('rect',{x:PL+step*i,y:PT,width:step,height:ih,fill:'transparent'});
+    hit.addEventListener('mousemove',e=>showTip(card,e,mlabel(m),[
+      ['Hotfixes',Hf[i]||0,COL[0]],['New messages',Nm[i]||0,COL[1]],
+      ['Tests launched',Tl[i]||0,COL[2]],['Tests concluded',Tc[i]||0,'var(--ink)']],fmt));
     hit.addEventListener('mouseleave',()=>hideTip(card));svg.appendChild(hit);});
   svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
   drawChangeMarks(svg,i0,i1,k=>PL+step*k+step/2,PT,PT+ih);
@@ -3756,7 +3803,10 @@ function auditFunnel(host,spec){const st=spec.stages||[];
   host.appendChild(wrap);
   if(spec.leak){const n=document.createElement('div');n.className='conc-note';n.textContent=spec.leak;host.appendChild(n);}}
 function auditCompare(host,spec){const items=spec.items||[],mx=Math.max(...items.map(i=>Math.abs(i.value)||0),1);
-  const fmt=spec.rpr?(v=>'$'+(+v).toFixed(Math.abs(+v)<0.1?4:2)):spec.money?kfmt:(v=>nfmt(v));
+  // pct: a rate is neither money nor a count, and formatting one as either
+  // printed an unsubscribe rate of 0.27% as "$0.27"
+  const fmt=spec.pct?(v=>(+v).toFixed(spec.decimals==null?2:spec.decimals)+'%')
+    :spec.rpr?(v=>'$'+(+v).toFixed(Math.abs(+v)<0.1?4:2)):spec.money?kfmt:(v=>nfmt(v));
   host.style.position='relative';
   const wrap=document.createElement('div');wrap.className='abars';host.appendChild(wrap);
   items.forEach(it=>{const pct=Math.max(it.value>0?4:0,Math.abs(it.value)/mx*100),c=it.flag?'var(--crit)':'var(--flow)';
