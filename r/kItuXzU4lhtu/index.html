@@ -392,7 +392,11 @@
      note is outlined as you move over it, and named in the corner */
   body.pinmode .cmt-target{outline:2px solid var(--flow);outline-offset:3px;
     border-radius:8px;background:color-mix(in srgb,var(--flow) 7%,transparent)}
-  .cmt-hint{position:fixed;z-index:900;pointer-events:none;font-size:11.5px;font-weight:700;
+  /* the floating label that follows the cursor in pin mode. Its own class:
+     it used to share .cmt-hint with the quiet "Private to you" line inside the
+     comment box, and being defined second it turned that line into a fixed
+     chip sitting on top of the Close button */
+  .cmt-cursor{position:fixed;z-index:900;pointer-events:none;font-size:11.5px;font-weight:700;
     color:#fff;background:var(--flow);padding:4px 9px;border-radius:7px;
     box-shadow:0 6px 18px -6px rgba(0,0,0,.5);max-width:320px;white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis}
@@ -3537,7 +3541,7 @@ document.addEventListener('mousemove',function(e){
   if(t!==_cmtHover){
     cmtClearHover();
     if(t){_cmtHover=t;t.classList.add('cmt-target');
-      _cmtHint=document.createElement('div');_cmtHint.className='cmt-hint';
+      _cmtHint=document.createElement('div');_cmtHint.className='cmt-cursor';
       _cmtHint.textContent=anchorTitle(t)||'this section';
       document.body.appendChild(_cmtHint);}
   }
