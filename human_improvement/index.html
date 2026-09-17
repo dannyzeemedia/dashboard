@@ -1625,7 +1625,7 @@
         <div class="asec-body"><div class="asec-inner">
           <div class="grid">
             <div class="card wide" id="c-tests"><h3>Testing program — win rate &amp; volume</h3>
-              <div class="cap">A/B tests concluded each month and the share that beat control. Wins bank permanently, so the program compounds at any strike rate.</div></div>
+              <div class="cap">A/B tests concluded each month, and the share of the <b>decided</b> ones that beat control. A test still waiting on a call is undecided, not a loss. Wins bank permanently, so the program compounds at any strike rate.</div></div>
           </div>
         </div></div>
       </div>
@@ -1829,7 +1829,7 @@ let REPORT=null, SLUG='', RANGE=12, CMP='prev', REPORT_OPEN=null;
 // no auth code runs and no client switcher is built.
 const SHARE_MODE=/\/r\/[A-Za-z0-9_-]+\/?$/.test(location.pathname);
 const LOGO_BASE=SHARE_MODE?'../../logos/':'../logos/';
-let tlaunched=[], tconcluded=[], twon=[], subsR3=[];
+let tlaunched=[], tconcluded=[], tdecisive=[], twon=[], subsR3=[];
 // multi-client: all series/reports the logged-in user may read, keyed by slug
 let SERIES={}, REPORTS={}, ORDER=[], ACTIVE='';
 // Per-client feature flags (Supabase client_series.data.features). Lets a change be
@@ -1840,7 +1840,7 @@ const feat=n=>((SERIES[ACTIVE]||{}).features||{})[n];
 let auditUnsubBlended=false;   // audit #3 unsub chart: false = flow vs campaign split, true = blended
 // base (complete-month) series + the in-progress block; applyMode() derives the
 // working arrays above from these depending on the "include current" toggle.
-let BM=[],Bflow=[],Bcamp=[],Bsubs=[],Bcsends=[],Bcrecip=[],Bunsub=[],Bspam=[],BFLOW=[],Btl=[],Btc=[],Btw=[],Bucount=[],Bstore=[];
+let BM=[],Bflow=[],Bcamp=[],Bsubs=[],Bcsends=[],Bcrecip=[],Bunsub=[],Bspam=[],BFLOW=[],Btl=[],Btc=[],Btd=[],Btw=[],Bucount=[],Bstore=[];
 let Bremail=[],Brsms=[],Bsmsd=[],Bsubs_sms=[],Brsms_flow=[],Brsms_camp=[];
 var smsRevSeg='all';   // SMS program card: 'all' | 'flow' | 'camp' revenue
 let Bsubs_unsub=[],Bsubs_sms_unsub=[];   // list-consent opt-OUTs per month, by channel (net growth)
@@ -1861,6 +1861,7 @@ function hydrate(series){
   Bcsends=series.csends; Bcrecip=series.crecip; Bunsub=series.unsub; Bspam=series.spam;
   BFLOW=series.flows; SYM=series.currency_symbol||'$';
   Btl=series.tlaunched||[]; Btc=series.tconcluded||[]; Btw=series.twon||[];
+  Btd=series.tdecisive||[];
   Bremail=series.remail||[]; Brsms=series.rsms||[]; Bsmsd=series.sms_deliv||[];
   Brsms_flow=series.rsms_flow||[]; Brsms_camp=series.rsms_camp||[];
   {const seg=document.getElementById('smsRevSeg');const hasSplit=Brsms_flow.some(v=>v)||Brsms_camp.some(v=>v);
@@ -2063,6 +2064,7 @@ function applyMode(){
   FLOWDATA=on?BFLOW.concat(CUR.mtd.flows):BFLOW.slice();
   const ct=on&&CUR.tests?CUR.tests:null;
   tlaunched=cat(Btl,ct?ct.launched:0); tconcluded=cat(Btc,ct?ct.concluded:0); twon=cat(Btw,ct?ct.won:0);
+  tdecisive=cat(Btd,ct?(ct.decisive!=null?ct.decisive:ct.concluded):0);
   total=flow.map((f,i)=>f+(camp[i]||0));
   flowPct=flow.map((f,i)=>total[i]?Math.round(f/total[i]*100):0);
   campPct=flowPct.map(p=>100-p);
@@ -2314,7 +2316,12 @@ function miniLine(card,win,vals0,color,fmt,dash0,lab,ip){const[i0,i1]=win;const 
 
 function renderTests(){const cc=document.getElementById('c-tests');let sm=cc.querySelector('.sm');if(sm)sm.remove();
   const{cur}=windows();
-  const wr=twon.map((w,i)=>tconcluded[i]?Math.round(w/tconcluded[i]*100):null);
+  // Win rate is measured on the tests that RETURNED A VERDICT. A concluded
+  // test still waiting for a call is undecided, not a loss, and counting it as
+  // one reads as a collapse whenever a batch goes uncalled. Falls back to the
+  // old denominator for a client published before the decisive count existed.
+  const tdec=(tdecisive&&tdecisive.some(v=>v))?tdecisive:tconcluded;
+  const wr=twon.map((w,i)=>tdec[i]?Math.round(w/tdec[i]*100):null);
   const wrR3=wr.map((_,i)=>{const s=[wr[i],wr[i-1],wr[i-2]].filter(v=>v!=null);return i<2||s.length<3?null:Math.round(s.reduce((a,b)=>a+b,0)/3);});
   sm=document.createElement('div');sm.className='sm';
   const a=document.createElement('div');a.innerHTML='<div class="lab">Win rate %</div><div class="legend" style="margin:-2px 0 4px"><span><i style="background:var(--flow)"></i>Win rate</span><span><i style="background:var(--camp)"></i>3-mo avg</span></div>';const ac=document.createElement('div');a.appendChild(ac);
