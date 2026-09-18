@@ -1567,7 +1567,8 @@
               <div class="cap" id="por-cap"></div>
               <div class="rprhead"><span>Flow · POR</span><span>vs compare</span></div><div id="por-list"></div></div>
             <div class="card wide" id="c-flowmix"><h3>Flow revenue diversity</h3>
-              <div class="cap">Each flow’s share of total flow revenue per month (100% stacked). Shows how concentrated or spread the automation layer is: one dominant band = over-reliance on a single flow.</div>
+              <div class="cap" id="flowmix-cap">Each flow’s share of total flow revenue per month (100% stacked). Shows how concentrated or spread the automation layer is: one dominant band = over-reliance on a single flow.</div>
+              <div class="chartseg" id="flowmixSeg"><button class="csg on" data-fm="share">100% share</button><button class="csg" data-fm="abs">Revenue</button></div>
               <div class="legend" id="flowmix-legend"></div></div>
           </div>
         </div></div>
@@ -5493,6 +5494,10 @@ function renderRightSize(){
 }
 
 const FMIX_PAL=['var(--flow)','var(--camp)','var(--aqua)','var(--good)','#7c6cf0','#e2749b','#4bb3a6','#c9922a','#8a94a6'];
+// share vs dollars on the flow mix chart. Share answers "is one flow carrying
+// the layer"; dollars answers "is the layer growing", and the same bands read
+// very differently in each, so the chart offers both rather than picking one.
+let flowMixMode='share';
 function renderFlowMix(){const{cur}=windows();const cc=document.getElementById('c-flowmix');if(!cc)return;
   cc.querySelectorAll('svg,.tip').forEach(n=>n.remove());
   const mon=MONTHS.slice(cur[0],cur[1]+1);
@@ -5506,13 +5511,21 @@ function renderFlowMix(){const{cur}=windows();const cc=document.getElementById('
   const n=mon.length;if(!n||!series.length)return;
   const tot=mon.map((_,i)=>series.reduce((a,s)=>a+(s.vals[i]||0),0)||1);
   const share=series.map(s=>s.vals.map((v,i)=>v/tot[i]*100));
-  const W=1080,H=300,PL=40,PR=16,PT=12,PB=44,iw=W-PL-PR,ih=H-PT-PB;
-  const x=i=>PL+(n<=1?iw/2:iw*i/(n-1)),y=v=>PT+ih-(v/100)*ih,ev=lblEvery(n);
+  const abs=flowMixMode==='abs';
+  // in dollars the bands stack to the month's real total, so the ceiling is the
+  // biggest month rather than a flat 100
+  const mxA=niceMax(Math.max.apply(null,mon.map((_,i)=>series.reduce((a,s)=>a+(s.vals[i]||0),0))));
+  const plot=abs?series.map(s=>s.vals.slice()):share;
+  const yTop=abs?mxA:100;   // `top` is already the top-8 flow names in this scope
+  const W=1080,H=300,PL=abs?56:40,PR=16,PT=12,PB=44,iw=W-PL-PR,ih=H-PT-PB;
+  const x=i=>PL+(n<=1?iw/2:iw*i/(n-1)),y=v=>PT+ih-(v/yTop)*ih,ev=lblEvery(n);
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
-  for(let g=0;g<=4;g++){svg.appendChild(el('line',{class:'gl',x1:PL,x2:W-PR,y1:y(g*25),y2:y(g*25)}));
-    const t=el('text',{class:'ax',x:PL-8,y:y(g*25)+4,'text-anchor':'end'});t.textContent=(g*25)+'%';svg.appendChild(t);}
+  for(let g=0;g<=4;g++){const gv=yTop*g/4;
+    svg.appendChild(el('line',{class:'gl',x1:PL,x2:W-PR,y1:y(gv),y2:y(gv)}));
+    const t=el('text',{class:'ax',x:PL-8,y:y(gv)+4,'text-anchor':'end'});
+    t.textContent=abs?kfmt(gv):(g*25)+'%';svg.appendChild(t);}
   const cum=mon.map(()=>0);
-  series.forEach((s,si)=>{const bot=[],top2=[];for(let i=0;i<n;i++){const b=cum[i],t=b+share[si][i];bot.push(b);top2.push(t);cum[i]=t;}
+  series.forEach((s,si)=>{const bot=[],top2=[];for(let i=0;i<n;i++){const b=cum[i],t=b+plot[si][i];bot.push(b);top2.push(t);cum[i]=t;}
     let d='M'+x(0)+' '+y(bot[0]);for(let i=0;i<n;i++)d+='L'+x(i)+' '+y(top2[i]);for(let i=n-1;i>=0;i--)d+='L'+x(i)+' '+y(bot[i]);d+='Z';
     svg.appendChild(el('path',{d,fill:s.color,'fill-opacity':0.9,stroke:'var(--surface)','stroke-width':0.8}));});
   mon.forEach((m,i)=>{if(labIdx(n).has(i)){const ly=PT+ih+16;const t=el('text',{class:'ax',x:x(i),y:ly,'text-anchor':'end',transform:`rotate(-20 ${x(i)} ${ly})`});t.textContent=mlabel(m)+(IP&&IP.idx===cur[0]+i?'*':'');svg.appendChild(t);}});
@@ -5520,10 +5533,23 @@ function renderFlowMix(){const{cur}=windows();const cc=document.getElementById('
   const hit=el('rect',{x:PL,y:PT,width:iw,height:ih,fill:'transparent'});
   hit.addEventListener('mousemove',e=>{const r=svg.getBoundingClientRect();const px=(e.clientX-r.left)/r.width*W;const i=Math.max(0,Math.min(n-1,Math.round((px-PL)/iw*(n-1))));
     cross.setAttribute('x1',x(i));cross.setAttribute('x2',x(i));cross.setAttribute('opacity',1);
-    const rows=series.map((s,si)=>[s.name,share[si][i],s.color,(function(v){const rv=s.vals[i]||0;return sh=>sh.toFixed(0)+'% ('+money(rv)+')';})()]).filter((_,si)=>series[si].vals[i]>0);
-    showTip(cc,e,mlabel(mon[i]),rows,v=>v.toFixed(0)+'%');});
+    const rows=series.map((s,si)=>[s.name,abs?(s.vals[i]||0):share[si][i],s.color,
+      (function(){const rv=s.vals[i]||0,sh=share[si][i];
+        return abs?(v=>money(rv)+' ('+sh.toFixed(0)+'%)'):(v=>sh.toFixed(0)+'% ('+money(rv)+')');})()])
+      .filter((_,si)=>series[si].vals[i]>0);
+    showTip(cc,e,mlabel(mon[i]),rows,v=>abs?money(v):v.toFixed(0)+'%');});
   hit.addEventListener('mouseleave',()=>{cross.setAttribute('opacity',0);hideTip(cc);});svg.appendChild(hit);
-  cc.style.position='relative';cc.appendChild(svg);}
+  cc.style.position='relative';cc.appendChild(svg);
+  const cap=document.getElementById('flowmix-cap');
+  if(cap)cap.textContent=abs
+    ? 'Flow revenue per month, stacked by flow. Shows whether the automation layer is growing, and which flows are carrying the growth.'
+    : 'Each flow\u2019s share of total flow revenue per month (100% stacked). Shows how concentrated or spread the automation layer is: one dominant band = over-reliance on a single flow.';
+  const seg=document.getElementById('flowmixSeg');
+  if(seg&&!seg.dataset.wired){seg.dataset.wired='1';
+    seg.addEventListener('click',e=>{const b=e.target.closest('.csg');if(!b)return;
+      flowMixMode=b.dataset.fm;
+      [...seg.children].forEach(c=>c.classList.toggle('on',c===b));
+      renderFlowMix();});}}
 function renderSms(){const{cur}=windows();const cc=document.getElementById('c-sms');let sm=cc.querySelector('.sm');if(sm)sm.remove();
   const _plat=(SERIES[ACTIVE]||{}).sms_platform, _lg=cc.querySelector('.legend');
   if(_lg)_lg.style.display=_plat?'none':'';
