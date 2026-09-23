@@ -3810,49 +3810,62 @@ function auditFunnel(host,spec){const st=spec.stages||[];
 // months, and spam as a line. One picture, because the claim is that the two
 // move together and two separate charts made the reader do that work.
 function auditGrowthDeliv(host,spec){
+  // Months run left to right, columns are the subscribers taken on, and the
+  // unsubscribe rate is an area behind them on its own scale with spam as a
+  // line. The argument is that intake and complaints move together, so they
+  // belong on one time axis rather than in two lists.
   const x=spec.x||[],subs=spec.subs||[],un=spec.unsub||[],sp=spec.spam||[];
   const n=x.length; if(!n)return;
-  const W=1080,H=Math.max(220,42*n+70),PL=92,PR=96,PT=26,PB=34;
-  const iw=W-PL-PR,ih=H-PT-PB,row=ih/n;
+  const W=1080,H=330,PL=62,PR=66,PT=20,PB=46,iw=W-PL-PR,ih=H-PT-PB;
   const mxS=niceMax(Math.max.apply(null,subs)),
         mxU=Math.max.apply(null,un)*1.25||1,
         mxP=Math.max.apply(null,sp)*1.6||1;
+  const cx=i=>PL+iw*(i+0.5)/n, bw=Math.min(52,iw/n*0.56);
+  const yS=v=>PT+ih-(v/mxS)*ih, yU=v=>PT+ih-(v/mxU)*ih, yP=v=>PT+ih-(v/mxP)*ih;
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
   host.style.position='relative';
-  const yc=i=>PT+row*i+row/2;
-  // the area first, so the bars sit on top of it
-  let area='M'+PL+' '+PT;
-  un.forEach((v,i)=>{area+='L'+(PL+iw*Math.min(v/mxU,1))+' '+yc(i);});
-  area+='L'+PL+' '+(PT+ih)+'Z';
-  svg.appendChild(el('path',{d:area,fill:'var(--crit)','fill-opacity':0.13,stroke:'none'}));
-  let ul='';un.forEach((v,i)=>{ul+=(i?'L':'M')+(PL+iw*Math.min(v/mxU,1))+' '+yc(i);});
+  for(let g=0;g<=4;g++){const f=g/4,yy=PT+ih-ih*f;
+    svg.appendChild(el('line',{class:'gl',x1:PL,x2:W-PR,y1:yy,y2:yy}));
+    const lt=el('text',{class:'ax',x:PL-8,y:yy+4,'text-anchor':'end'});
+    lt.textContent=kfmtplain(mxS*f);svg.appendChild(lt);
+    const rt=el('text',{x:W-PR+8,y:yy+4,'text-anchor':'start',fill:'var(--crit)',
+      'font-size':10.5,'font-family':'system-ui'});
+    rt.textContent=(mxU*f).toFixed(2)+'%';svg.appendChild(rt);}
+  // unsubscribe rate as an area, drawn first so the columns sit on top
+  let area='M'+cx(0)+' '+(PT+ih);
+  un.forEach((v,i)=>{area+='L'+cx(i)+' '+yU(v);});
+  area+='L'+cx(n-1)+' '+(PT+ih)+'Z';
+  svg.appendChild(el('path',{d:area,fill:'var(--crit)','fill-opacity':0.14,stroke:'none'}));
+  let ul='';un.forEach((v,i)=>{ul+=(i?'L':'M')+cx(i)+' '+yU(v);});
   svg.appendChild(el('path',{d:ul,fill:'none',stroke:'var(--crit)','stroke-width':2,
-    'stroke-opacity':0.55,'stroke-linejoin':'round'}));
-  // bars
-  x.forEach((m,i)=>{
-    const w=Math.max(2,iw*(subs[i]||0)/mxS), h=Math.min(22,row*0.5);
-    svg.appendChild(el('rect',{x:PL,y:yc(i)-h/2,width:w,height:h,rx:3,fill:'var(--flow)'}));
-    const lab=el('text',{class:'ax',x:PL-10,y:yc(i)+4,'text-anchor':'end'});
-    lab.textContent=m;svg.appendChild(lab);
-    const val=el('text',{x:PL+w+8,y:yc(i)+4,fill:'var(--ink2)','font-size':11.5,
-      'font-weight':700,'font-family':'system-ui'});
-    val.textContent=kfmtplain(subs[i]||0);svg.appendChild(val);});
-  // spam as a line on its own scale, drawn last
-  let sl='';sp.forEach((v,i)=>{sl+=(i?'L':'M')+(PL+iw*Math.min(v/mxP,1))+' '+yc(i);});
+    'stroke-opacity':0.6,'stroke-linejoin':'round'}));
+  // columns
+  subs.forEach((v,i)=>{const h=Math.max(2,ih*(v/mxS));
+    svg.appendChild(el('rect',{x:cx(i)-bw/2,y:PT+ih-h,width:bw,height:h,rx:3,
+      fill:'var(--flow)','fill-opacity':0.92}));
+    const t=el('text',{x:cx(i),y:PT+ih-h-6,'text-anchor':'middle',fill:'var(--ink2)',
+      'font-size':11,'font-weight':700,'font-family':'system-ui'});
+    t.textContent=kfmtplain(v);svg.appendChild(t);});
+  // spam on its own scale
+  let sl='';sp.forEach((v,i)=>{sl+=(i?'L':'M')+cx(i)+' '+yP(v);});
   svg.appendChild(el('path',{d:sl,fill:'none',stroke:'var(--camp)','stroke-width':2,
     'stroke-dasharray':'5 4','stroke-linejoin':'round'}));
-  sp.forEach((v,i)=>svg.appendChild(el('circle',{cx:PL+iw*Math.min(v/mxP,1),cy:yc(i),r:3,
-    fill:'var(--camp)'})));
-  // hover band per month
-  x.forEach((m,i)=>{const hit=el('rect',{x:PL,y:PT+row*i,width:iw,height:row,fill:'transparent'});
-    hit.addEventListener('mousemove',e=>showTip(host,e,m,[
-      ['New subscribers',subs[i]||0,'var(--flow)',v=>Math.round(v).toLocaleString()],
-      ['Unsubscribe rate',un[i]||0,'var(--crit)',v=>(+v).toFixed(3)+'%'],
-      ['Spam rate',sp[i]||0,'var(--camp)',v=>(+v).toFixed(4)+'%']]));
-    hit.addEventListener('mouseleave',()=>hideTip(host));svg.appendChild(hit);});
-  host.appendChild(svg);
+  sp.forEach((v,i)=>svg.appendChild(el('circle',{cx:cx(i),cy:yP(v),r:3,fill:'var(--camp)'})));
+  x.forEach((m,i)=>{if(labIdx(n).has(i)){mlab(svg,cx(i),PT+ih+18,m);}});
+  svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
+  const guide=el('line',{class:'cross',y1:PT,y2:PT+ih,opacity:0});svg.appendChild(guide);
+  for(let i=0;i<n;i++){const hit=el('rect',{x:PL+iw*i/n,y:PT,width:iw/n,height:ih,fill:'transparent'});
+    hit.addEventListener('mousemove',e=>{guide.setAttribute('x1',cx(i));guide.setAttribute('x2',cx(i));
+      guide.setAttribute('opacity',1);
+      showTip(host,e,x[i],[
+        ['New subscribers',subs[i]||0,'var(--flow)',v=>Math.round(v).toLocaleString()],
+        ['Unsubscribe rate',un[i]||0,'var(--crit)',v=>(+v).toFixed(3)+'%'],
+        ['Spam rate',sp[i]||0,'var(--camp)',v=>(+v).toFixed(4)+'%']]);});
+    hit.addEventListener('mouseleave',()=>{guide.setAttribute('opacity',0);hideTip(host);});
+    svg.appendChild(hit);}
   host.appendChild(alegend(['New subscribers','var(--flow)'],
                            ['Unsubscribe rate','var(--crit)'],['Spam rate','var(--camp)']));
+  host.appendChild(svg);
   if(spec.note){const nn=document.createElement('div');nn.className='conc-note';
     nn.textContent=spec.note;host.appendChild(nn);}}
 const kfmtplain=n=>n>=1000?(n/1000).toFixed(1)+'k':String(Math.round(n));
