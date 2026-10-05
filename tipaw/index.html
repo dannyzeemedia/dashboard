@@ -146,10 +146,14 @@
   .glogo.inv{filter:brightness(0) invert(1)}
   .gdiv{width:1px;height:28px;background:var(--border);display:inline-block;flex:none}
   @media(max-width:560px){.glogo{height:20px;max-width:88px}}
-  .swlogo{height:24px;width:auto;max-width:190px;display:block}
-  .clogo-btn.icon .swlogo{height:29px}
+  /* --lsc is a per-client trim. A bare wordmark with no padding (Hydrant) and a
+     mark inside a bordered chip (Lonvera) fill very different fractions of their
+     own file, so matching their pixel HEIGHTS makes one look twice the size of
+     the other. logo_scale in the client config evens the optical weight. */
+  .swlogo{height:calc(24px * var(--lsc,1));width:auto;max-width:190px;display:block}
+  .clogo-btn.icon .swlogo{height:calc(29px * var(--lsc,1))}
   .swname{font-weight:800;font-size:15px;color:var(--ink);white-space:nowrap}
-  @media(max-width:560px){.swlogo{height:19px;max-width:130px}}
+  @media(max-width:560px){.swlogo{height:calc(19px * var(--lsc,1));max-width:130px}}
   .seg{margin-left:auto;display:flex;background:var(--surface-2);border:1px solid var(--border);
     border-radius:10px;padding:3px;gap:2px}
   .seg button{font:inherit;font-size:13px;font-weight:600;color:var(--ink2);background:none;border:0;
@@ -211,7 +215,10 @@
   .anum{font-size:12px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
   .achart{margin-top:2px}
   .abars{display:flex;flex-direction:column;gap:8px;margin-top:2px}
-  .abar{display:grid;grid-template-columns:220px 1fr;align-items:center;gap:12px;font-size:13px}
+  /* the label column sizes to the LONGEST label in that chart (set as --abl by
+     the renderer), so a campaign subject line gets one line instead of two and
+     a chart of short labels does not waste half the row */
+  .abar{display:grid;grid-template-columns:var(--abl,220px) 1fr;align-items:center;gap:12px;font-size:13px}
   .abar .abl{color:var(--ink2);line-height:1.25}   /* wrap long labels instead of truncating */
   /* the value rides at the end of its own bar. Parked in a right-hand column it
      sat hundreds of pixels from a short bar, which is dead space, not alignment */
@@ -222,6 +229,7 @@
   .abar.flagged .abv{color:var(--crit)}
   @media(max-width:620px){.abar{grid-template-columns:110px 1fr}
     .abar .abv{min-width:0}}
+  @media(max-width:900px){.abars{--abl:160px}}
   .aflist{margin-top:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
   .aflist-summary{display:flex;align-items:center;gap:8px;width:100%;cursor:pointer;padding:11px 14px;font:inherit;font-size:13px;font-weight:700;color:var(--ink2);background:var(--surface-2);border:0;text-align:left}
   .aflist-chev{color:var(--muted);transition:transform .2s ease;display:inline-block}
@@ -1972,6 +1980,7 @@ function buildSwitcher(){const b=document.getElementById('brand');b.innerHTML=''
     const darkchip=data.logo_chip&&!isDark();          // light logo on the light theme → dark brand chip so it stays visible
     const btn=document.createElement('button');btn.className='clogo-btn'+(active?' full':' icon')+(litebg?' litebg':'')+(darkchip?' darkchip':'');btn.dataset.slug=slug;
     if(darkchip)btn.style.background=data.logo_chip;
+    if(data.logo_scale)btn.style.setProperty('--lsc',data.logo_scale);
     if(active)btn.setAttribute('aria-current','true');
     btn.title=data.name;
     const img=new Image();img.className='clogo swlogo'+(invert?' inv':'');img.alt=data.name;
@@ -3964,6 +3973,67 @@ function auditFunnel(host,spec){const st=spec.stages||[];
 // on, a filled area behind them tracking the unsubscribe rate over the same
 // months, and spam as a line. One picture, because the claim is that the two
 // move together and two separate charts made the reader do that work.
+
+// Months on the x axis, one bar series on the left scale and one line on the
+// right, with an optional vertical marker. Built for a before-and-after: the
+// bars are the volume, the line is the rate, and the marker is the day
+// something changed. Separate from growthdeliv because that one is hard-wired
+// to subscribers and complaint rates.
+function auditTwin(host,spec){
+  const x=spec.x||[],bars=spec.bars||[],line=spec.line||[],n=x.length;
+  if(!n)return;
+  const W=1080,H=320,PL=66,PR=70,PT=22,PB=46,iw=W-PL-PR,ih=H-PT-PB;
+  const mxB=niceMax(Math.max.apply(null,bars.concat([1])));
+  const lv=line.filter(v=>v!=null);
+  const mxL=niceMax(Math.max.apply(null,lv.concat([0.001])));
+  const cx=i=>PL+iw*(i+0.5)/n, bw=Math.min(46,iw/n*0.58);
+  const yB=v=>PT+ih-(v/mxB)*ih, yL=v=>PT+ih-(v/mxL)*ih;
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
+  host.style.position='relative';
+  const bfmt=spec.barfmt==='money'?kfmt:kfmtplain;
+  const lfmt=spec.linefmt==='money3'?(v=>SYM+(+v).toFixed(3))
+    :spec.linefmt==='pct'?(v=>(+v).toFixed(2)+'%'):(v=>kfmtplain(v));
+  for(let g=0;g<=4;g++){const f=g/4,yy=PT+ih-ih*f;
+    svg.appendChild(el('line',{class:'gl',x1:PL,x2:W-PR,y1:yy,y2:yy}));
+    const lt=el('text',{class:'ax',x:PL-8,y:yy+4,'text-anchor':'end'});
+    lt.textContent=bfmt(mxB*f);svg.appendChild(lt);
+    const rt=el('text',{x:W-PR+8,y:yy+4,'text-anchor':'start',fill:'var(--camp)',
+      'font-size':10.5,'font-family':'system-ui'});
+    rt.textContent=lfmt(mxL*f);svg.appendChild(rt);}
+  // the "before" side sits behind a lighter fill so the split reads at a glance
+  const cut=spec.cut;
+  bars.forEach((v,i)=>{const h=Math.max(2,ih*(v/mxB));
+    svg.appendChild(el('rect',{x:cx(i)-bw/2,y:PT+ih-h,width:bw,height:h,rx:3,
+      fill:'var(--flow)','fill-opacity':(cut!=null&&i<cut)?0.34:0.95}));});
+  let d='';line.forEach((v,i)=>{if(v==null)return;d+=(d?'L':'M')+cx(i)+' '+yL(v);});
+  svg.appendChild(el('path',{d,fill:'none',stroke:'var(--camp)','stroke-width':2.4,
+    'stroke-linejoin':'round'}));
+  line.forEach((v,i)=>{if(v==null)return;
+    svg.appendChild(el('circle',{cx:cx(i),cy:yL(v),r:3,fill:'var(--camp)'}));});
+  if(cut!=null&&cut>0&&cut<n){
+    const xc=PL+iw*cut/n;
+    svg.appendChild(el('line',{x1:xc,x2:xc,y1:PT-4,y2:PT+ih,stroke:'var(--ink2)',
+      'stroke-width':1.5,'stroke-dasharray':'5 4'}));
+    const txt=spec.cutlabel||'', fits=xc+txt.length*5.9+12<W-PR;
+    const cl=el('text',{x:fits?xc+7:xc-7,y:PT+6,'font-size':10.5,'font-weight':700,
+      'text-anchor':fits?'start':'end',fill:'var(--ink2)','font-family':'system-ui'});
+    cl.textContent=txt;svg.appendChild(cl);}
+  x.forEach((m,i)=>{if(labIdx(n).has(i)){mlab(svg,cx(i),PT+ih+18,m);}});
+  svg.appendChild(el('line',{class:'baseline',x1:PL,x2:W-PR,y1:PT+ih,y2:PT+ih}));
+  const guide=el('line',{class:'cross',y1:PT,y2:PT+ih,opacity:0});svg.appendChild(guide);
+  for(let i=0;i<n;i++){const hit=el('rect',{x:PL+iw*i/n,y:PT,width:iw/n,height:ih,fill:'transparent'});
+    hit.addEventListener('mousemove',e=>{guide.setAttribute('x1',cx(i));guide.setAttribute('x2',cx(i));
+      guide.setAttribute('opacity',1);
+      showTip(host,e,x[i],[
+        [spec.barlabel||'Volume',bars[i]||0,'var(--flow)',bfmt],
+        [spec.linelabel||'Rate',line[i]||0,'var(--camp)',lfmt]]);});
+    hit.addEventListener('mouseleave',()=>{guide.setAttribute('opacity',0);hideTip(host);});
+    svg.appendChild(hit);}
+  host.appendChild(alegend([spec.barlabel||'Volume','var(--flow)'],
+                           [spec.linelabel||'Rate','var(--camp)']));
+  host.appendChild(svg);
+  if(spec.note){const nn=document.createElement('div');nn.className='conc-note';
+    nn.textContent=spec.note;host.appendChild(nn);}}
 function auditGrowthDeliv(host,spec){
   // Months run left to right, columns are the subscribers taken on, and the
   // unsubscribe rate is an area behind them on its own scale with spam as a
@@ -4090,6 +4160,12 @@ function auditGrowthNet(host,spec){
   if(spec.netnote){const nn=document.createElement('div');nn.className='conc-note';
     nn.textContent=spec.netnote;host.appendChild(nn);}}
 
+// Widen the label column to fit the longest label on ONE line, within reason.
+// A fixed 220px broke campaign subject lines across two lines and left charts of
+// short labels with a column of empty space.
+function ablWidth(wrap,items){
+  const longest=(items||[]).reduce((a,i)=>Math.max(a,String(i.label||'').length),0);
+  wrap.style.setProperty('--abl',Math.min(420,Math.max(220,Math.round(longest*6.9)+10))+'px');}
 function auditCompare(host,spec){const items=spec.items||[],mx=Math.max(...items.map(i=>Math.abs(i.value)||0),1);
   // pct: a rate is neither money nor a count, and formatting one as either
   // printed an unsubscribe rate of 0.27% as "$0.27"
@@ -4104,6 +4180,7 @@ function auditCompare(host,spec){const items=spec.items||[],mx=Math.max(...items
   const fmt=spec.unit?(v=>base(v)+spec.unit):base;
   host.style.position='relative';
   const wrap=document.createElement('div');wrap.className='abars';host.appendChild(wrap);
+  ablWidth(wrap,items);
   items.forEach(it=>{const pct=Math.max(it.value>0?4:0,Math.abs(it.value)/mx*100),c=it.flag?'var(--crit)':'var(--flow)';
     const row=document.createElement('div');row.className='abar'+(it.flag?' flagged':'');
     // a flow named in a chart is a place to go, not just a word: give it its
@@ -4375,6 +4452,7 @@ function renderAuditChart(host,spec,S){
   if(spec.type==='campsize')return auditCampSize(host,spec);
   if(spec.type==='flowtable')return auditFlowTable(host,S,spec);
   if(spec.type==='growthdeliv')return auditGrowthDeliv(host,spec);
+  if(spec.type==='twin')return auditTwin(host,spec);
   if(spec.type==='compare')return auditCompare(host,spec);
   if(spec.type==='storeshare')return auditStoreShare(host,S,spec);
   if(spec.type==='growth')return auditGrowth(host,S,spec);
@@ -4839,6 +4917,7 @@ function auditBars(host,spec,S){const map=auditFlowAgg(S,12);let items=[];
     items=rows.map(([n,v])=>({label:n,val:v.deliv?v.rev/v.deliv:0,pct:(v.deliv?v.rev/v.deliv:0)/mx*100,extra:'RPR '+(v.deliv?(v.rev/v.deliv).toFixed(2):'0'),flag:(v.deliv?v.rev/v.deliv:0)<0.3}))
       .sort((a,b)=>b.val-a.val).slice(0,8);}
   const wrap=document.createElement('div');wrap.className='abars';
+  ablWidth(wrap,items);
   items.forEach(it=>{const row=document.createElement('div');row.className='abar'+(it.flag?' flagged':'');
     row.title=it.label+(it.extra?': '+it.extra:'');
     const c=it.flag?'var(--crit)':(spec.source==='concentration'?'var(--flow)':'var(--aqua)');
