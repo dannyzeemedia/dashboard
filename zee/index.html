@@ -3032,7 +3032,9 @@ function repChart(host,name,data){
         sy.appendChild(el('path',{d,fill:col(s,si),'fill-opacity':s.side==='old'?0.55:0.92,
           stroke:'var(--surface)','stroke-width':0.8}));});
       const ev=Math.max(1,Math.ceil(n/9));
-      L.forEach((lb,i)=>{if(i%ev)return;
+      // always print the last label: it is today, and a chart whose axis stops
+      // eight days short reads as data that stops eight days short
+      L.forEach((lb,i)=>{if(i%ev&&i!==n-1)return;if(i!==n-1&&n-1-i<ev*0.6)return;
         const t=el('text',{x:x(i),y:PT+ih+16,'text-anchor':'middle','font-size':10.5,
           fill:'var(--muted)','font-family':'system-ui'});t.textContent=lb;sy.appendChild(t);});
       if(data.cutover!=null&&data.cutover>=0){
