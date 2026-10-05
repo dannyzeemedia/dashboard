@@ -734,17 +734,17 @@
   table.ppft tr.ppf-old td{color:var(--muted)}
   table.ppft tr.ppf-old td:first-child{color:var(--muted)}
   .ppf-tr{font-size:11px;font-weight:400;color:var(--muted);margin-top:2px}
-  .ppf-bw{display:flex;align-items:center;gap:8px;min-width:120px}
-  .ppf-bw i{display:block;height:8px;border-radius:4px;min-width:2px;flex:0 0 auto;max-width:92px}
-  .ppf-bw b{font-weight:700;font-variant-numeric:tabular-nums}
+  .ppf-bw{display:block;min-width:96px}
+  .ppf-bw b{display:block;font-weight:700;font-variant-numeric:tabular-nums;margin-bottom:5px}
+  .ppf-bw i{display:block;height:6px;border-radius:3px;min-width:2px}
   .ppon-wrap{display:grid;grid-template-columns:1fr 1fr;gap:26px}
   .ppon-t{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:10px}
-  .ppon-r{display:grid;grid-template-columns:1fr;gap:3px;margin-bottom:12px}
-  .ppon-k{font-size:12px;color:var(--ink2)}
+  .ppon-r{display:grid;grid-template-columns:1fr auto;gap:5px 12px;margin-bottom:15px;align-items:baseline}
+  .ppon-k{grid-column:1;font-size:12px;color:var(--ink2)}
   .ppon-e{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);border:1px solid var(--border);border-radius:3px;padding:0 4px}
-  .ppon-b{height:10px;background:color-mix(in srgb,var(--border) 60%,transparent);border-radius:5px;overflow:hidden}
+  .ppon-b{grid-column:1/-1;height:10px;background:color-mix(in srgb,var(--border) 60%,transparent);border-radius:5px;overflow:hidden}
   .ppon-b i{display:block;height:100%;border-radius:5px}
-  .ppon-v{font-size:13px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+  .ppon-v{grid-column:2;text-align:right;font-size:13px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
   .ppon-note{margin-top:14px;font-size:11.5px;color:var(--muted);line-height:1.5}
   @media(max-width:620px){.ppon-wrap{grid-template-columns:1fr;gap:18px}}
   .rep-prose .tup{color:#30a46c;font-weight:800}
@@ -2985,9 +2985,13 @@ function repChart(host,name,data){
       const xc=PL+cw*data.cutover;
       sy.appendChild(el('line',{x1:xc,x2:xc,y1:PT-4,y2:PT+ih,stroke:'var(--crit)',
         'stroke-width':1.6,'stroke-dasharray':'5 4'}));
-      const cl=el('text',{x:Math.min(xc+6,W-PR-70),y:PT+6,'font-size':10.5,'font-weight':700,
-        fill:'var(--crit)','font-family':'system-ui'});
-      cl.textContent=(data.cutover_label||'')+' cutover';sy.appendChild(cl);}
+      // right-align the label on the far side of the line when there is no room
+      // to its right, or it prints straight over the line it is labelling
+      const txt=(data.cutover_label||'')+' cutover', wide=txt.length*5.9+10;
+      const fits=xc+wide<W-PR;
+      const cl=el('text',{x:fits?xc+6:xc-6,y:PT+6,'font-size':10.5,'font-weight':700,
+        'text-anchor':fits?'start':'end',fill:'var(--crit)','font-family':'system-ui'});
+      cl.textContent=txt;sy.appendChild(cl);}
     host.appendChild(sy);
     const lg=alegend.apply(null,S.map((s,k)=>[s.name,col(s,k)]));
     lg.style.margin='8px 0 0';host.appendChild(lg);
@@ -3005,8 +3009,9 @@ function repChart(host,name,data){
       +R.map(r=>'<tr class="'+(r.side==='old'?'ppf-old':'')+'">'
         +'<td><a class="abl-go" href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.name)+'</a>'
         +'<div class="ppf-tr">'+esc(r.trigger)+'</div></td>'
-        +'<td><div class="ppf-bw"><i style="width:'+(100*r.recipients/mxr).toFixed(1)+'%;background:'
-        +(r.side==='old'?'var(--muted)':'var(--flow)')+'"></i><b>'+r.recipients.toLocaleString()+'</b></div></td>'
+        +'<td><div class="ppf-bw"><b>'+r.recipients.toLocaleString()+'</b><i style="width:'
+        +Math.max(100*r.recipients/mxr,0.8).toFixed(1)+'%;background:'
+        +(r.side==='old'?'var(--muted)':'var(--flow)')+'"></i></div></td>'
         +'<td>'+pct(r.open)+'</td><td>'+pct(r.click)+'</td><td>'+pct(r.order)+'</td>'
         +'<td>'+(r.rpr==null?'—':SYM+r.rpr.toFixed(3))+'</td>'
         +'<td>'+kfmt(r.revenue||0)+'</td></tr>').join('')+'</tbody>';
@@ -3035,9 +3040,9 @@ function repChart(host,name,data){
       d.innerHTML='<div class="ppon-t">'+esc(title)+'</div>'
         +rows.map(r=>'<div class="ppon-r"><div class="ppon-k">'+esc(r.k)
           +(r.est?' <span class="ppon-e">estimate</span>':'')+'</div>'
+          +'<div class="ppon-v">'+fmt(r.v)+'</div>'
           +'<div class="ppon-b"><i style="width:'+Math.max(100*r.v/mx,0.6).toFixed(1)
-          +'%;background:'+r.c+'"></i></div>'
-          +'<div class="ppon-v">'+fmt(r.v)+'</div></div>').join('');
+          +'%;background:'+r.c+'"></i></div></div>').join('');
       return d;};
     const w=document.createElement('div');w.className='ppon-wrap';
     w.appendChild(panel('Emails sent',bars,v=>Math.round(v).toLocaleString()));
