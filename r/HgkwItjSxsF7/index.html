@@ -729,6 +729,24 @@
   table.rtbl th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);border-bottom:1px solid var(--border);padding:8px 10px}
   table.rtbl td{border-bottom:1px solid var(--border);padding:8px 10px;color:var(--ink2);font-variant-numeric:tabular-nums}
   table.rtbl td:first-child{color:var(--ink);font-weight:600}
+  /* post-purchase transition report */
+  table.ppft td{vertical-align:middle}
+  table.ppft tr.ppf-old td{color:var(--muted)}
+  table.ppft tr.ppf-old td:first-child{color:var(--muted)}
+  .ppf-tr{font-size:11px;font-weight:400;color:var(--muted);margin-top:2px}
+  .ppf-bw{display:flex;align-items:center;gap:8px;min-width:120px}
+  .ppf-bw i{display:block;height:8px;border-radius:4px;min-width:2px;flex:0 0 auto;max-width:92px}
+  .ppf-bw b{font-weight:700;font-variant-numeric:tabular-nums}
+  .ppon-wrap{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+  .ppon-t{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:10px}
+  .ppon-r{display:grid;grid-template-columns:1fr;gap:3px;margin-bottom:12px}
+  .ppon-k{font-size:12px;color:var(--ink2)}
+  .ppon-e{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);border:1px solid var(--border);border-radius:3px;padding:0 4px}
+  .ppon-b{height:10px;background:color-mix(in srgb,var(--border) 60%,transparent);border-radius:5px;overflow:hidden}
+  .ppon-b i{display:block;height:100%;border-radius:5px}
+  .ppon-v{font-size:13px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+  .ppon-note{margin-top:14px;font-size:11.5px;color:var(--muted);line-height:1.5}
+  @media(max-width:620px){.ppon-wrap{grid-template-columns:1fr;gap:18px}}
   .rep-prose .tup{color:#30a46c;font-weight:800}
   .rep-prose .tdn{color:#e5484d;font-weight:800}
   .rep-fig{margin:26px 0;padding:20px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2)}
@@ -2930,6 +2948,107 @@ function repChart(host,name,data){
   const svg=(w,h)=>{const s=el('svg',{viewBox:'0 0 '+w+' '+h,width:'100%'});s.style.display='block';s.style.maxWidth=w+'px';s.style.margin='0 auto';return s;};
   const ON='var(--flow)',OFF='var(--camp)',ACC='var(--aqua)';
   const money=v=>'A$'+Math.round(v).toLocaleString();
+  // ---- post-purchase transition report -----------------------------------
+  // The handover from one order-triggered flow to three shipping-triggered
+  // ones. Stacked rather than side by side on purpose: the question is whether
+  // the same people still get reached, so the column TOTAL is the answer and
+  // the colours are only who did the reaching.
+  if(name==='ppweekly'){
+    const S=data.series||[],L=data.labels||[],n=L.length;
+    if(!n||!S.length)return;
+    const COL={old:'var(--muted)',Pre:'var(--camp)',On:'var(--flow)',De:'var(--aqua)'};
+    const col=(s,i)=>s.key==='old'?'var(--muted)':[ 'var(--flow)','var(--aqua)','var(--camp)'][(i-1)%3];
+    const W=700,H=250,PL=52,PR=14,PT=18,PB=42,iw=W-PL-PR,ih=H-PT-PB;
+    const tot=L.map((_,i)=>S.reduce((a,s)=>a+(s.vals[i]||0),0));
+    const mx=niceMax(Math.max.apply(null,tot.concat([1])));
+    const sy=svg(W,H),cw=iw/n,bw=Math.min(40,cw*0.62);
+    const cx=i=>PL+cw*(i+0.5), y=v=>PT+ih-(v/mx)*ih;
+    for(let g=0;g<=4;g++){const gv=mx*g/4;
+      sy.appendChild(el('line',{x1:PL,x2:W-PR,y1:y(gv),y2:y(gv),stroke:'var(--border)','stroke-width':1}));
+      const t=el('text',{x:PL-8,y:y(gv)+3,'text-anchor':'end',fill:'var(--muted)','font-size':10.5,'font-family':'system-ui'});
+      t.textContent=nfmt(gv);sy.appendChild(t);}
+    L.forEach((lb,i)=>{
+      let base=PT+ih;
+      S.forEach((s,k)=>{const v=s.vals[i]||0;if(v<=0)return;
+        const h=Math.max((v/mx)*ih,1);base-=h;
+        sy.appendChild(el('rect',{x:cx(i)-bw/2,y:base,width:bw,height:h,
+          fill:col(s,k),'fill-opacity':s.key==='old'?0.5:1,rx:2}));});
+      const xl=el('text',{x:cx(i),y:PT+ih+16,'text-anchor':'middle','font-size':10.5,
+        fill:'var(--muted)','font-family':'system-ui'});xl.textContent=lb;sy.appendChild(xl);
+      const hit=el('rect',{x:PL+cw*i,y:PT,width:cw,height:ih,fill:'transparent'});
+      hit.addEventListener('mousemove',e=>showTip(host,e,
+        'Week of '+lb+(i===n-1?' (part week)':''),
+        S.map((s,k)=>[s.name,s.vals[i]||0,col(s,k),v=>Math.round(v).toLocaleString()])
+         .concat([['Total',tot[i],'var(--ink)',v=>Math.round(v).toLocaleString()]])));
+      hit.addEventListener('mouseleave',()=>hideTip(host));sy.appendChild(hit);});
+    if(data.cutover!=null&&data.cutover>=0){
+      const xc=PL+cw*data.cutover;
+      sy.appendChild(el('line',{x1:xc,x2:xc,y1:PT-4,y2:PT+ih,stroke:'var(--crit)',
+        'stroke-width':1.6,'stroke-dasharray':'5 4'}));
+      const cl=el('text',{x:Math.min(xc+6,W-PR-70),y:PT+6,'font-size':10.5,'font-weight':700,
+        fill:'var(--crit)','font-family':'system-ui'});
+      cl.textContent=(data.cutover_label||'')+' cutover';sy.appendChild(cl);}
+    host.appendChild(sy);
+    const lg=alegend.apply(null,S.map((s,k)=>[s.name,col(s,k)]));
+    lg.style.margin='8px 0 0';host.appendChild(lg);
+    return;
+  }
+  // One row per flow, since the cutover. Names link straight into Klaviyo
+  // because the first question anyone asks of a row is "which one is that".
+  if(name==='ppflows'){
+    const R=data.rows||[];if(!R.length)return;
+    const mxr=Math.max.apply(null,R.map(r=>r.recipients).concat([1]));
+    const pct=v=>v==null?'—':v.toFixed(v<10?2:1)+'%';
+    const t=document.createElement('table');t.className='rtbl ppft';
+    t.innerHTML='<thead><tr><th>Flow</th><th>Emails sent</th><th>Open</th><th>Click</th>'
+      +'<th>Placed order</th><th>Revenue / email</th><th>Revenue</th></tr></thead><tbody>'
+      +R.map(r=>'<tr class="'+(r.side==='old'?'ppf-old':'')+'">'
+        +'<td><a class="abl-go" href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.name)+'</a>'
+        +'<div class="ppf-tr">'+esc(r.trigger)+'</div></td>'
+        +'<td><div class="ppf-bw"><i style="width:'+(100*r.recipients/mxr).toFixed(1)+'%;background:'
+        +(r.side==='old'?'var(--muted)':'var(--flow)')+'"></i><b>'+r.recipients.toLocaleString()+'</b></div></td>'
+        +'<td>'+pct(r.open)+'</td><td>'+pct(r.click)+'</td><td>'+pct(r.order)+'</td>'
+        +'<td>'+(r.rpr==null?'—':SYM+r.rpr.toFixed(3))+'</td>'
+        +'<td>'+kfmt(r.revenue||0)+'</td></tr>').join('')+'</tbody>';
+    host.appendChild(t);
+    return;
+  }
+  // Old vs new over the SAME window, plus what the old flow was doing before
+  // the switch. Without that third bar the new journey looks tiny against a
+  // number nobody has any feel for.
+  if(name==='ppoldnew'){
+    const dd=data.days||0,bd=data.baseline_days||1;
+    const bars=[
+      {k:'Old journey, before the switch',v:(data.baseline.recipients/bd)*dd,c:'var(--border)',
+       note:'at its pre-switch daily rate, over the same '+dd+' day'+(dd===1?'':'s'),est:true},
+      {k:'Old journey, since the switch',v:data.old.recipients,c:'var(--muted)'},
+      {k:'New journey, since the switch',v:data.new.recipients,c:'var(--flow)'},
+    ];
+    const rev=[
+      {k:'Old journey, before the switch',v:(data.baseline.revenue/bd)*dd,c:'var(--border)',est:true},
+      {k:'Old journey, since the switch',v:data.old.revenue,c:'var(--muted)'},
+      {k:'New journey, since the switch',v:data.new.revenue,c:'var(--flow)'},
+    ];
+    const panel=(title,rows,fmt)=>{
+      const mx=Math.max.apply(null,rows.map(r=>r.v).concat([1]));
+      const d=document.createElement('div');d.className='ppon';
+      d.innerHTML='<div class="ppon-t">'+esc(title)+'</div>'
+        +rows.map(r=>'<div class="ppon-r"><div class="ppon-k">'+esc(r.k)
+          +(r.est?' <span class="ppon-e">estimate</span>':'')+'</div>'
+          +'<div class="ppon-b"><i style="width:'+Math.max(100*r.v/mx,0.6).toFixed(1)
+          +'%;background:'+r.c+'"></i></div>'
+          +'<div class="ppon-v">'+fmt(r.v)+'</div></div>').join('');
+      return d;};
+    const w=document.createElement('div');w.className='ppon-wrap';
+    w.appendChild(panel('Emails sent',bars,v=>Math.round(v).toLocaleString()));
+    w.appendChild(panel('Attributed revenue',rev,v=>kfmt(v)));
+    host.appendChild(w);
+    const note=document.createElement('div');note.className='ppon-note';
+    note.textContent='The first bar in each pair is what the old flow would have done over the '
+      +'same '+dd+' day'+(dd===1?'':'s')+', at the rate it was running before the switch.';
+    host.appendChild(note);
+    return;
+  }
   // ---- cadence report ----
   // Weekly revenue at each cadence the account has actually run, with revenue
   // per send over the top. Two series because they answer different questions
