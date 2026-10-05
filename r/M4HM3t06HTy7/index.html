@@ -730,6 +730,20 @@
   table.rtbl td{border-bottom:1px solid var(--border);padding:8px 10px;color:var(--ink2);font-variant-numeric:tabular-nums}
   table.rtbl td:first-child{color:var(--ink);font-weight:600}
   /* post-purchase transition report */
+  .ppc-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+  .ppc{border:1px solid var(--border);border-radius:10px;padding:13px 12px 12px;background:var(--surface);min-width:0}
+  .ppc-l{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:7px;min-height:26px}
+  .ppc-v{font-size:21px;font-weight:800;color:var(--ink);line-height:1.1;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+  .ppc-d{font-size:11.5px;font-weight:700;margin-top:4px;min-height:16px;font-variant-numeric:tabular-nums}
+  .ppc-d.up{color:var(--good)}
+  .ppc-d.dn{color:var(--crit)}
+  .ppc-d.early{color:var(--muted);font-weight:600;font-size:10.5px}
+  .ppc-b{display:flex;gap:6px;align-items:baseline;margin-top:7px;font-size:12px;color:var(--muted)}
+  .ppc-b b{color:var(--ink2);font-weight:700;font-variant-numeric:tabular-nums}
+  .ppc-n{margin-top:6px;font-size:10.5px;color:var(--muted)}
+  .ppm-seg{display:inline-flex;gap:0;margin:0 0 12px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .ppm-seg .csg{border:0;background:transparent;color:var(--muted);font:600 12px system-ui;padding:6px 13px;cursor:pointer}
+  .ppm-seg .csg.on{background:var(--flow);color:#fff}
   table.ppft td{vertical-align:middle}
   table.ppft tr.ppf-old td{color:var(--muted)}
   table.ppft tr.ppf-old td:first-child{color:var(--muted)}
@@ -737,16 +751,9 @@
   .ppf-bw{display:block;min-width:96px}
   .ppf-bw b{display:block;font-weight:700;font-variant-numeric:tabular-nums;margin-bottom:5px}
   .ppf-bw i{display:block;height:6px;border-radius:3px;min-width:2px}
-  .ppon-wrap{display:grid;grid-template-columns:1fr 1fr;gap:26px}
-  .ppon-t{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:10px}
-  .ppon-r{display:grid;grid-template-columns:1fr auto;gap:5px 12px;margin-bottom:15px;align-items:baseline}
-  .ppon-k{grid-column:1;font-size:12px;color:var(--ink2)}
-  .ppon-e{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);border:1px solid var(--border);border-radius:3px;padding:0 4px}
-  .ppon-b{grid-column:1/-1;height:10px;background:color-mix(in srgb,var(--border) 60%,transparent);border-radius:5px;overflow:hidden}
-  .ppon-b i{display:block;height:100%;border-radius:5px}
-  .ppon-v{grid-column:2;text-align:right;font-size:13px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
   .ppon-note{margin-top:14px;font-size:11.5px;color:var(--muted);line-height:1.5}
-  @media(max-width:620px){.ppon-wrap{grid-template-columns:1fr;gap:18px}}
+  @media(max-width:900px){.ppc-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:520px){.ppc-grid{grid-template-columns:1fr}}
   .rep-prose .tup{color:#30a46c;font-weight:800}
   .rep-prose .tdn{color:#e5484d;font-weight:800}
   .rep-fig{margin:26px 0;padding:20px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2)}
@@ -2949,52 +2956,110 @@ function repChart(host,name,data){
   const ON='var(--flow)',OFF='var(--camp)',ACC='var(--aqua)';
   const money=v=>'A$'+Math.round(v).toLocaleString();
   // ---- post-purchase transition report -----------------------------------
-  // The handover from one order-triggered flow to three shipping-triggered
-  // ones. Stacked rather than side by side on purpose: the question is whether
-  // the same people still get reached, so the column TOTAL is the answer and
-  // the colours are only who did the reaching.
-  if(name==='ppweekly'){
-    const S=data.series||[],L=data.labels||[],n=L.length;
-    if(!n||!S.length)return;
-    const COL={old:'var(--muted)',Pre:'var(--camp)',On:'var(--flow)',De:'var(--aqua)'};
-    const col=(s,i)=>s.key==='old'?'var(--muted)':[ 'var(--flow)','var(--aqua)','var(--camp)'][(i-1)%3];
-    const W=700,H=250,PL=52,PR=14,PT=18,PB=42,iw=W-PL-PR,ih=H-PT-PB;
-    const tot=L.map((_,i)=>S.reduce((a,s)=>a+(s.vals[i]||0),0));
-    const mx=niceMax(Math.max.apply(null,tot.concat([1])));
-    const sy=svg(W,H),cw=iw/n,bw=Math.min(40,cw*0.62);
-    const cx=i=>PL+cw*(i+0.5), y=v=>PT+ih-(v/mx)*ih;
-    for(let g=0;g<=4;g++){const gv=mx*g/4;
-      sy.appendChild(el('line',{x1:PL,x2:W-PR,y1:y(gv),y2:y(gv),stroke:'var(--border)','stroke-width':1}));
-      const t=el('text',{x:PL-8,y:y(gv)+3,'text-anchor':'end',fill:'var(--muted)','font-size':10.5,'font-family':'system-ui'});
-      t.textContent=nfmt(gv);sy.appendChild(t);}
-    L.forEach((lb,i)=>{
-      let base=PT+ih;
-      S.forEach((s,k)=>{const v=s.vals[i]||0;if(v<=0)return;
-        const h=Math.max((v/mx)*ih,1);base-=h;
-        sy.appendChild(el('rect',{x:cx(i)-bw/2,y:base,width:bw,height:h,
-          fill:col(s,k),'fill-opacity':s.key==='old'?0.5:1,rx:2}));});
-      const xl=el('text',{x:cx(i),y:PT+ih+16,'text-anchor':'middle','font-size':10.5,
-        fill:'var(--muted)','font-family':'system-ui'});xl.textContent=lb;sy.appendChild(xl);
-      const hit=el('rect',{x:PL+cw*i,y:PT,width:cw,height:ih,fill:'transparent'});
-      hit.addEventListener('mousemove',e=>showTip(host,e,
-        'Week of '+lb+(i===n-1?' (part week)':''),
-        S.map((s,k)=>[s.name,s.vals[i]||0,col(s,k),v=>Math.round(v).toLocaleString()])
-         .concat([['Total',tot[i],'var(--ink)',v=>Math.round(v).toLocaleString()]])));
-      hit.addEventListener('mouseleave',()=>hideTip(host));sy.appendChild(hit);});
-    if(data.cutover!=null&&data.cutover>=0){
-      const xc=PL+cw*data.cutover;
-      sy.appendChild(el('line',{x1:xc,x2:xc,y1:PT-4,y2:PT+ih,stroke:'var(--crit)',
-        'stroke-width':1.6,'stroke-dasharray':'5 4'}));
-      // right-align the label on the far side of the line when there is no room
-      // to its right, or it prints straight over the line it is labelling
-      const txt=(data.cutover_label||'')+' cutover', wide=txt.length*5.9+10;
-      const fits=xc+wide<W-PR;
-      const cl=el('text',{x:fits?xc+6:xc-6,y:PT+6,'font-size':10.5,'font-weight':700,
-        'text-anchor':fits?'start':'end',fill:'var(--crit)','font-family':'system-ui'});
-      cl.textContent=txt;sy.appendChild(cl);}
-    host.appendChild(sy);
-    const lg=alegend.apply(null,S.map((s,k)=>[s.name,col(s,k)]));
-    lg.style.margin='8px 0 0';host.appendChild(lg);
+  // Metric blocks first, because the question is "is the new journey working",
+  // and the answer is five numbers against the baseline the old flow set.
+  if(name==='ppcompare'){
+    const M=data.metrics||[];if(!M.length)return;
+    const f=(v,k)=>v==null?'—':k==='num'?Math.round(v).toLocaleString()
+      :k==='pct'?v.toFixed(2)+'%':k==='pct3'?v.toFixed(3)+'%'
+      :k==='cur3'?SYM+v.toFixed(3):String(v);
+    // a rate off a few dozen emails is noise, and a −40% chip against a
+    // nine-week baseline would read as a verdict. Volume is exempt: it is a
+    // count, not a rate, and it is the one number that IS meaningful on day one.
+    const thin=(data.delivered||0)<(data.floor||0);
+    const w=document.createElement('div');w.className='ppc-grid';
+    w.innerHTML=M.map(m=>{
+      const vol=m.fmt==='num';
+      const has=m.old!=null&&m.new!=null&&m.old>0&&(vol||!thin);
+      const d=has?((m.new-m.old)/m.old*100):null;
+      const dir=d==null?'':d>=0?'up':'dn';
+      return '<div class="ppc">'
+        +'<div class="ppc-l">'+esc(m.lab)+'</div>'
+        +'<div class="ppc-v">'+f(m.new,m.fmt)+'</div>'
+        +(d==null?'<div class="ppc-d early">'+(thin&&!vol?'too early to call':'')+'</div>'
+          :'<div class="ppc-d '+dir+'">'+(d>=0?'▲ ':'▼ ')+Math.abs(d).toFixed(0)+'%</div>')
+        +'<div class="ppc-b"><span>was</span><b>'+f(m.old,m.fmt)+'</b></div>'
+        +'<div class="ppc-n">'+esc(m.note||'')+'</div></div>';}).join('');
+    host.appendChild(w);
+    const n=document.createElement('div');n.className='ppon-note';
+    n.textContent='Big number: the new three since the switch, '+data.days+' day'
+      +(data.days===1?'':'s')+' in. "Was": the old flow across the '+data.baseline_days
+      +' days before it.';
+    host.appendChild(n);
+    return;
+  }
+  // The handover itself. 100% stacked by default: the question is which flow is
+  // carrying the journey, not how big the journey is on any given day.
+  if(name==='ppmix'){
+    host.dataset.mode=host.dataset.mode||'share';
+    const draw=()=>{
+      host.querySelectorAll('svg,.tip,.legend,.ppm-seg').forEach(x=>x.remove());
+      const mode=host.dataset.mode, S=data.series||[], L=data.labels||[], n=L.length;
+      if(!n||!S.length)return;
+      const col=(s,i)=>s.side==='old'?'var(--muted)':['var(--flow)','var(--aqua)','var(--camp)'][(i-1)%3];
+      const key=mode==='rev'?'rev':'recip';
+      const vals=S.map(s=>s[key]||[]);
+      const tot=L.map((_,i)=>vals.reduce((a,v)=>a+(v[i]||0),0));
+      const share=vals.map(v=>v.map((x,i)=>tot[i]?x/tot[i]*100:0));
+      const abs=mode!=='share';
+      const plot=abs?vals:share;
+      const yTop=abs?niceMax(Math.max.apply(null,tot.concat([1]))):100;
+      const W=700,H=260,PL=abs?54:40,PR=14,PT=14,PB=40,iw=W-PL-PR,ih=H-PT-PB;
+      const seg=document.createElement('div');seg.className='ppm-seg';
+      seg.innerHTML=[['share','Share'],['recip','Emails'],['rev','Revenue']]
+        .map(([k,t])=>'<button type="button" class="csg'+(mode===k?' on':'')
+          +'" data-m="'+k+'">'+t+'</button>').join('');
+      seg.addEventListener('click',e=>{const b=e.target.closest('.csg');if(!b)return;
+        host.dataset.mode=b.dataset.m;draw();});
+      host.appendChild(seg);
+      const lg=alegend.apply(null,S.map((s,k)=>[s.name,col(s,k)]));
+      lg.style.margin='0 0 8px';host.appendChild(lg);
+      const sy=svg(W,H);
+      const x=i=>PL+(n<=1?iw/2:iw*i/(n-1)), y=v=>PT+ih-(v/yTop)*ih;
+      for(let g=0;g<=4;g++){const gv=yTop*g/4;
+        sy.appendChild(el('line',{x1:PL,x2:W-PR,y1:y(gv),y2:y(gv),stroke:'var(--border)','stroke-width':1}));
+        const t=el('text',{x:PL-8,y:y(gv)+4,'text-anchor':'end',fill:'var(--muted)',
+          'font-size':10.5,'font-family':'system-ui'});
+        t.textContent=mode==='share'?(g*25)+'%':mode==='rev'?kfmt(gv):nfmt(gv);
+        sy.appendChild(t);}
+      const cum=L.map(()=>0);
+      S.forEach((s,si)=>{const bot=[],tp=[];
+        for(let i=0;i<n;i++){const b=cum[i],t=b+(plot[si][i]||0);bot.push(b);tp.push(t);cum[i]=t;}
+        let d='M'+x(0)+' '+y(bot[0]);
+        for(let i=0;i<n;i++)d+='L'+x(i)+' '+y(tp[i]);
+        for(let i=n-1;i>=0;i--)d+='L'+x(i)+' '+y(bot[i]);
+        d+='Z';
+        sy.appendChild(el('path',{d,fill:col(s,si),'fill-opacity':s.side==='old'?0.55:0.92,
+          stroke:'var(--surface)','stroke-width':0.8}));});
+      const ev=Math.max(1,Math.ceil(n/9));
+      L.forEach((lb,i)=>{if(i%ev)return;
+        const t=el('text',{x:x(i),y:PT+ih+16,'text-anchor':'middle','font-size':10.5,
+          fill:'var(--muted)','font-family':'system-ui'});t.textContent=lb;sy.appendChild(t);});
+      if(data.cutover!=null&&data.cutover>=0){
+        const xc=x(data.cutover);
+        sy.appendChild(el('line',{x1:xc,x2:xc,y1:PT-4,y2:PT+ih,stroke:'var(--crit)',
+          'stroke-width':1.6,'stroke-dasharray':'5 4'}));
+        const txt=(data.cutover_label||'')+' cutover', fits=xc+txt.length*5.9+12<W-PR;
+        const cl=el('text',{x:fits?xc+6:xc-6,y:PT+6,'font-size':10.5,'font-weight':700,
+          'text-anchor':fits?'start':'end',fill:'var(--crit)','font-family':'system-ui'});
+        cl.textContent=txt;sy.appendChild(cl);}
+      const cross=el('line',{x1:0,x2:0,y1:PT,y2:PT+ih,stroke:'var(--ink2)',
+        'stroke-width':1,'stroke-dasharray':'3 3',opacity:0});sy.appendChild(cross);
+      const hit=el('rect',{x:PL,y:PT,width:iw,height:ih,fill:'transparent'});
+      hit.addEventListener('mousemove',e=>{
+        const r=sy.getBoundingClientRect(),px=(e.clientX-r.left)/r.width*W;
+        const i=Math.max(0,Math.min(n-1,Math.round((px-PL)/iw*(n-1))));
+        cross.setAttribute('x1',x(i));cross.setAttribute('x2',x(i));cross.setAttribute('opacity',1);
+        const rows=S.map((s,si)=>[s.name,vals[si][i]||0,col(s,si),
+          v=>(mode==='rev'?kfmt(v):Math.round(v).toLocaleString())
+             +' ('+share[si][i].toFixed(0)+'%)'])
+          .filter((_,si)=>(vals[si][i]||0)>0);
+        if(!rows.length)rows.push(['Nothing sent',0,'var(--muted)',()=>'—']);
+        showTip(host,e,L[i],rows);});
+      hit.addEventListener('mouseleave',()=>{cross.setAttribute('opacity',0);hideTip(host);});
+      sy.appendChild(hit);
+      host.appendChild(sy);};
+    draw();
     return;
   }
   // One row per flow, since the cutover. Names link straight into Klaviyo
@@ -3016,42 +3081,6 @@ function repChart(host,name,data){
         +'<td>'+(r.rpr==null?'—':SYM+r.rpr.toFixed(3))+'</td>'
         +'<td>'+kfmt(r.revenue||0)+'</td></tr>').join('')+'</tbody>';
     host.appendChild(t);
-    return;
-  }
-  // Old vs new over the SAME window, plus what the old flow was doing before
-  // the switch. Without that third bar the new journey looks tiny against a
-  // number nobody has any feel for.
-  if(name==='ppoldnew'){
-    const dd=data.days||0,bd=data.baseline_days||1;
-    const bars=[
-      {k:'Old journey, before the switch',v:(data.baseline.recipients/bd)*dd,c:'var(--border)',
-       note:'at its pre-switch daily rate, over the same '+dd+' day'+(dd===1?'':'s'),est:true},
-      {k:'Old journey, since the switch',v:data.old.recipients,c:'var(--muted)'},
-      {k:'New journey, since the switch',v:data.new.recipients,c:'var(--flow)'},
-    ];
-    const rev=[
-      {k:'Old journey, before the switch',v:(data.baseline.revenue/bd)*dd,c:'var(--border)',est:true},
-      {k:'Old journey, since the switch',v:data.old.revenue,c:'var(--muted)'},
-      {k:'New journey, since the switch',v:data.new.revenue,c:'var(--flow)'},
-    ];
-    const panel=(title,rows,fmt)=>{
-      const mx=Math.max.apply(null,rows.map(r=>r.v).concat([1]));
-      const d=document.createElement('div');d.className='ppon';
-      d.innerHTML='<div class="ppon-t">'+esc(title)+'</div>'
-        +rows.map(r=>'<div class="ppon-r"><div class="ppon-k">'+esc(r.k)
-          +(r.est?' <span class="ppon-e">estimate</span>':'')+'</div>'
-          +'<div class="ppon-v">'+fmt(r.v)+'</div>'
-          +'<div class="ppon-b"><i style="width:'+Math.max(100*r.v/mx,0.6).toFixed(1)
-          +'%;background:'+r.c+'"></i></div></div>').join('');
-      return d;};
-    const w=document.createElement('div');w.className='ppon-wrap';
-    w.appendChild(panel('Emails sent',bars,v=>Math.round(v).toLocaleString()));
-    w.appendChild(panel('Attributed revenue',rev,v=>kfmt(v)));
-    host.appendChild(w);
-    const note=document.createElement('div');note.className='ppon-note';
-    note.textContent='The first bar in each pair is what the old flow would have done over the '
-      +'same '+dd+' day'+(dd===1?'':'s')+', at the rate it was running before the switch.';
-    host.appendChild(note);
     return;
   }
   // ---- cadence report ----
