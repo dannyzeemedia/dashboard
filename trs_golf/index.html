@@ -3969,8 +3969,26 @@ function auditGrowthDeliv(host,spec){
   // unsubscribe rate is an area behind them on its own scale with spam as a
   // line. The argument is that intake and complaints move together, so they
   // belong on one time axis rather than in two lists.
+  //
+  // With `out` (unsubscribes per month) it also carries a NET mode. Intake on
+  // its own cannot answer "is the list growing", and a 12-month in-vs-out total
+  // hides the shape: a list can be net positive for most of a year and still
+  // show a loss because of two bad months at the start of it.
   const x=spec.x||[],subs=spec.subs||[],un=spec.unsub||[],sp=spec.spam||[];
   const n=x.length; if(!n)return;
+  if((spec.out||[]).length===n){
+    host.dataset.gmode=host.dataset.gmode||'in';
+    const seg=document.createElement('div');seg.className='ppm-seg';
+    seg.innerHTML=[['in','Intake & deliverability'],['net','Net change']]
+      .map(([k,t])=>'<button type="button" class="csg'+(host.dataset.gmode===k?' on':'')
+        +'" data-g="'+k+'">'+t+'</button>').join('');
+    seg.addEventListener('click',e=>{const b=e.target.closest('.csg');if(!b)return;
+      host.dataset.gmode=b.dataset.g;
+      host.querySelectorAll('svg,.legend,.ppm-seg,.conc-note,.tip').forEach(z=>z.remove());
+      auditGrowthDeliv(host,spec);});
+    host.appendChild(seg);
+    if(host.dataset.gmode==='net')return auditGrowthNet(host,spec);
+  }
   const W=1080,H=330,PL=62,PR=66,PT=20,PB=46,iw=W-PL-PR,ih=H-PT-PB;
   const mxS=niceMax(Math.max.apply(null,subs)),
         mxU=Math.max.apply(null,un)*1.25||1,
@@ -4024,11 +4042,66 @@ function auditGrowthDeliv(host,spec){
   if(spec.note){const nn=document.createElement('div');nn.className='conc-note';
     nn.textContent=spec.note;host.appendChild(nn);}}
 const kfmtplain=n=>n>=1000?(n/1000).toFixed(1)+'k':String(Math.round(n));
+
+// Net list change per month: subscribers in minus unsubscribes out, as columns
+// above and below a zero line. The 12-month total is one number and it averages
+// away the only thing worth knowing, which is whether the trend turned.
+function auditGrowthNet(host,spec){
+  const x=spec.x||[],ins=spec.subs||[],outs=spec.out||[],n=x.length;
+  const net=ins.map((v,i)=>v-(outs[i]||0));
+  const W=1080,H=330,PL=66,PR=18,PT=22,PB=46,iw=W-PL-PR,ih=H-PT-PB;
+  const hi=Math.max.apply(null,net.concat([0])), lo=Math.min.apply(null,net.concat([0]));
+  // gridlines stepped off a common unit so ZERO is always one of them. Scaling
+  // each side independently put the baseline between gridlines and printed axis
+  // labels like -125 and -3375, which read as data rather than as a scale.
+  const step=niceMax(Math.max(hi,-lo)||1)/2;
+  const top=Math.max(Math.ceil(hi/step)*step,step), bot=Math.min(Math.floor(lo/step)*step,-step);
+  const span=top-bot||1;
+  const y=v=>PT+ih-((v-bot)/span)*ih, zero=y(0);
+  const cx=i=>PL+iw*(i+0.5)/n, bw=Math.min(52,iw/n*0.56);
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
+  host.style.position='relative';
+  for(let v=bot;v<=top+0.001;v+=step){
+    svg.appendChild(el('line',{class:'gl',x1:PL,x2:W-PR,y1:y(v),y2:y(v)}));
+    const t=el('text',{class:'ax',x:PL-8,y:y(v)+4,'text-anchor':'end'});
+    t.textContent=(v>0?'+':'')+kfmtplain(v);svg.appendChild(t);}
+  net.forEach((v,i)=>{const up=v>=0, h=Math.max(2,Math.abs(y(v)-zero));
+    svg.appendChild(el('rect',{x:cx(i)-bw/2,y:up?zero-h:zero,width:bw,height:h,rx:3,
+      fill:up?'var(--good)':'var(--crit)','fill-opacity':0.9}));
+    const t=el('text',{x:cx(i),y:up?zero-h-7:zero+h+14,'text-anchor':'middle',
+      fill:up?'var(--good)':'var(--crit)','font-size':11,'font-weight':700,
+      'font-family':'system-ui'});
+    t.textContent=(v>0?'+':'')+kfmtplain(v);svg.appendChild(t);});
+  svg.appendChild(el('line',{x1:PL,x2:W-PR,y1:zero,y2:zero,stroke:'var(--ink2)','stroke-width':1.2}));
+  x.forEach((m,i)=>{if(labIdx(n).has(i)){mlab(svg,cx(i),PT+ih+18,m);}});
+  const guide=el('line',{class:'cross',y1:PT,y2:PT+ih,opacity:0});svg.appendChild(guide);
+  for(let i=0;i<n;i++){const hit=el('rect',{x:PL+iw*i/n,y:PT,width:iw/n,height:ih,fill:'transparent'});
+    hit.addEventListener('mousemove',e=>{guide.setAttribute('x1',cx(i));guide.setAttribute('x2',cx(i));
+      guide.setAttribute('opacity',1);
+      showTip(host,e,x[i],[
+        ['Subscribers in',ins[i]||0,'var(--good)',v=>'+'+Math.round(v).toLocaleString()],
+        ['Unsubscribes out',outs[i]||0,'var(--crit)',v=>'-'+Math.round(v).toLocaleString()],
+        ['Net',net[i],net[i]>=0?'var(--good)':'var(--crit)',
+         v=>(v>0?'+':'')+Math.round(v).toLocaleString()]]);});
+    hit.addEventListener('mouseleave',()=>{guide.setAttribute('opacity',0);hideTip(host);});
+    svg.appendChild(hit);}
+  host.appendChild(alegend(['Net gain','var(--good)'],['Net loss','var(--crit)']));
+  host.appendChild(svg);
+  if(spec.netnote){const nn=document.createElement('div');nn.className='conc-note';
+    nn.textContent=spec.netnote;host.appendChild(nn);}}
+
 function auditCompare(host,spec){const items=spec.items||[],mx=Math.max(...items.map(i=>Math.abs(i.value)||0),1);
   // pct: a rate is neither money nor a count, and formatting one as either
   // printed an unsubscribe rate of 0.27% as "$0.27"
-  const fmt=spec.pct?(v=>(+v).toFixed(spec.decimals==null?2:spec.decimals)+'%')
-    :spec.rpr?(v=>'$'+(+v).toFixed(Math.abs(+v)<0.1?4:2)):spec.money?kfmt:(v=>nfmt(v));
+  // decimals on a plain count used to be ignored, so a 13.4x ratio printed as
+  // "13" and read as a different number. `unit` appends a suffix (x, days, %pt)
+  // so a ratio does not have to pretend to be money or a percentage.
+  const dec=spec.decimals;
+  const base=spec.pct?(v=>(+v).toFixed(dec==null?2:dec)+'%')
+    :spec.rpr?(v=>'$'+(+v).toFixed(Math.abs(+v)<0.1?4:2))
+    :spec.money?kfmt
+    :(dec!=null?(v=>(+v).toFixed(dec)):(v=>nfmt(v)));
+  const fmt=spec.unit?(v=>base(v)+spec.unit):base;
   host.style.position='relative';
   const wrap=document.createElement('div');wrap.className='abars';host.appendChild(wrap);
   items.forEach(it=>{const pct=Math.max(it.value>0?4:0,Math.abs(it.value)/mx*100),c=it.flag?'var(--crit)':'var(--flow)';
