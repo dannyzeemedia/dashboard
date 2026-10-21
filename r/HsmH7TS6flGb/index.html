@@ -7075,7 +7075,10 @@ function rmBox(n){
   const k=rmKind(n);
   if(k==='trigger')return {w:RM_W.msg,h:74};
   if(k==='delay')return {w:RM_W.delay,h:RM_HB.delay};
-  if(k==='split')return {w:RM_W.split,h:RM_HB.split};
+  // a split only buys the second line when its condition actually needs one,
+  // so a short "Split #1" card does not sit half empty
+  if(k==='split')return {w:RM_W.split,
+    h:RM_HB.split+(rmWrap(n.cond||'condition',RM_W.split-32,11.5,600,2).length>1?18:0)};
   return {w:RM_W.msg,h:(RM_PERF?228:90)};   // tile card (perf) or header+alert bar only
 }
 
@@ -7099,38 +7102,95 @@ function rmLayout(nodes){
   const dfs=id=>{if(!id||seen.has(id)||!by[id])return;seen.add(id);ord[id]=c++;kids(by[id]).forEach(dfs);};
   roots.forEach(dfs); nodes.forEach(n=>{if(ord[n.id]==null)ord[n.id]=c++;});
 
-  const rows={}; nodes.forEach(n=>{(rows[rank[n.id]]=rows[rank[n.id]]||[]).push(n.id);});
+  // ---- an arm that rejoins further down gets a column of its own ---------
+  // Ranks are longest-path, so where a Yes arm skips straight to a merge node
+  // that the No arm only reaches after its own messages, the merge is ranked
+  // BELOW the whole No arm and the Yes edge spans several ranks at once. With
+  // one node per rank every node shares a centreline, so that edge was drawn
+  // as a bare line running straight down behind the other arm's cards: the
+  // branch was invisible and the split read as a single road with a stray
+  // percentage floating under it. Giving each skipped rank a waypoint puts the
+  // arm in its own column, which is what makes a split look like a fork.
+  const wp={}, routes={};
+  nodes.forEach(n=>kids(n).forEach(k=>{
+    const span=rank[k]-rank[n.id];
+    if(span<=1)return;
+    const chain=[];
+    for(let r=rank[n.id]+1;r<rank[k];r++){
+      const id='\u0000wp:'+n.id+'>'+k+':'+r;
+      // sits just ahead of the node it rejoins, so the arm leaves on the side
+      // the reader already expects it to (Yes before No, in DFS order)
+      wp[id]={rank:r, ord:(ord[k]!=null?ord[k]:0)-0.5};
+      chain.push(id);
+    }
+    if(chain.length)routes[n.id+'>'+k]=chain;
+  }));
+  const ids=nodes.map(n=>n.id).concat(Object.keys(wp));
+  const rankOf=id=>wp[id]?wp[id].rank:rank[id];
+  const ordOf=id=>wp[id]?wp[id].ord:ord[id];
+
+  const rows={}; ids.forEach(id=>{(rows[rankOf(id)]=rows[rankOf(id)]||[]).push(id);});
   const rks=Object.keys(rows).map(Number).sort((a,b)=>a-b);
-  rks.forEach(r=>rows[r].sort((a,b)=>ord[a]-ord[b]));
+  rks.forEach(r=>rows[r].sort((a,b)=>ordOf(a)-ordOf(b)));
   const x={}; rks.forEach(r=>rows[r].forEach((id,i)=>x[id]=i));
-  const par={}; nodes.forEach(n=>kids(n).forEach(k=>{(par[k]=par[k]||[]).push(n.id);}));
+  // neighbours with the waypoints spliced in, so a routed arm is pulled into a
+  // straight column of its own instead of being averaged back onto the trunk
+  const par={}, kid2={};
+  const link=(a,b)=>{(kid2[a]=kid2[a]||[]).push(b);(par[b]=par[b]||[]).push(a);};
+  nodes.forEach(n=>kids(n).forEach(k=>{
+    const ch=routes[n.id+'>'+k];
+    if(ch){link(n.id,ch[0]);
+      for(let i=1;i<ch.length;i++)link(ch[i-1],ch[i]);
+      link(ch[ch.length-1],k);}
+    else link(n.id,k);
+  }));
   for(let it=0;it<8;it++){
     const order=it%2===0?rks:rks.slice().reverse();
     order.forEach(r=>{
       rows[r].forEach(id=>{
-        const rel=it%2===0?(par[id]||[]):kids(by[id]);
+        const rel=it%2===0?(par[id]||[]):(kid2[id]||[]);
         if(rel.length)x[id]=rel.reduce((a,k)=>a+x[k],0)/rel.length;
       });
       const arr=rows[r].slice().sort((a,b)=>x[a]-x[b]);
       for(let i=1;i<arr.length;i++)if(x[arr[i]]<x[arr[i-1]]+1)x[arr[i]]=x[arr[i-1]]+1;
     });
   }
-  const minx=Math.min(...nodes.map(n=>x[n.id])), pitch=RM_W.msg+RM_GAPX;
+  const minx=Math.min(...ids.map(id=>x[id])), pitch=RM_W.msg+RM_GAPX;
   // a split whose shares are readable gets a pie above every path it fans into,
   // so the row below it needs the headroom to hold one
   const fansToPies=id=>{const n=by[id]; if(!n)return false;
     if(n.branches&&n.branches.length){const sp=rmSplitN(n,by);return !!(sp&&sp.readable);}
     if(n.yes||n.no){const sp=rmSplit(n,by);return !!(sp&&sp.readable);}
     return false;};
+  const boxOf=id=>wp[id]?{w:0,h:0}:rmBox(by[id]);
   let y=RM_PAD; const pos={};
   rks.forEach(r=>{
-    const hh=Math.max(...rows[r].map(id=>rmBox(by[id]).h));
-    rows[r].forEach(id=>{const b=rmBox(by[id]);
+    const hh=Math.max(0,...rows[r].map(id=>boxOf(id).h));
+    rows[r].forEach(id=>{const b=boxOf(id);
       pos[id]={x:RM_PAD+(x[id]-minx)*pitch+(RM_W.msg-b.w)/2,y:y+(hh-b.h)/2,w:b.w,h:b.h};});
-    y+=hh+RM_GAPY+(rows[r].some(fansToPies)?RM_PIE_ROOM:0);
+    y+=hh+RM_GAPY+(rows[r].some(id=>!wp[id]&&fansToPies(id))?RM_PIE_ROOM:0);
   });
-  const mx=Math.max(...nodes.map(n=>pos[n.id].x+pos[n.id].w));
-  return {pos,width:mx+RM_PAD,height:y-RM_GAPY+RM_PAD,kids,by};
+  const mx=Math.max(...ids.map(id=>pos[id].x+pos[id].w));
+  return {pos,width:mx+RM_PAD,height:y-RM_GAPY+RM_PAD,kids,by,routes,wp};
+}
+
+// An orthogonal connector with rounded corners through a list of points.
+// Zero-length segments collapse cleanly, so a waypoint that lands on the
+// trunk's own column just draws as a straight line.
+function rmOrtho(pts,r){
+  const p0=pts[0]; let d='M'+p0.x+' '+p0.y;
+  for(let i=1;i<pts.length-1;i++){
+    const p=pts[i-1],q=pts[i],s=pts[i+1];
+    const ax=Math.sign(q.x-p.x),ay=Math.sign(q.y-p.y);
+    const bx=Math.sign(s.x-q.x),by2=Math.sign(s.y-q.y);
+    if(!ax&&!ay)continue;
+    if(!bx&&!by2)continue;
+    const rr=Math.min(r,Math.hypot(q.x-p.x,q.y-p.y)/2,Math.hypot(s.x-q.x,s.y-q.y)/2);
+    d+=' L'+(q.x-ax*rr)+' '+(q.y-ay*rr)
+      +' Q'+q.x+' '+q.y+' '+(q.x+bx*rr)+' '+(q.y+by2*rr);
+  }
+  const last=pts[pts.length-1];
+  return d+' L'+last.x+' '+last.y;
 }
 
 // ---- drawing ----
@@ -7230,6 +7290,24 @@ function rmTrunc(t,px,size,weight){
   while(lo<hi){const mid=(lo+hi+1)>>1;
     if(rmMeasure(t.slice(0,mid).trim()+'…',size,weight)<=px)lo=mid;else hi=mid-1;}
   return lo>0?t.slice(0,lo).trim()+'…':'';
+}
+// Wrap to at most `lines` lines, truncating the last one. A split's condition
+// is the whole point of the card, and on one line the window it tests ("since
+// starting this flow") was always the half that got cut.
+function rmWrap(t,px,size,weight,lines){
+  t=(t||'').trim(); if(!t)return [];
+  const words=t.split(/\s+/), out=[];
+  let i=0;
+  while(i<words.length&&out.length<lines){
+    let cur=words[i++];
+    while(i<words.length&&rmMeasure(cur+' '+words[i],size,weight)<=px)cur+=' '+words[i++];
+    out.push(cur);
+  }
+  // anything that did not fit is folded back into the last line and cut there,
+  // so the ellipsis lands at the end of the text rather than mid-card
+  if(i<words.length&&out.length)
+    out[out.length-1]=rmTrunc(out[out.length-1]+' '+words.slice(i).join(' '),px,size,weight);
+  return out;
 }
 
 // Walk a branch to the first sending message on every path and total what it
@@ -7375,7 +7453,17 @@ function rmDraw(){
       let d;
       const isSplit=!!(n.yes||n.no||n.branches);
       const myy=isSplit?y1+RM_FAN:y1+Math.max(22,(y2-y1)/2);
-      if(Math.abs(x1-x2)<2)d='M'+x1+' '+y1+' L'+x2+' '+(y2-6);
+      // an arm that skips ranks travels down its own waypoint column and only
+      // comes back to the trunk just above the node it rejoins
+      const chain=(L.routes||{})[n.id+'>'+kid];
+      const hops=chain?chain.map(id=>L.pos[id]).filter(Boolean):null;
+      const armX=hops&&hops.length?hops[0].x:null;
+      if(armX!=null){
+        const back=y2-34;
+        d=rmOrtho([{x:x1,y:y1},{x:x1,y:myy},{x:armX,y:myy},
+                   {x:armX,y:back},{x:x2,y:back},{x:x2,y:y2-6}],18);
+      }
+      else if(Math.abs(x1-x2)<2)d='M'+x1+' '+y1+' L'+x2+' '+(y2-6);
       else{
         const my=myy,r=Math.min(18,Math.abs(x2-x1)/2),dir=x2>x1?1:-1;
         d='M'+x1+' '+y1+' L'+x1+' '+(my-r)+' Q'+x1+' '+my+' '+(x1+r*dir)+' '+my
@@ -7384,7 +7472,9 @@ function rmDraw(){
       eg.appendChild(sv('path',{d:d,fill:'none',stroke:P.edge,'stroke-width':1.8,
         'stroke-linecap':'round','stroke-linejoin':'round','marker-end':'url(#rm-ar)'}));
       if(lab){
-        const lx=x1+(x2-x1)*0.5, ly=myy-9;
+        // a routed arm labels itself at the head of its own column, not at the
+        // midpoint of a line that no longer runs there
+        const lx=armX!=null?armX:x1+(x2-x1)*0.5, ly=myy-9;
         const br=n.branches?n.branches[bi]:null;
         const sp=n.branches?null:rmSplit(n,L.by);
         const pct=br
@@ -7394,11 +7484,12 @@ function rmDraw(){
         if(pct==null){
           rmText(eg,lx,ly,lab,10,700,bcol,.85,'.1em');
         }else{
-          const txt=lab+'  '+Math.round(pct*100)+'%';
-          const w=rmMeasure(txt,10,700)+18;
+          // the share is on the pie right below; repeating it in the pill put
+          // the same number on screen twice, a dozen pixels apart
+          const w=rmMeasure(lab,10,700)+18;
           eg.appendChild(sv('rect',{x:lx-w/2,y:ly-13,width:w,height:19,rx:9.5,
             fill:P.card,stroke:bcol,'stroke-opacity':.5,'stroke-width':1}));
-          rmText(eg,lx,ly,txt,10,700,bcol,1,'.04em');
+          rmText(eg,lx,ly,lab,10,700,bcol,1,'.04em');
         }
         // the branch's test sits just above the node it leads into, where there is
         // node-width room for it — at the label's midpoint it collides with the
@@ -7408,7 +7499,8 @@ function rmDraw(){
           const pie=sv('g',{class:'rm-pathpie'});
           // the muted grey an 'everyone else' arm is drawn in is too light to
           // read as a number, so the centre takes the next step up in ink
-          rmPathPie(pie,x2,y2-49,pct,bcol,bcol===P.mute?P.dim:bcol,P,sv,rmText);
+          if(armX!=null)rmPathPie(pie,armX,myy+28,pct,bcol,bcol===P.mute?P.dim:bcol,P,sv,rmText);
+          else rmPathPie(pie,x2,y2-49,pct,bcol,bcol===P.mute?P.dim:bcol,P,sv,rmText);
           const tt=(br?(br.is_else?'Everyone else':(br.name||br.cond||'Path')):lab)
             +': '+(pct*100).toFixed(1)+'% of everyone this split sends'
             +(spn&&spn.total?' ('+Math.round(pct*spn.total).toLocaleString()
@@ -7493,7 +7585,8 @@ function rmDraw(){
       drawIcon(p.x+16,p.y+15,17,P.accent,'split');
       rmText(g,p.x+40,p.y+27,n.branches?('SPLIT · '+n.branches.length+' PATHS'):'CONDITION',
              8.5,800,P.accent,1,'.13em','start');
-      rmText(g,p.x+16,p.y+50,rmTrunc(n.cond||'condition',p.w-32,11.5,600),11.5,600,P.ink,1,null,'start');
+      rmWrap(n.cond||'condition',p.w-32,11.5,600,2)
+        .forEach((ln,i)=>rmText(g,p.x+16,p.y+50+i*16,ln,11.5,600,P.ink,1,null,'start'));
       if(n.branches){
         const spn=rmSplitN(n,L.by);
         if(spn&&spn.readable){
@@ -7597,18 +7690,29 @@ function rmDraw(){
           rmText(g,cx+sw/2,sy+32,c2[1],13,750,P.ink,1,'-.01em');});
         // sent · unsub (left) + smart / A-B chips (right)
         const ry=sy+sh+19, unsubHi=st&&st.delivered>=500&&st.unsub>=1;
-        let mx=L0;
-        rmText(g,mx,ry,'Sent',8,800,P.mute,1,'.05em','start'); mx+=rmMeasureLS('Sent',8,800,.05)+5;
-        const sV=st?st.delivered.toLocaleString():'—'; rmText(g,mx,ry,sV,11,700,P.ink,1,null,'start'); mx+=rmMeasure(sV,11,700)+9;
-        rmText(g,mx,ry,'·',9,700,P.mute,.6,null,'start'); mx+=9;
-        rmText(g,mx,ry,'Unsub',8,800,P.mute,1,'.05em','start'); mx+=rmMeasureLS('Unsub',8,800,.05)+5;
-        const uV=st?st.unsub.toFixed(2)+'%':'—'; rmText(g,mx,ry,uV,11,700,unsubHi?P.crit:P.ink,1,null,'start');
+        // The chips are drawn FIRST so the sent/unsub run knows where it has to
+        // stop. Drawn the other way round, a card carrying both TESTING and
+        // SMART OFF ran the unsub figure straight underneath them.
         let rxp=R0;
         const chip=(txt,col,bg)=>{const w=rmMeasureLS(txt,8,800,.05)+16;rxp-=w;
           g.appendChild(sv('rect',{x:rxp,y:ry-11,width:w,height:16,rx:8,fill:bg}));
           rmText(g,rxp+w/2,ry+1,txt,8,800,col,1,'.05em');rxp-=6;};
         if(n.ab){const alive=n.ab.experiment_status==='live';chip(alive?'TESTING':'TEST IDLE',alive?P.good:P.warn,alive?P.goodSoft:P.warnSoft);}
         if(n.smart_sending===false)chip('SMART OFF',P.mute,P.chip);
+        const sV=st?st.delivered.toLocaleString():'—', uV=st?st.unsub.toFixed(2)+'%':'—';
+        const wSent=rmMeasureLS('Sent',8,800,.05)+5, wUns=rmMeasureLS('Unsub',8,800,.05)+5;
+        // shed the labels before the figures: which number is which stays clear
+        // from the order and the % sign, and both figures matter more than either word
+        const full=wSent+rmMeasure(sV,11,700)+9+9+wUns+rmMeasure(uV,11,700);
+        const noSent=full-wSent;
+        const room=rxp-8-L0;
+        const showSent=full<=room, showUns=noSent<=room;
+        let mx=L0;
+        if(showSent){rmText(g,mx,ry,'Sent',8,800,P.mute,1,'.05em','start'); mx+=wSent;}
+        rmText(g,mx,ry,sV,11,700,P.ink,1,null,'start'); mx+=rmMeasure(sV,11,700)+9;
+        rmText(g,mx,ry,'·',9,700,P.mute,.6,null,'start'); mx+=9;
+        if(showUns){rmText(g,mx,ry,'Unsub',8,800,P.mute,1,'.05em','start'); mx+=wUns;}
+        rmText(g,mx,ry,uV,11,700,unsubHi?P.crit:P.ink,1,null,'start');
       }
 
       // ---- footer alert bar (health only; publish status is the pill) ----
