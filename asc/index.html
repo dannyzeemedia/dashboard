@@ -4615,7 +4615,7 @@ function auditTesting(host,spec){
     +'</ul></div>';
   host.appendChild(wrap);
   const foot=document.createElement('div');foot.className='tst-foot';
-  foot.innerHTML='Losing tests are cut fast; every winner becomes the new baseline until it is beaten, so wins bank <b>permanently</b>. Even a 10% win rate would pay off. At our cadence that is roughly <b>'+banked+' winning tests banked per year</b> versus zero here, each one a gain the lifecycle keeps.';
+  foot.innerHTML='Losing tests are cut fast; every winner becomes the new baseline until it is beaten, so wins bank <b>permanently</b>. Even a 10% win rate would pay off. At our cadence that is roughly <b>'+banked+' winning tests banked per year</b> '+(spec.footTail||'versus zero here, each one a gain the lifecycle keeps.');
   host.appendChild(foot);}
 function auditReentry(host,S){
   const cls=n=>{n=(n||'').toLowerCase();
