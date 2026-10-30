@@ -439,6 +439,18 @@
   .win-link:hover{text-decoration:underline}
   .wins-help{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:1px solid var(--border);color:var(--muted);font-size:11px;font-weight:800;margin-left:8px;cursor:help;position:relative;vertical-align:middle}
   .wins-help:hover::after{content:attr(data-tip);position:absolute;right:0;top:150%;width:250px;background:var(--ink);color:var(--surface);font-size:12px;font-weight:500;line-height:1.45;padding:10px 12px;border-radius:8px;z-index:30;white-space:normal;box-shadow:0 8px 24px rgba(0,0,0,.22)}
+  /* The audit is read by a prospect, not by us, and it reads as one object or
+     not at all. Danny, 30 Oct 2026: "bright reds, bright greens, deep reds,
+     deep greens. That's not even on brand." He was right: the bars were drawn
+     in the client's deep brand green while the STRENGTH pill used a brighter
+     stock green beside it, so every card carried two greens that did not match
+     and a stock red that belonged to no brand.
+     Inside the audit there is now ONE green (the client's own), ONE amber (the
+     client's own), and ONE red, deepened to carry the same weight as a brand
+     colour instead of shouting over it. */
+  #audit-body{--good:var(--flow);--warn:var(--camp);--crit:#9E3B2B}
+  @media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])) #audit-body{--crit:#E0806C}}
+  :root[data-theme="dark"] #audit-body{--crit:#E0806C}
   .asection{border-top:1px solid var(--border)}
   .asec-head{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;cursor:pointer;padding:18px 2px;text-align:left;font-family:inherit}
   .asec-chev{flex:none;color:var(--muted);font-size:13px;transition:transform .15s ease;display:inline-block}
@@ -3985,7 +3997,13 @@ function auditTwin(host,spec){
   const W=1080,H=320,PL=66,PR=70,PT=22,PB=46,iw=W-PL-PR,ih=H-PT-PB;
   const mxB=niceMax(Math.max.apply(null,bars.concat([1])));
   const lv=line.filter(v=>v!=null);
-  const mxL=niceMax(Math.max.apply(null,lv.concat([0.001])));
+  // When the bars and the line are the SAME unit - subscriptions started
+  // against subscriptions cancelled - two independent scales make the reader
+  // compare heights that are not comparable, and a crossing point that is an
+  // artefact of the axes reads as a fact. `onescale` puts both on the bars'
+  // scale so the eye is allowed to trust what it sees.
+  const mxL=spec.onescale?mxB
+    :niceMax(Math.max.apply(null,lv.concat([0.001])));
   const cx=i=>PL+iw*(i+0.5)/n, bw=Math.min(46,iw/n*0.58);
   const yB=v=>PT+ih-(v/mxB)*ih, yL=v=>PT+ih-(v/mxL)*ih;
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
