@@ -1668,7 +1668,7 @@
           </div>
         </div></div>
       </div>
-      <div class="asection dsection open">
+      <div class="asection dsection open" id="sec-testing">
         <button class="asec-head" type="button"><span class="asec-chev">▸</span><span class="asec-name">Testing</span></button>
         <div class="asec-body"><div class="asec-inner">
           <div class="grid">
@@ -2364,7 +2364,16 @@ function miniLine(card,win,vals0,color,fmt,dash0,lab,ip){const[i0,i1]=win;const 
   hit.addEventListener('mousemove',e=>{const r=svg.getBoundingClientRect();const px=(e.clientX-r.left)/r.width*W;let i=Math.round((px-PL)/iw*(n-1));i=Math.max(0,Math.min(n-1,i));if(vals[i]!=null){const rows=[[lab||'',vals[i],color]];if(dash&&dash[i]!=null)rows.push(['3-mo avg',dash[i],'var(--camp)']);showTip(card,e,mlabel(L[i]),rows,fmt);}});
   hit.addEventListener('mouseleave',()=>hideTip(card));svg.appendChild(hit);card.appendChild(svg);}
 
-function renderTests(){const cc=document.getElementById('c-tests');let sm=cc.querySelector('.sm');if(sm)sm.remove();
+function renderTests(){const cc=document.getElementById('c-tests');if(!cc)return;
+  // Not every client is shown their testing programme. Danny, 30 Oct 2026, on
+  // ASC: "strip the testing program section from ASC's dashboard. I don't want
+  // it shown to the client there." Set features.hide_testing in the client
+  // config rather than deleting markup, so the section stays in the shared
+  // renderer for everyone else and a nightly refresh can't bring it back.
+  const tsec=document.getElementById('sec-testing');
+  if(feat('hide_testing')){if(tsec)tsec.hidden=true;return;}
+  if(tsec)tsec.hidden=false;
+  let sm=cc.querySelector('.sm');if(sm)sm.remove();
   const{cur}=windows();
   // Win rate is measured on the tests that RETURNED A VERDICT. A concluded
   // test still waiting for a call is undecided, not a loss, and counting it as
