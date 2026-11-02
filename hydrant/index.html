@@ -4466,6 +4466,69 @@ function auditChannelRev(host,S,spec){spec=spec||{};const cur=(S.current&&S.curr
   hit.addEventListener('mouseleave',()=>{cross.setAttribute('opacity',0);hideTip(box);});svg.appendChild(hit);
   box.appendChild(alegend(['Email revenue','var(--flow)'],['SMS revenue','var(--camp)']));box.appendChild(svg);
   if(spec.note){const nn=document.createElement('div');nn.className='conc-note';nn.textContent=spec.note;box.appendChild(nn);}}
+// Thirteen lifecycle slots each measured before and after a rebuild is a PAIRED
+// comparison across many categories, and the usual answers fail it: side-by-side
+// bars double the marks so the eye compares heights instead of change, and a
+// slopegraph tangles thirteen labels into an unreadable knot. A dumbbell gives
+// every slot one line whose DIRECTION is the finding and whose length is the
+// size of it. Slots earning nothing on either side collapse to a single dot on
+// the zero line, which is worth seeing on its own.
+function auditDumbbell(host,spec){
+  const rows=spec.rows||[],n=rows.length; if(!n)return;
+  const vfmt=spec.unit==='count'?kfmtplain:kfmt;
+  const rowH=spec.rowh||28,PL=spec.labelw||226,PR=104,PT=32,PB=34,W=1080;
+  const H=PT+PB+n*rowH,iw=W-PL-PR;
+  const mx=niceMax(Math.max.apply(null,rows.map(r=>Math.max(+r.a||0,+r.b||0)).concat([1])));
+  const X=v=>PL+(v/mx)*iw, ry=i=>PT+rowH*(i+0.5);
+  const svg=el('svg',{viewBox:'0 0 '+W+' '+H,role:'img'});
+  host.style.position='relative';
+  for(let g=0;g<=4;g++){const f=g/4,xx=PL+iw*f;
+    svg.appendChild(el('line',{class:'gl',x1:xx,x2:xx,y1:PT-8,y2:PT+n*rowH}));
+    const t=el('text',{class:'ax',x:xx,y:PT-14,
+      'text-anchor':g===0?'start':g===4?'end':'middle'});
+    t.textContent=vfmt(mx*f);svg.appendChild(t);}
+  rows.forEach((r,i)=>{
+    const a=+r.a||0,b=+r.b||0,y=ry(i);
+    const col=b>a?'var(--good)':b<a?'var(--crit)':'var(--muted)';
+    const lab=el('text',{x:PL-14,y:y+4,'text-anchor':'end','font-size':11.5,
+      'font-family':'system-ui','font-weight':r.gone?700:500,
+      fill:r.gone?'var(--crit)':'var(--ink2)'});
+    lab.textContent=r.label;svg.appendChild(lab);
+    if(a!==b){
+      // the connector carries the direction; a dropped slot dashes to nothing
+      svg.appendChild(el('line',{x1:X(a),x2:X(b),y1:y,y2:y,stroke:col,
+        'stroke-width':3.2,'stroke-linecap':'round',
+        'stroke-dasharray':r.gone?'4 4':'none','stroke-opacity':0.85}));
+      const dir=b>a?1:-1,hx=X(b);
+      svg.appendChild(el('path',{d:'M'+hx+' '+y+'L'+(hx-dir*8)+' '+(y-4.6)+
+        'L'+(hx-dir*8)+' '+(y+4.6)+'Z',fill:col}));
+    }
+    svg.appendChild(el('circle',{cx:X(a),cy:y,r:4.6,fill:'var(--surface)',
+      stroke:'var(--ink2)','stroke-width':1.8}));
+    if(a!==b)svg.appendChild(el('circle',{cx:X(b),cy:y,r:3.4,fill:col}));
+    const rt=el('text',{x:W-PR+10,y:y+4,'text-anchor':'start','font-size':11,
+      'font-family':'system-ui','font-weight':600,fill:col});
+    // a slot that earns nothing on EITHER side is the finding, and printing
+    // its delta as "$0" reads as "unchanged, so fine". Say what it is.
+    rt.textContent=r.gone?'gone':a===b?(a===0?'no revenue':'no change')
+      :(b>a?'+':'−')+vfmt(Math.abs(b-a));
+    svg.appendChild(rt);});
+  svg.appendChild(el('line',{class:'baseline',x1:PL,x2:PL,y1:PT-8,y2:PT+n*rowH}));
+  rows.forEach((r,i)=>{
+    const hit=el('rect',{x:0,y:PT+rowH*i,width:W,height:rowH,fill:'transparent'});
+    hit.addEventListener('mousemove',e=>{
+      const t=[[spec.alabel||'Before',+r.a||0,'var(--ink2)',vfmt],
+               [spec.blabel||'After',+r.b||0,'var(--flow)',vfmt]];
+      if(r.em)t.push(['Emails sent',r.em[0]+' → '+r.em[1],'var(--muted)',v=>v]);
+      if(r.gone)t.push(['Replacement','none built','var(--crit)',v=>v]);
+      showTip(host,e,r.label,t);});
+    hit.addEventListener('mouseleave',()=>hideTip(host));
+    svg.appendChild(hit);});
+  host.appendChild(alegend([spec.alabel||'Before','var(--ink2)'],
+    ['Improved','var(--good)'],['Declined','var(--crit)']));
+  host.appendChild(svg);
+  if(spec.note){const nn=document.createElement('div');nn.className='conc-note';
+    nn.textContent=spec.note;host.appendChild(nn);}}
 function renderAuditChart(host,spec,S){
   if(spec.type==='funnel')return auditFunnel(host,spec);
   if(spec.type==='reachladder')return auditReach(host,spec);
@@ -4480,6 +4543,7 @@ function renderAuditChart(host,spec,S){
   if(spec.type==='flowtable')return auditFlowTable(host,S,spec);
   if(spec.type==='growthdeliv')return auditGrowthDeliv(host,spec);
   if(spec.type==='twin')return auditTwin(host,spec);
+  if(spec.type==='dumbbell')return auditDumbbell(host,spec);
   if(spec.type==='compare')return auditCompare(host,spec);
   if(spec.type==='storeshare')return auditStoreShare(host,S,spec);
   if(spec.type==='growth')return auditGrowth(host,S,spec);
