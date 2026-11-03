@@ -212,15 +212,22 @@
   #view-audit .afind .abody{font-size:18px;line-height:1.65;max-width:none}
   #view-audit .afind .abody p{margin:0 0 11px}
   #view-audit .sev{font-size:11px}
-  #view-audit .asec-name{font-size:13px}
-  #view-audit .asec-note{font-size:14.5px}
-  #view-audit .asec-count{font-size:12px}
-  #view-audit .wins-t{font-size:18px}
-  #view-audit .wins-tot{font-size:16px}
-  #view-audit .wins-sub,#view-audit .wins-note{font-size:13px}
-  #view-audit .win-title,#view-audit .win-impact{font-size:15.5px}
-  #view-audit .win-detail p{font-size:14.5px;line-height:1.6}
-  #view-audit .win-link{font-size:14px}
+  #view-audit .atldr{padding:15px 18px;gap:10px}
+  #view-audit .atl-k{font-size:11px}
+  #view-audit .atl-v{font-size:16.5px;line-height:1.5}
+  #view-audit .atl-r{grid-template-columns:84px 1fr}
+  #view-audit .asec-head{padding:21px 2px}
+  #view-audit .asec-name{font-size:15px;letter-spacing:.06em}
+  #view-audit .asec-note{font-size:16px}
+  #view-audit .asec-count{font-size:13px;padding:3px 11px}
+  #view-audit .asec-chev{font-size:15px}
+  #view-audit .wins-t{font-size:20px}
+  #view-audit .wins-tot{font-size:18px}
+  #view-audit .wins-sub,#view-audit .wins-note{font-size:14px}
+  #view-audit .win-title,#view-audit .win-impact{font-size:17px}
+  #view-audit .win-detail p{font-size:17px;line-height:1.65}
+  #view-audit .win-link{font-size:15.5px}
+  #view-audit .win-rank{width:27px;height:27px;font-size:13.5px}
   #view-audit .jumpbar .jl{font-size:13px}
   /* chart furniture moves with the copy */
   #view-audit .ax{font-size:13px}
@@ -256,6 +263,19 @@
   #view-audit .cta-lead span{font-size:16px}
   #view-audit .cta-sub{font-size:15px}
   #view-audit .cta-btn{font-size:15px}
+  /* the card's TL;DR: what it is about, and what we would do about it */
+  .atldr{display:flex;flex-direction:column;gap:9px;padding:14px 16px;border-radius:11px;
+    background:var(--surface-2);border:1px solid var(--border);
+    border-left:3px solid color-mix(in srgb,var(--flow) 70%,var(--border))}
+  .atl-r{display:grid;grid-template-columns:76px 1fr;gap:13px;align-items:baseline}
+  .atl-k{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted);padding-top:2px}
+  .atl-v{font-size:15px;line-height:1.5;color:var(--ink);font-weight:600}
+  .atl-do .atl-k{color:var(--flow)}
+  .atl-do .atl-v{font-weight:500;color:var(--ink2)}
+  .afind.sev-crit .atldr{border-left-color:var(--crit)}
+  .afind.sev-good .atldr{border-left-color:var(--good)}
+  @media(max-width:620px){.atl-r{grid-template-columns:1fr;gap:3px}}
   .sev{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px;white-space:nowrap;flex:none}
   .sev.crit{color:var(--crit);background:color-mix(in srgb,var(--crit) 13%,var(--surface));border:1px solid color-mix(in srgb,var(--crit) 30%,var(--border))}
   .sev.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,var(--surface));border:1px solid color-mix(in srgb,var(--warn) 32%,var(--border))}
@@ -974,7 +994,8 @@
     /* keep a card whole, and keep the ink Chrome would otherwise drop */
     :root[data-print="audit"] .win,
     :root[data-print="audit"] .achart,
-    :root[data-print="audit"] .ahead{break-inside:avoid}
+    :root[data-print="audit"] .ahead,
+    :root[data-print="audit"] .atldr{break-inside:avoid}
     :root[data-print="audit"] .ahead{break-after:avoid}
     :root[data-print="audit"] .asec-head{break-after:avoid}
     :root[data-print="audit"] .afind{box-shadow:none}
@@ -4035,11 +4056,21 @@ function renderAudit(){const S=SERIES[ACTIVE],A=S&&S.audit,body=document.getElem
   document.getElementById('audit-sub').textContent=(A&&A.sub)||'';
   body.innerHTML=''; if(!A||!A.findings)return;
   if(A.wins&&A.wins.length)auditWins(body,A.wins);
-  function renderCardEl(f,i,n){const card=document.createElement('div');card.className='afind';card.id='afind-'+i;
+  function renderCardEl(f,i,n){const card=document.createElement('div');card.id='afind-'+i;
+    card.className='afind sev-'+(f.sev||'note');
     const sev=f.sev||'note',lbl=sev==='crit'?'Critical':sev==='warn'?'Watch':sev==='cta'?'Next step':sev==='good'?'Strength':'Note';
+    // Danny, 3 Nov 2026: "every single card needs a container within them at the
+    // top which is the TL;DR for that card... what the card's about, what we
+    // recommend doing about it." Read the box and you have the audit; read the
+    // body only when you want the proof.
+    const t=f.tldr||null;
+    const tl=!t?'':'<div class="atldr">'
+      +'<div class="atl-r"><span class="atl-k">The point</span><span class="atl-v">'+t.what+'</span></div>'
+      +(t.do?'<div class="atl-r atl-do"><span class="atl-k">Do this</span><span class="atl-v">'+t.do+'</span></div>':'')
+      +'</div>';
     card.innerHTML='<div class="ahead"><span class="anum">'+String(n).padStart(2,'0')+'</span>'
       +'<span class="sev '+sev+'">'+lbl+'</span><h3>'+f.title+'</h3></div>'
-      +'<div class="abody">'+f.body+'</div>';
+      +tl+'<div class="abody">'+f.body+'</div>';
     const charts=f.chart?(Array.isArray(f.chart)?f.chart:[f.chart]):[];
     charts.forEach(cspec=>{const h=document.createElement('div');h.className='achart';card.appendChild(h);
       try{renderAuditChart(h,cspec,S);}catch(e){h.remove();}});
