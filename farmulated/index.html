@@ -410,6 +410,8 @@
     overflow:hidden;text-overflow:ellipsis}
   .cmt-pin{position:absolute;transform:translate(-50%,-50%);z-index:800;width:26px;height:26px;border-radius:50% 50% 50% 2px;border:2px solid var(--surface);background:var(--flow);font-size:11px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.32);display:flex;align-items:center;justify-content:center;padding:0}
   .cmt-pin:hover{transform:translate(-50%,-50%) scale(1.14)}
+  .cmt-pin.cmt-at{transform:none}
+  .cmt-pin.cmt-at:hover{transform:scale(1.14)}
   .cmt-pop{position:fixed;z-index:1800;width:320px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,.32);padding:12px;display:flex;flex-direction:column;gap:8px}
   .cmt-pop-loc{font-size:11.5px;color:var(--muted);font-weight:600;line-height:1.35}
   .cmt-del2,.cmt-cancel{background:none;border:1px solid var(--border);color:var(--ink2);font:inherit;font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:7px;cursor:pointer}
@@ -3645,8 +3647,14 @@ function curView(){const a=document.getElementById('view-audit');return (a&&!a.h
 // The things worth commenting on, smallest first: one tile, one bar, one
 // paragraph, one card. Before this the note landed on whatever nearest ancestor
 // happened to carry an id, which on the dashboard meant the whole tile grid.
+// Smallest first: nearestAnchor takes the FIRST of these the click sits in, so
+// a paragraph has to be listed before the card that holds it. Anchoring a note
+// to a whole card or to the audit body was the bug behind pins that wandered
+// when a section was expanded or collapsed: the position was a FRACTION of a
+// container whose height moves.
 const CMT_TARGETS=['.tile','.abar','.p-kpi','.rep-callout','.rs-call','.win',
-  '.rep-fig','.afind','.rm-node','.rep-prose > p','.rep-prose > ul',
+  '.rep-fig','.abody > p','.abody > ul','.abody > ol','.achart','.ahead',
+  '.conc-note','.asec-head','.afind','.rm-node','.rep-prose > p','.rep-prose > ul',
   '.rep-ask','.rep-ans','.rep-tldr','.rep-callouts','.card','.rep-prose'];
 function cmtHash(t){let h=5381;for(let i=0;i<t.length;i++)h=((h<<5)+h+t.charCodeAt(i))|0;
   return Math.abs(h).toString(36);}
@@ -3689,7 +3697,15 @@ function anchorTitle(c){if(!c)return'';const id=c.id||'';
       const b=c.querySelector('.rc-big');return 'summary box: '+((b?b.textContent:'')||'').trim();}
     if(c.classList.contains('rep-fig')){
       const t=c.querySelector('.rep-fig-t');return 'chart: '+((t?t.textContent:'')||'').trim();}
-    if(c.tagName==='P'||c.tagName==='UL')
+    if(c.classList.contains('achart')){
+      const card=c.closest('.afind'),h=card?card.querySelector('h3'):null;
+      return 'chart on “'+((h?h.textContent:'')||'').trim()+'”';}
+    if(c.classList.contains('ahead')){const h=c.querySelector('h3');
+      return 'heading: '+((h?h.textContent:'')||'').trim();}
+    if(c.classList.contains('conc-note'))return 'the note under the chart';
+    if(c.classList.contains('asec-head')){const n=c.querySelector('.asec-name');
+      return 'section: '+((n?n.textContent:'')||'').trim();}
+    if(c.tagName==='P'||c.tagName==='UL'||c.tagName==='OL')
       return 'text: “'+(c.textContent||'').replace(/\s+/g,' ').trim().slice(0,60)+'…”';
   }
   if(id.indexOf('afind-')===0){const h=c.querySelector('h3');return h?h.textContent:id;}
@@ -3706,16 +3722,52 @@ function anchorTitle(c){if(!c)return'';const id=c.id||'';
   if(id==='wins-board')return 'Top wins';
   if(id==='view-audit')return 'Audit';if(id==='view-dash')return 'Dashboard';
   const h=c.querySelector('h3,h2');return h?h.textContent:id;}
+const cmtNorm=t=>(t||'').replace(/\s+/g,' ').trim();
+// The sentence that was under the cursor when the note was written. New notes
+// carry it as `quote`; older ones only have it inside `label`, after the dash.
+function cmtQuote(c){
+  if(c.quote)return cmtNorm(c.quote);
+  const m=/\u2014 \u201c([\s\S]*)\u201d\s*$/.exec(c.label||'');
+  return m?cmtNorm(m[1]):'';
+}
+// A note belongs to a sentence, not to a card index and not to a percentage of
+// a container's height. Card indices move whenever a finding is inserted, and a
+// percentage moves whenever anything above it expands or collapses, which is
+// what made pins wander. So: find the card by its TITLE, then the smallest
+// element inside it whose text is the sentence that was quoted.
+function cmtResolve(c){
+  let cont=document.getElementById(c.containerId)||null;
+  const lbl=c.containerLabel||'', want=cmtNorm(lbl.split('\u203a').pop());
+  const titleOf=el=>{const h=el.querySelector('h3');return h?cmtNorm(h.textContent):'';};
+  if(want&&(!cont||(cont.classList&&cont.classList.contains('afind')&&titleOf(cont)!==want))){
+    const hit=[...document.querySelectorAll('.afind')].find(a=>titleOf(a)===want);
+    if(hit)cont=hit;
+  }
+  if(!cont)return null;
+  const q=cmtQuote(c);
+  if(q){
+    const cands=[...cont.querySelectorAll(CMT_TARGETS.join(','))]
+      .filter(el=>{const t=cmtNorm(el.textContent);return t&&(t.indexOf(q)===0||t.indexOf(q)>=0);});
+    if(cands.length){
+      cands.sort((a,b)=>cmtNorm(a.textContent).length-cmtNorm(b.textContent).length);
+      return cands[0];
+    }
+  }
+  return cont;
+}
 function renderPins(){document.querySelectorAll('.cmt-pin').forEach(p=>p.remove());if(!IS_OWNER)return;ensureFab();
   tagTargets();
-  const view=curView();
-  COMMENTS.filter(c=>c.slug===ACTIVE&&c.view===view&&c.containerId&&c.relX!=null&&c.status!=='resolved').forEach(c=>{
-    const cont=document.getElementById(c.containerId);if(!cont)return;
+  const view=curView(),stack=new Map();
+  COMMENTS.filter(c=>c.slug===ACTIVE&&c.view===view&&c.containerId&&c.status!=='resolved').forEach(c=>{
+    const cont=cmtResolve(c);if(!cont)return;
     const sec=cont.closest?cont.closest('.asection'):null;if(sec)sec.classList.add('open');
     const win=cont.closest?cont.closest('.win'):null;if(win)win.classList.add('open');
     if(getComputedStyle(cont).position==='static')cont.style.position='relative';
-    const pin=document.createElement('button');pin.className='cmt-pin';pin.type='button';
-    pin.style.left=(c.relX*100)+'%';pin.style.top=(c.relY*100)+'%';pin.title=c.body;pin.textContent='💬';
+    const k=stack.get(cont)||0;stack.set(cont,k+1);
+    const pin=document.createElement('button');pin.className='cmt-pin cmt-at';pin.type='button';
+    // pinned to the top-right CORNER of the thing itself: no fraction to drift
+    pin.style.right='-6px';pin.style.top=(-8+k*24)+'px';
+    pin.title=c.body;pin.textContent='💬';
     pin.addEventListener('click',e=>{e.stopPropagation();e.preventDefault();openPinEditor(c,e.clientX,e.clientY);});
     cont.appendChild(pin);});
   updateFab();}
@@ -3732,7 +3784,7 @@ function openPinEditor(c,x,y){closePop();const isNew=!c.id;
   const ta=pop.querySelector('.cmt-in');ta.value=isNew?'':c.body;setTimeout(()=>ta.focus(),0);
   pop.addEventListener('click',e=>e.stopPropagation());
   pop.querySelector('.cmt-save').addEventListener('click',e=>{e.stopPropagation();const t=ta.value.trim();if(!t){closePop();return;}
-    if(isNew){COMMENTS.push({id:'c'+Date.now()+Math.floor(Math.random()*1e4),slug:ACTIVE,view:c.view,containerId:c.containerId,containerLabel:c.containerLabel,relX:c.relX,relY:c.relY,label:c.label,body:t,ts:new Date().toISOString(),status:'open'});}
+    if(isNew){COMMENTS.push({id:'c'+Date.now()+Math.floor(Math.random()*1e4),slug:ACTIVE,view:c.view,containerId:c.containerId,containerLabel:c.containerLabel,relX:c.relX,relY:c.relY,quote:c.quote,label:c.label,body:t,ts:new Date().toISOString(),status:'open'});}
     else c.body=t;
     saveComments();closePop();renderPins();});
   const d=pop.querySelector('.cmt-del2');if(d)d.addEventListener('click',e=>{e.stopPropagation();delComment(c.id);closePop();renderPins();});
@@ -3801,7 +3853,7 @@ document.addEventListener('click',function(e){   // pin-mode capture: intercept 
   const sec=cont.closest?cont.closest('.asection'):null,secName=sec?((sec.querySelector('.asec-name')||{}).textContent||''):'';
   const full=(secName?secName+' › ':'')+ct;
   openPinEditor({id:null,view:curView(),containerId:cont.id,containerLabel:full,relX,relY,
-    target:ct,targetChart:cont.dataset?cont.dataset.chart||null:null,
+    target:ct,targetChart:cont.dataset?cont.dataset.chart||null:null,quote:clicked,
     label:full+(clicked?' — “'+clicked+'”':'')},e.clientX,e.clientY);
 },true);
 document.addEventListener('click',function(){const m=document.getElementById('cmtMenu');if(m)m.remove();const l=document.getElementById('cmtList');if(l)l.remove();closePop();});
