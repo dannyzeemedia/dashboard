@@ -4066,7 +4066,11 @@ document.addEventListener('click',function(e){
   if(gotoCard(a.getAttribute('href')))e.preventDefault();
 },true);
 var storeView='monthly', storeSpan=0;
-function auditStoreShare(host,S,spec){spec=spec||{};const cur=(S.current&&S.current.mtd)?S.current:null;
+function auditStoreShare(host,S,spec){spec=spec||{};
+  // An audit reports COMPLETE months. Including the month-to-date drew
+  // November as a collapse to zero on GrubTerra, which reads as the account
+  // falling over rather than as three days of data. Opt in with cur:true.
+  const cur=(spec.cur&&S.current&&S.current.mtd)?S.current:null;
   const spans=spec.spans;if(!storeSpan)storeSpan=spans?(spans.indexOf(12)>=0?12:spans[0]):12;
   const box=document.createElement('div');host.appendChild(box);
   function draw(){box.innerHTML='';
