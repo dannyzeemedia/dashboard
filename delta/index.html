@@ -195,6 +195,66 @@
   .afind .abody a.klink:hover{text-decoration-color:var(--flow)}
   .afind .abody a.klink[target]::after{content:'\2197';font-size:.82em;
     vertical-align:.12em;margin-left:1px;text-decoration:none;display:inline-block}
+  /* ---------------------------------------------------------------------
+     AUDIT READING SIZE. Danny, 3 Nov 2026: "i hate all the text.. first it's
+     too small. it hurts my eyes to read it. i have to squint or zoom wayyyy
+     in." One scale, set here, scoped to the audit view so the dashboard and
+     report views are untouched. Body copy is 17px on a 76ch measure; every
+     label and axis around it moves with it, so nothing on a card ever reads
+     smaller than the sentence beside it. Change it HERE, never per audit.
+     --------------------------------------------------------------------- */
+  #view-audit .view-h h2{font-size:27px}
+  #view-audit .view-sub{font-size:16px;line-height:1.5}
+  #view-audit .ipnote{font-size:13px}
+  #view-audit .afind{padding:22px 24px}
+  #view-audit .afind h3{font-size:20px;line-height:1.3}
+  #view-audit .afind .abody{font-size:17px;line-height:1.68;max-width:76ch}
+  #view-audit .afind .abody p{margin:0 0 11px}
+  #view-audit .sev{font-size:11px}
+  #view-audit .asec-name{font-size:13px}
+  #view-audit .asec-note{font-size:14.5px}
+  #view-audit .asec-count{font-size:12px}
+  #view-audit .wins-t{font-size:18px}
+  #view-audit .wins-tot{font-size:16px}
+  #view-audit .wins-sub,#view-audit .wins-note{font-size:13px}
+  #view-audit .win-title,#view-audit .win-impact{font-size:15.5px}
+  #view-audit .win-detail p{font-size:14.5px;line-height:1.6}
+  #view-audit .win-link{font-size:14px}
+  #view-audit .jumpbar .jl{font-size:13px}
+  /* chart furniture moves with the copy */
+  #view-audit .ax{font-size:12.5px}
+  #view-audit .abar{font-size:14.5px;--abl:272px}
+  #view-audit .anum{font-size:13px}
+  #view-audit .legend span{font-size:13.5px}
+  #view-audit .legend .lghint{font-size:12.5px}
+  #view-audit .card h3{font-size:16.5px}
+  #view-audit .card .cap{font-size:13.5px}
+  #view-audit .tip{font-size:13px}
+  #view-audit .flowtbl{font-size:14px}
+  #view-audit .ft-head{font-size:12px}
+  #view-audit .fcov-item{font-size:14.5px}
+  #view-audit .fcov-col h4{font-size:12px}
+  #view-audit .ml-s{font-size:15.5px}
+  #view-audit .ml-n,#view-audit .ml-hn{font-size:12.5px}
+  #view-audit .ml-ht,#view-audit .ml-t{font-size:12px}
+  #view-audit .conc-row{font-size:14.5px}
+  #view-audit .conc-row.conc-head{font-size:11.5px}
+  #view-audit .conc-note{font-size:13.5px}
+  #view-audit .aflist-row{font-size:14.5px}
+  #view-audit .aflist-row.aflist-head{font-size:11.5px}
+  #view-audit .aflist-summary{font-size:14px}
+  #view-audit .afnote{font-size:14.5px}
+  #view-audit .callout{font-size:14.5px}
+  #view-audit .reach-freq .rf-lab{font-size:14px}
+  #view-audit .reach-freq .rf-note{font-size:13.5px}
+  #view-audit .reach-freq .rf-h,#view-audit .tst-h{font-size:12px}
+  #view-audit .tst-list{font-size:15.5px}
+  #view-audit .tst-sub,#view-audit .tst-foot{font-size:14.5px}
+  #view-audit .thumb-cap{font-size:12.5px}
+  #view-audit .cta-lead{font-size:21px}
+  #view-audit .cta-lead span{font-size:16px}
+  #view-audit .cta-sub{font-size:15px}
+  #view-audit .cta-btn{font-size:15px}
   .sev{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px;white-space:nowrap;flex:none}
   .sev.crit{color:var(--crit);background:color-mix(in srgb,var(--crit) 13%,var(--surface));border:1px solid color-mix(in srgb,var(--crit) 30%,var(--border))}
   .sev.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,var(--surface));border:1px solid color-mix(in srgb,var(--warn) 32%,var(--border))}
