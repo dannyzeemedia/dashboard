@@ -208,7 +208,8 @@
   #view-audit .ipnote{font-size:13px}
   #view-audit .afind{padding:22px 24px}
   #view-audit .afind h3{font-size:20px;line-height:1.3}
-  #view-audit .afind .abody{font-size:17px;line-height:1.68;max-width:76ch}
+  #view-audit{max-width:900px}
+  #view-audit .afind .abody{font-size:18px;line-height:1.65;max-width:none}
   #view-audit .afind .abody p{margin:0 0 11px}
   #view-audit .sev{font-size:11px}
   #view-audit .asec-name{font-size:13px}
@@ -222,7 +223,7 @@
   #view-audit .win-link{font-size:14px}
   #view-audit .jumpbar .jl{font-size:13px}
   /* chart furniture moves with the copy */
-  #view-audit .ax{font-size:12.5px}
+  #view-audit .ax{font-size:13px}
   #view-audit .abar{font-size:14.5px;--abl:272px}
   #view-audit .anum{font-size:13px}
   #view-audit .legend span{font-size:13.5px}
@@ -4193,7 +4194,12 @@ function auditFunnel(host,spec){const st=spec.stages||[];
 // cards made them look like two different products. Charts differ by what they
 // DRAW, never by how big they are: same canvas, same margins, same axis
 // gutters, so every baseline and every gridline lands on the same x.
-const AG={W:1080,H:300,PL:64,PR:64,PT:20,PB:46};
+// One canvas for every audit chart. W matches the audit column (see
+// #view-audit max-width) so the SVG renders at roughly 1:1 and a 12px axis
+// label is 12px on screen. Danny, 3 Nov 2026: charts running the full frame
+// while text stopped at 66% "just looks bad" - so the column narrowed to the
+// reading measure and the canvas came with it.
+const AG={W:840,H:290,PL:58,PR:58,PT:20,PB:44};
 function auditTwin(host,spec){
   const x=spec.x||[],bars=spec.bars||[],line=spec.line||[],n=x.length;
   if(!n)return;
@@ -4219,7 +4225,7 @@ function auditTwin(host,spec){
     const lt=el('text',{class:'ax',x:PL-8,y:yy+4,'text-anchor':'end'});
     lt.textContent=bfmt(mxB*f);svg.appendChild(lt);
     const rt=el('text',{x:W-PR+8,y:yy+4,'text-anchor':'start',fill:'var(--camp)',
-      'font-size':10.5,'font-family':'system-ui'});
+      'font-size':13,'font-family':'system-ui'});
     rt.textContent=lfmt(mxL*f);svg.appendChild(rt);}
   // the "before" side sits behind a lighter fill so the split reads at a glance
   const cut=spec.cut;
@@ -4236,7 +4242,7 @@ function auditTwin(host,spec){
     svg.appendChild(el('line',{x1:xc,x2:xc,y1:PT-4,y2:PT+ih,stroke:'var(--ink2)',
       'stroke-width':1.5,'stroke-dasharray':'5 4'}));
     const txt=spec.cutlabel||'', fits=xc+txt.length*5.9+12<W-PR;
-    const cl=el('text',{x:fits?xc+7:xc-7,y:PT+6,'font-size':10.5,'font-weight':700,
+    const cl=el('text',{x:fits?xc+7:xc-7,y:PT+6,'font-size':13,'font-weight':700,
       'text-anchor':fits?'start':'end',fill:'var(--ink2)','font-family':'system-ui'});
     cl.textContent=txt;svg.appendChild(cl);}
   x.forEach((m,i)=>{if(labIdx(n).has(i)){mlab(svg,cx(i),PT+ih+18,m);}});
@@ -4293,7 +4299,7 @@ function auditGrowthDeliv(host,spec){
     const lt=el('text',{class:'ax',x:PL-8,y:yy+4,'text-anchor':'end'});
     lt.textContent=kfmtplain(mxS*f);svg.appendChild(lt);
     const rt=el('text',{x:W-PR+8,y:yy+4,'text-anchor':'start',fill:'var(--crit)',
-      'font-size':10.5,'font-family':'system-ui'});
+      'font-size':13,'font-family':'system-ui'});
     rt.textContent=(mxU*f).toFixed(2)+'%';svg.appendChild(rt);}
   // unsubscribe rate as an area, drawn first so the columns sit on top
   let area='M'+cx(0)+' '+(PT+ih);
@@ -4308,7 +4314,7 @@ function auditGrowthDeliv(host,spec){
     svg.appendChild(el('rect',{x:cx(i)-bw/2,y:PT+ih-h,width:bw,height:h,rx:3,
       fill:'var(--flow)','fill-opacity':0.92}));
     const t=el('text',{x:cx(i),y:PT+ih-h-6,'text-anchor':'middle',fill:'var(--ink2)',
-      'font-size':11,'font-weight':700,'font-family':'system-ui'});
+      'font-size':13.5,'font-weight':700,'font-family':'system-ui'});
     t.textContent=kfmtplain(v);svg.appendChild(t);});
   // spam on its own scale
   let sl='';sp.forEach((v,i)=>{sl+=(i?'L':'M')+cx(i)+' '+yP(v);});
@@ -4360,7 +4366,7 @@ function auditGrowthNet(host,spec){
     svg.appendChild(el('rect',{x:cx(i)-bw/2,y:up?zero-h:zero,width:bw,height:h,rx:3,
       fill:up?'var(--good)':'var(--crit)','fill-opacity':0.9}));
     const t=el('text',{x:cx(i),y:up?zero-h-7:zero+h+14,'text-anchor':'middle',
-      fill:up?'var(--good)':'var(--crit)','font-size':11,'font-weight':700,
+      fill:up?'var(--good)':'var(--crit)','font-size':13.5,'font-weight':700,
       'font-family':'system-ui'});
     t.textContent=(v>0?'+':'')+kfmtplain(v);svg.appendChild(t);});
   svg.appendChild(el('line',{x1:PL,x2:W-PR,y1:zero,y2:zero,stroke:'var(--ink2)','stroke-width':1.2}));
@@ -4691,7 +4697,7 @@ function auditDumbbell(host,spec){
   rows.forEach((r,i)=>{
     const a=+r.a||0,b=+r.b||0,y=ry(i);
     const col=b>a?'var(--good)':b<a?'var(--crit)':'var(--muted)';
-    const lab=el('text',{x:PL-14,y:y+4,'text-anchor':'end','font-size':11.5,
+    const lab=el('text',{x:PL-14,y:y+4,'text-anchor':'end','font-size':14,
       'font-family':'system-ui','font-weight':r.gone?700:500,
       fill:r.gone?'var(--crit)':'var(--ink2)'});
     lab.textContent=r.label;
@@ -4711,7 +4717,7 @@ function auditDumbbell(host,spec){
     svg.appendChild(el('circle',{cx:X(a),cy:y,r:4.6,fill:'var(--surface)',
       stroke:'var(--ink2)','stroke-width':1.8}));
     if(a!==b)svg.appendChild(el('circle',{cx:X(b),cy:y,r:3.4,fill:col}));
-    const rt=el('text',{x:W-PR+10,y:y+4,'text-anchor':'start','font-size':11,
+    const rt=el('text',{x:W-PR+10,y:y+4,'text-anchor':'start','font-size':13.5,
       'font-family':'system-ui','font-weight':600,fill:col});
     // a slot that earns nothing on EITHER side is the finding, and printing
     // its delta as "$0" reads as "unchanged, so fine". Say what it is.
@@ -6225,7 +6231,7 @@ function renderFlowMix(){const{cur}=windows();const cc=document.getElementById('
   const mxA=niceMax(Math.max.apply(null,mon.map((_,i)=>series.reduce((a,s)=>a+(s.vals[i]||0),0))));
   const plot=abs?series.map(s=>s.vals.slice()):share;
   const yTop=abs?mxA:100;   // `top` is already the top-8 flow names in this scope
-  const {W,H,PR,PT,PB}=AG, PL=abs?56:40, iw=W-PL-PR,ih=H-PT-PB;
+  const {H,PR,PT,PB}=AG, W=1300, PL=abs?56:40, iw=W-PL-PR,ih=H-PT-PB;
   const x=i=>PL+(n<=1?iw/2:iw*i/(n-1)),y=v=>PT+ih-(v/yTop)*ih,ev=lblEvery(n);
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
   for(let g=0;g<=4;g++){const gv=yTop*g/4;
