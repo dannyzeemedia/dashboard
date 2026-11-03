@@ -884,7 +884,8 @@
   .rep-method.open .rep-method-b{grid-template-rows:1fr}
   .rep-method-in{overflow:hidden;min-height:0}
   @media print{
-    #view-dash,#view-board,#view-audit,#view-map,#reports-ctl,.rep-card-go{display:none!important}
+    #view-dash,#view-board,#view-map,#reports-ctl,.rep-card-go{display:none!important}
+    :root:not([data-print="audit"]) #view-audit{display:none!important}
     .rep-detail{zoom:.82}
     .rep-head{padding-bottom:8px}
     .rep-h1{font-size:27px;margin:6px 0 5px}
@@ -932,9 +933,53 @@
     margin:0 0 7px;max-width:250px;white-space:normal}
   .tt-chg svg{flex:none;width:10px;height:12px;margin-top:1px}   /* the card CSS sizes svg to 100% */
 
-  @media print{ header.top,.toolbar,.banner,.note,#view-dash,#view-audit,#view-map,.eyebrow,.view-h,.view-sub,.totop,.cmt-fab{display:none!important}
+  @media print{ header.top,.toolbar,.banner,.note,#view-dash,#view-map,.totop,.cmt-fab{display:none!important}
+    :root:not([data-print="audit"]) #view-audit,
+    :root:not([data-print="audit"]) .eyebrow,
+    :root:not([data-print="audit"]) .view-h,
+    :root:not([data-print="audit"]) .view-sub{display:none!important}
     body{background:#fff}.paper{box-shadow:none;border:0;border-radius:0;width:auto;padding:0}
     .wrap{padding:0}section.view{padding:0}}
+  /* ------------------------------------------------------------------
+     Save as PDF, from the audit. Danny, 3 Nov 2026: "save as pdf button
+     isn't working anymore." It had printed a blank page since the Reports
+     tab shipped, because both print blocks above hid #view-audit whatever
+     view you were on. printView() stamps data-print on <html> so the print
+     stylesheet knows what is being printed.
+     ------------------------------------------------------------------ */
+  @media print{
+    :root[data-print="audit"] #view-dash,
+    :root[data-print="audit"] #view-board,
+    :root[data-print="audit"] #view-reports,
+    :root[data-print="audit"] #view-map,
+    :root[data-print="audit"] .jumpbar,
+    :root[data-print="audit"] #vidBtn,
+    :root[data-print="audit"] #todoBtn,
+    :root[data-print="audit"] #auditBack,
+    :root[data-print="audit"] #auditShare,
+    :root[data-print="audit"] .cmt-pin,
+    :root[data-print="audit"] .cmt-fab,
+    :root[data-print="audit"] .ipnote{display:none!important}
+    :root[data-print="audit"] .view-h>div{display:none!important}
+    /* a collapsed section prints as a blank strip, so everything opens */
+    :root[data-print="audit"] .asec-body,
+    :root[data-print="audit"] .win-detail{grid-template-rows:1fr!important}
+    :root[data-print="audit"] .asec-inner{opacity:1!important}
+    :root[data-print="audit"] .asec-body,
+    :root[data-print="audit"] .asec-inner,
+    :root[data-print="audit"] .win-detail{transition:none!important}
+    :root[data-print="audit"] .asec-inner,
+    :root[data-print="audit"] .win-detail-in{overflow:visible!important}
+    :root[data-print="audit"] .asec-chev{display:none}
+    /* keep a card whole, and keep the ink Chrome would otherwise drop */
+    :root[data-print="audit"] .win,
+    :root[data-print="audit"] .achart,
+    :root[data-print="audit"] .ahead{break-inside:avoid}
+    :root[data-print="audit"] .ahead{break-after:avoid}
+    :root[data-print="audit"] .asec-head{break-after:avoid}
+    :root[data-print="audit"] .afind{box-shadow:none}
+    :root[data-print="audit"] *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
   .invwrap{position:relative;display:inline-block}
   .invmenu{position:absolute;right:0;top:calc(100% + 6px);z-index:60;min-width:270px;
     background:var(--surface);border:1px solid var(--border);border-radius:12px;
@@ -1851,7 +1896,7 @@
         <button class="btn ghost" id="todoBtn" type="button" style="display:none">📋 To-do list</button>
         <button class="btn ghost" id="auditBack">← All reports</button>
         <button class="btn ghost" id="auditShare" type="button" style="display:none">🔗 Share link</button>
-        <button class="btn" onclick="window.print()">⤓ Save as PDF</button></div></div>
+        <button class="btn" onclick="printView('audit')">⤓ Save as PDF</button></div></div>
     <p class="view-sub" id="audit-sub"></p>
     <div id="audit-body"></div>
   </section>
@@ -1935,7 +1980,7 @@
         <button class="btn ghost" id="boardBack">← All reports</button>
         <label class="board-msel-l">Month <select id="boardMonth" class="board-msel"></select></label>
         <button class="btn ghost" id="boardShare" type="button" style="display:none">🔗 Share link</button>
-        <button class="btn" onclick="window.print()">⤓ Save as PDF</button>
+        <button class="btn" onclick="printView('paper')">⤓ Save as PDF</button>
       </div>
     </div>
     <p class="view-sub" id="board-sub">Generated on the previous month's completed numbers. Past months stay available in the dropdown.</p>
@@ -2872,7 +2917,7 @@ function renderReports(){
   if(ctl)ctl.innerHTML='<button class="btn ghost" id="repBack">← All reports</button> '
     +(r.video_url?'<button class="vidbtn" id="repVid" type="button">▶ Video walk-thru</button> ':'')
     +(r.share&&!SHARE_MODE?'<button class="btn ghost" id="repShare">🔗 Share link</button> ':'')
-    +'<button class="btn" onclick="window.print()">⤓ Save as PDF</button>';
+    +'<button class="btn" onclick="printView(&quot;paper&quot;)">⤓ Save as PDF</button>';
   {const vb=document.getElementById('repVid');
    if(vb)vb.addEventListener('click',e=>{e.stopPropagation();
      if(window.openVideo)window.openVideo(r.video_url);});}
@@ -3734,6 +3779,15 @@ async function saveComments(){try{
   await sb.auth.updateUser({data:{dash_comments:COMMENTS.filter(c=>c.status!=='resolved')}});
 }catch(e){console.warn('note save failed',e);}}
 function delComment(id){COMMENTS=COMMENTS.filter(c=>c.id!==id);saveComments();}
+// Save as PDF. The print stylesheet needs to know WHICH view is being printed,
+// because the audit and the paper reports want opposite things hidden.
+function printView(which){
+  const r=document.documentElement;
+  r.setAttribute('data-print',which);
+  const done=()=>{r.removeAttribute('data-print');window.removeEventListener('afterprint',done);};
+  window.addEventListener('afterprint',done);
+  setTimeout(()=>{try{window.print();}finally{setTimeout(done,1500);}},40);
+}
 function curView(){const a=document.getElementById('view-audit');return (a&&!a.hidden)?'audit':'dash';}
 // The things worth commenting on, smallest first: one tile, one bar, one
 // paragraph, one card. Before this the note landed on whatever nearest ancestor
