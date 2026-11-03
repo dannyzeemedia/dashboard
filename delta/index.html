@@ -473,7 +473,7 @@
   .asection.open .asec-inner{opacity:1}
   @media(prefers-reduced-motion:reduce){.asec-body,.asec-inner{transition:none}}
   @media(max-width:620px){.asec-note{display:none}}
-  .afind.flash{animation:flashcard 1.3s ease}
+  .afind.flash,.win.flash,.asection.flash{animation:flashcard 1.3s ease;border-radius:var(--radius)}
   @keyframes flashcard{0%,100%{box-shadow:none}25%{box-shadow:0 0 0 3px color-mix(in srgb,var(--flow) 45%,transparent)}}
   .win-rank{width:24px;height:24px;border-radius:50%;background:var(--flow);color:var(--surface);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center}
   .win-main{min-width:0;display:flex;flex-direction:column;gap:5px}
@@ -3961,12 +3961,35 @@ function auditWins(host,wins){
   wrap.querySelectorAll('.win-head').forEach(h=>h.addEventListener('click',e=>{e.preventDefault();
     const w=h.parentElement,open=w.classList.toggle('open');
     h.querySelector('.win-chev').textContent=open?'▴':'▾';}));
-  wrap.querySelectorAll('.win-link').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();
-    const t=document.getElementById(a.getAttribute('href').slice(1));
-    if(t){const sec=t.closest('.asection');
-      const go=()=>{t.scrollIntoView({behavior:'smooth',block:'center'});t.classList.add('flash');setTimeout(()=>t.classList.remove('flash'),1400);};
-      if(sec&&!sec.classList.contains('open')){sec.classList.add('open');const bod=sec.querySelector('.asec-body');let d=false;const fin=()=>{if(d)return;d=true;go();};if(bod)bod.addEventListener('transitionend',fin,{once:true});setTimeout(fin,440);}
-      else go();}}));}
+  wrap.querySelectorAll('.win-link').forEach(a=>a.addEventListener('click',e=>{
+    e.preventDefault();gotoCard(a.getAttribute('href'));}));}
+// A bare href="#afind-5" lands on a card inside a COLLAPSED section, so the
+// browser scrolls to a box with no height and leaves you looking at whatever
+// happens to be above it. Every in-page jump goes through here instead: open
+// the section (and the win) that holds the target, wait for the open to finish,
+// then centre it and flash it so it is obvious what you were sent to.
+function gotoCard(href){
+  if(!href||href.charAt(0)!=='#')return false;
+  const t=document.getElementById(href.slice(1)); if(!t)return false;
+  const go=()=>{t.scrollIntoView({behavior:'smooth',block:'center'});
+    t.classList.add('flash');setTimeout(()=>t.classList.remove('flash'),1400);};
+  const win=t.closest?t.closest('.win'):null; if(win)win.classList.add('open');
+  const sec=t.closest?t.closest('.asection'):null;
+  if(sec&&!sec.classList.contains('open')){
+    sec.classList.add('open');
+    const bod=sec.querySelector('.asec-body');let d=false;
+    const fin=()=>{if(d)return;d=true;go();};
+    if(bod)bod.addEventListener('transitionend',fin,{once:true});
+    setTimeout(fin,440);
+  } else go();
+  return true;}
+// delegated, so links written into a card body get the same behaviour
+document.addEventListener('click',function(e){
+  const a=e.target.closest&&e.target.closest('a[href^="#"]');
+  if(!a||!document.getElementById('view-audit'))return;
+  if(!a.closest('#view-audit'))return;
+  if(gotoCard(a.getAttribute('href')))e.preventDefault();
+},true);
 var storeView='monthly', storeSpan=0;
 function auditStoreShare(host,S,spec){spec=spec||{};const cur=(S.current&&S.current.mtd)?S.current:null;
   const spans=spec.spans;if(!storeSpan)storeSpan=spans?(spans.indexOf(12)>=0?12:spans[0]):12;
