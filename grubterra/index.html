@@ -225,18 +225,23 @@
   /* the label column sizes to the LONGEST label in that chart (set as --abl by
      the renderer), so a campaign subject line gets one line instead of two and
      a chart of short labels does not waste half the row */
-  .abar{display:grid;grid-template-columns:var(--abl,220px) 1fr;align-items:center;gap:12px;font-size:13px}
+  .abar{display:grid;grid-template-columns:var(--abl,250px) 1fr;align-items:center;gap:14px;font-size:13px}
   .abar .abl{color:var(--ink2);line-height:1.25}   /* wrap long labels instead of truncating */
   /* the value rides at the end of its own bar. Parked in a right-hand column it
      sat hundreds of pixels from a short bar, which is dead space, not alignment */
   .abar .abw{display:flex;align-items:center;gap:10px;min-width:0}
-  .abar .abt{height:16px;border-radius:5px;min-width:2px;flex:none}
+  /* Every bar on the audit is this: a 16px rail the full width of the column,
+     a fill inside it, and the value in a fixed right-hand column. Four
+     renderers used to draw their own version of it. */
+  .abar .abrail{flex:1 1 auto;min-width:0;height:16px;border-radius:5px;
+    background:var(--surface-2);overflow:hidden;display:block}
+  .abar .abt{display:block;height:100%;min-width:2px;border-radius:5px}
   .abar .abv{font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600;
-    white-space:nowrap;flex:none;min-width:76px}
+    white-space:nowrap;flex:none;min-width:88px;text-align:right}
   .abar.flagged .abv{color:var(--crit)}
-  @media(max-width:620px){.abar{grid-template-columns:110px 1fr}
-    .abar .abv{min-width:0}}
-  @media(max-width:900px){.abars{--abl:160px}}
+  @media(max-width:620px){.abar{grid-template-columns:104px 1fr;gap:10px}
+    .abar .abv{min-width:56px}}
+  @media(max-width:900px){.abars{--abl:170px}}
   .aflist{margin-top:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
   .aflist-summary{display:flex;align-items:center;gap:8px;width:100%;cursor:pointer;padding:11px 14px;font:inherit;font-size:13px;font-weight:700;color:var(--ink2);background:var(--surface-2);border:0;text-align:left}
   .aflist-chev{color:var(--muted);transition:transform .2s ease;display:inline-block}
@@ -481,14 +486,7 @@
   .win-bar{height:7px;border-radius:4px;background:var(--surface-2);overflow:hidden}
   .win-bar>i{display:block;height:100%;background:var(--flow);border-radius:4px}
   .win-impact{font-size:13.5px;font-weight:800;color:var(--flow);white-space:nowrap}
-  .fnl{display:flex;flex-direction:column;gap:9px}
-  .fnl-row{display:grid;grid-template-columns:130px 1fr 62px;gap:10px;align-items:center}
-  .fnl-lab{font-size:12.5px;color:var(--ink2);font-weight:600}
-  .fnl-bar{height:24px;border-radius:5px;background:var(--surface-2);overflow:hidden}
-  .fnl-bar>i{display:block;height:100%;background:var(--flow)}
-  .fnl-row.bad .fnl-bar>i{background:var(--crit)}
-  .fnl-val{font-size:13.5px;font-weight:800;color:var(--ink);text-align:right}
-  .fnl-row.bad .fnl-val{color:var(--crit)}
+  /* .fnl-* retired: auditFunnel now renders .abar rows like every other bar chart */
   .reach-freq{margin-top:14px;border-top:1px solid var(--border);padding-top:12px}
   .reach-freq .rf-h{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
   .reach-freq .rf-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:5px 0;border-bottom:1px dashed var(--border)}
@@ -612,6 +610,17 @@
      two dark lines became indistinguishable. The swatch now draws the mark. */
   .legend i.ln{width:17px;height:0;border-radius:0;border-top:2.5px solid}
   .legend i.dash{width:17px;height:0;border-radius:0;border-top:2.5px dashed}
+  .mlist{display:flex;flex-direction:column;margin-top:4px}
+  .ml-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:14px 0 6px}
+  .ml-h:first-child{margin-top:4px}
+  .ml-ht{font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2)}
+  .ml-hn{font-size:12px;color:var(--muted)}
+  .ml-r{display:flex;align-items:baseline;gap:10px;padding:7px 0;border-bottom:1px dashed var(--border)}
+  .ml-r:last-child{border-bottom:none}
+  .ml-s{flex:1 1 auto;font-size:14px;color:var(--ink);min-width:0}
+  .ml-n{font-size:11px;color:var(--muted);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+  .ml-t{font-size:11px;font-weight:700;color:var(--camp);background:color-mix(in srgb,var(--camp) 14%,transparent);
+    border-radius:999px;padding:2px 9px;white-space:nowrap}
   .dbl-link text{text-decoration:underline;text-decoration-style:dotted;
     text-underline-offset:3px;cursor:pointer}
   .dbl-link:hover text{fill:var(--flow)!important}
@@ -4022,7 +4031,7 @@ function auditStoreShare(host,S,spec){spec=spec||{};const cur=(S.current&&S.curr
     box.appendChild(ctrl);
     let run=0;const cum=store.map(v=>run+=v);
     const sv=storeView==='cum'?cum:store,svLab=storeView==='cum'?'Cumulative store revenue':'Store revenue / mo';
-    const W=1080,H=312,PL=64,PR=56,PT=28,PB=44,iw=W-PL-PR,ih=H-PT-PB,n=m.length;
+    const {W,H,PL,PR,PT,PB}=AG, iw=W-PL-PR,ih=H-PT-PB,n=m.length;
     const smax=niceMax(Math.max(...sv,1)),pmax=niceMax(Math.max(...share,showTgt?TGT*1.08:0,10));
     const x=i=>PL+(n<=1?iw/2:iw*i/(n-1)),ys=v=>PT+ih-(v/smax)*ih,yp=v=>PT+ih-(v/pmax)*ih,ev=lblEvery(n);
     const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
@@ -4078,13 +4087,26 @@ function auditStoreShare(host,S,spec){spec=spec||{};const cur=(S.current&&S.curr
       +(showTgt?'The dashed line is '+TGT+'% of store revenue, the conservative share we would hold the account to, and the shaded band is the distance from it. Hover any month to see what that month would have been worth at '+TGT+'%. ':'')+(showBars?'Bars at the base show what we actually sent each month by channel (email delivered, SMS delivered); hover for the campaign count. ':'')+(spec.markers?'Dashed lines mark major gift-giving moments; the store spikes hard through the winter gifting season and stays quiet the rest of the year.':'');
     box.appendChild(note);}
   draw();}
+// A funnel is labelled horizontal bars, which is exactly what auditCompare
+// draws. It used to have its OWN markup and CSS - 24px bars against 16px, a
+// 130px label column against 220px, the value in a fixed column instead of
+// beside the bar - so two cards in a row looked like two different products.
+// Same component now; the only difference is the rail, which a share-of-a-whole
+// chart earns because the empty part is the point.
 function auditFunnel(host,spec){const st=spec.stages||[];
-  const wrap=document.createElement('div');wrap.className='fnl';
-  wrap.innerHTML=st.map(s=>'<div class="fnl-row'+(s.flag?' bad':'')+'">'
-    +'<span class="fnl-lab">'+esc(s.label)+'</span>'
-    +'<span class="fnl-bar"><i style="width:'+Math.max(1.5,s.pct)+'%"></i></span>'
-    +'<span class="fnl-val">'+s.pct+'%</span></div>').join('');
-  host.appendChild(wrap);
+  host.style.position='relative';
+  const wrap=document.createElement('div');wrap.className='abars';host.appendChild(wrap);
+  ablWidth(wrap,st.map(s=>({label:s.label})));
+  st.forEach(s=>{const c=s.flag?'var(--crit)':'var(--flow)';
+    const row=document.createElement('div');row.className='abar'+(s.flag?' flagged':'');
+    row.innerHTML='<span class="abl" title="'+esc(s.label)+'">'+esc(s.label)+'</span>'
+      +'<span class="abw"><span class="abrail"><span class="abt" style="width:'
+      +Math.max(1.5,s.pct)+'%;background:'+c+'"></span></span>'
+      +'<span class="abv">'+s.pct+'%</span></span>';
+    row.addEventListener('mousemove',e=>showTip(host,e,s.label,
+      [[spec.metricLabel||'Share',s.pct,c,v=>v+'%']]));
+    row.addEventListener('mouseleave',()=>hideTip(host));
+    wrap.appendChild(row);});
   if(spec.leak){const n=document.createElement('div');n.className='conc-note';n.textContent=spec.leak;host.appendChild(n);}}
 // List growth against what it costs: horizontal bars for the subscribers taken
 // on, a filled area behind them tracking the unsubscribe rate over the same
@@ -4096,10 +4118,16 @@ function auditFunnel(host,spec){const st=spec.stages||[];
 // bars are the volume, the line is the rate, and the marker is the day
 // something changed. Separate from growthdeliv because that one is hard-wired
 // to subscribers and complaint rates.
+// ONE geometry for every audit chart. They used to run 260 to 330 tall with
+// left gutters from 48 to 66 and right gutters from 16 to 118, so stacking two
+// cards made them look like two different products. Charts differ by what they
+// DRAW, never by how big they are: same canvas, same margins, same axis
+// gutters, so every baseline and every gridline lands on the same x.
+const AG={W:1080,H:300,PL:64,PR:64,PT:20,PB:46};
 function auditTwin(host,spec){
   const x=spec.x||[],bars=spec.bars||[],line=spec.line||[],n=x.length;
   if(!n)return;
-  const W=1080,H=320,PL=66,PR=70,PT=22,PB=46,iw=W-PL-PR,ih=H-PT-PB;
+  const {W,H,PL,PR,PT,PB}=AG, iw=W-PL-PR,ih=H-PT-PB;
   const mxB=niceMax(Math.max.apply(null,bars.concat([1])));
   const lv=line.filter(v=>v!=null);
   // When the bars and the line are the SAME unit - subscriptions started
@@ -4182,7 +4210,7 @@ function auditGrowthDeliv(host,spec){
     host.appendChild(seg);
     if(host.dataset.gmode==='net')return auditGrowthNet(host,spec);
   }
-  const W=1080,H=330,PL=62,PR=66,PT=20,PB=46,iw=W-PL-PR,ih=H-PT-PB;
+  const {W,H,PL,PR,PT,PB}=AG, iw=W-PL-PR,ih=H-PT-PB;
   const mxS=niceMax(Math.max.apply(null,subs)),
         mxU=Math.max.apply(null,un)*1.25||1,
         mxP=Math.max.apply(null,sp)*1.6||1;
@@ -4242,7 +4270,7 @@ const kfmtplain=n=>n>=1000?(n/1000).toFixed(1)+'k':String(Math.round(n));
 function auditGrowthNet(host,spec){
   const x=spec.x||[],ins=spec.subs||[],outs=spec.out||[],n=x.length;
   const net=ins.map((v,i)=>v-(outs[i]||0));
-  const W=1080,H=330,PL=66,PR=18,PT=22,PB=46,iw=W-PL-PR,ih=H-PT-PB;
+  const {W,H,PL,PR,PT,PB}=AG, iw=W-PL-PR,ih=H-PT-PB;
   const hi=Math.max.apply(null,net.concat([0])), lo=Math.min.apply(null,net.concat([0]));
   // gridlines stepped off a common unit so ZERO is always one of them. Scaling
   // each side independently put the baseline between gridlines and printed axis
@@ -4286,9 +4314,10 @@ function auditGrowthNet(host,spec){
 // Widen the label column to fit the longest label on ONE line, within reason.
 // A fixed 220px broke campaign subject lines across two lines and left charts of
 // short labels with a column of empty space.
-function ablWidth(wrap,items){
-  const longest=(items||[]).reduce((a,i)=>Math.max(a,String(i.label||'').length),0);
-  wrap.style.setProperty('--abl',Math.min(420,Math.max(220,Math.round(longest*6.9)+10))+'px');}
+// Sizing the label column per chart meant every bar chart started its bars at a
+// different x, which is what made four cards in a row look like four different
+// products. One column width for the whole page; long labels wrap.
+function ablWidth(wrap,items){ /* width is fixed in CSS; kept for callers */ }
 function auditCompare(host,spec){const items=spec.items||[],mx=Math.max(...items.map(i=>Math.abs(i.value)||0),1);
   // pct: a rate is neither money nor a count, and formatting one as either
   // printed an unsubscribe rate of 0.27% as "$0.27"
@@ -4319,8 +4348,8 @@ function auditCompare(host,spec){const items=spec.items||[],mx=Math.max(...items
       :'linear-gradient(to right,'+c+' 0 '+(lo*100).toFixed(1)+'%,'
         +'color-mix(in srgb,'+c+' 38%,var(--surface)) '+(lo*100).toFixed(1)+'% 100%)';
     row.innerHTML=lbl
-      +'<span class="abw"><span class="abt" style="width:calc((100% - 86px) * '+(pct/100).toFixed(4)
-      +');background:'+fill+'"></span>'
+      +'<span class="abw"><span class="abrail"><span class="abt" style="width:'+pct.toFixed(2)
+      +'%;background:'+fill+'"></span></span>'
       +'<span class="abv">'+(lo==null?fmt(it.value):fmt(it.from)+'-'+fmt(it.value))+'</span></span>';
     const a=row.querySelector('a.abl-go');
     if(a)a.addEventListener('click',e=>e.stopPropagation());
@@ -4331,13 +4360,14 @@ function auditCompare(host,spec){const items=spec.items||[],mx=Math.max(...items
 function auditReach(host,spec){
   const steps=spec.steps||[],mx=Math.max(...steps.map(s=>s.value||0),1);
   host.style.position='relative';
-  const wrap=document.createElement('div');wrap.className='fnl';host.appendChild(wrap);
+  const wrap=document.createElement('div');wrap.className='abars';host.appendChild(wrap);
+  ablWidth(wrap,steps.map(s=>({label:s.label})));
   steps.forEach((s,i)=>{const pct=Math.max(6,(s.value||0)/mx*100);
     const c=s.good?'var(--good)':(i===0?'var(--muted)':'var(--camp)');
-    const row=document.createElement('div');row.className='fnl-row';
-    row.innerHTML='<span class="fnl-lab">'+esc(s.label)+'</span>'
-      +'<span class="fnl-bar"><i style="width:'+pct+'%;background:'+c+'"></i></span>'
-      +'<span class="fnl-val">'+nfmt(s.value)+'</span>';
+    const row=document.createElement('div');row.className='abar';
+    row.innerHTML='<span class="abl" title="'+esc(s.label)+'">'+esc(s.label)+'</span>'
+      +'<span class="abw"><span class="abrail"><span class="abt" style="width:'+pct.toFixed(2)
+      +'%;background:'+c+'"></span></span><span class="abv">'+nfmt(s.value)+'</span></span>';
     row.addEventListener('mousemove',e=>showTip(host,e,s.label,[['Profiles',s.value||0,c,v=>v.toLocaleString()]]));
     row.addEventListener('mouseleave',()=>hideTip(host));
     wrap.appendChild(row);});
@@ -4417,7 +4447,7 @@ function auditSeasonBars(host,S,spec){
         b.addEventListener('click',e=>{e.stopPropagation();seasonBday=(v==='bday');draw();});seg.appendChild(b);});
       ctrl.appendChild(seg);box.appendChild(ctrl);}
     const showB=seasonBday&&est;
-    const W=1080,H=260,PL=64,PR=18,PT=18,PB=44,iw=W-PL-PR,ih=H-PT-PB,n=m.length;
+    const {W,H,PL,PR,PT,PB}=AG, iw=W-PL-PR,ih=H-PT-PB,n=m.length;
     const mx=niceMax(Math.max(...store.map(v=>v+(showB?est:0)),1));
     const bw=iw/n*0.68,x=i=>PL+iw*(i+0.5)/n,y=v=>PT+ih-(v/mx)*ih;
     const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
@@ -4450,7 +4480,7 @@ function auditCampDouble(host,S,spec){spec=spec||{};
     [['base','Campaign revenue'],['dbl','+ Double off-season sends (est.)']].forEach(([v,lab])=>{const b=document.createElement('button');b.className='csg'+((v==='dbl')===on?' on':'');b.textContent=lab;
       b.addEventListener('click',e=>{e.stopPropagation();on=(v==='dbl');draw();});seg.appendChild(b);});
     ctrl.appendChild(seg);box.appendChild(ctrl);
-    const W=1080,H=260,PL=64,PR=18,PT=18,PB=44,iw=W-PL-PR,ih=H-PT-PB,n=m.length;
+    const {W,H,PL,PR,PT,PB}=AG, iw=W-PL-PR,ih=H-PT-PB,n=m.length;
     const mx=niceMax(Math.max(...camp.map((v,i)=>v+inc(i)),1)),bw=iw/n*0.68,x=i=>PL+iw*(i+0.5)/n,y=v=>PT+ih-(v/mx)*ih,ev=lblEvery(n);
     const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
     for(let g=0;g<=4;g++){svg.appendChild(el('line',{class:'gl',x1:PL,x2:W-PR,y1:y(mx*g/4),y2:y(mx*g/4)}));
@@ -4474,13 +4504,15 @@ function auditCampDouble(host,S,spec){spec=spec||{};
 function auditFlowSplit(host,spec){
   host.style.position='relative';
   const groups=spec.groups||[];
-  const wrap=document.createElement('div');wrap.className='fnl';host.appendChild(wrap);
+  const wrap=document.createElement('div');wrap.className='abars';host.appendChild(wrap);
   const segval=s=>typeof s==='object'?(s.value||0):s;
+  ablWidth(wrap,groups.map(g=>({label:g.type})));
   groups.forEach(g=>{const segs=(g.segments||[]).slice().sort((a,b)=>segval(b)-segval(a));
     const tot=segs.reduce((a,s)=>a+segval(s),0)||1;
-    const row=document.createElement('div');row.className='fnl-row';row.style.gridTemplateColumns='158px 1fr 78px';
-    const lab=document.createElement('span');lab.className='fnl-lab';lab.textContent=g.type;row.appendChild(lab);
-    const bar=document.createElement('span');bar.className='fnl-bar';bar.style.display='flex';
+    const row=document.createElement('div');row.className='abar';
+    const lab=document.createElement('span');lab.className='abl';lab.title=g.type;lab.textContent=g.type;row.appendChild(lab);
+    const w2=document.createElement('span');w2.className='abw';row.appendChild(w2);
+    const bar=document.createElement('span');bar.className='abrail';bar.style.display='flex';
     segs.forEach((s,i)=>{const v=segval(s),nm=typeof s==='object'?s.name:g.type;
       const seg=document.createElement('span');
       seg.style.cssText='display:block;height:100%;width:'+(v/tot*100)+'%;background:'+(i%2?'var(--flow)':'color-mix(in srgb,var(--flow) 50%,var(--surface))')+';border-right:1.5px solid var(--surface);cursor:pointer';
@@ -4488,13 +4520,14 @@ function auditFlowSplit(host,spec){
       seg.addEventListener('mousemove',e=>showTip(host,e,nm,[['Emails (12 mo, traffic)',v,'var(--flow)',x=>x.toLocaleString()],['Revenue (12 mo)',rev,'var(--camp)',kfmt]]));
       seg.addEventListener('mouseleave',()=>hideTip(host));
       bar.appendChild(seg);});
-    row.appendChild(bar);
-    const val=document.createElement('span');val.className='fnl-val';val.style.cssText='font-size:12px;color:'+(g.flows>=5?'var(--crit)':'var(--ink)');val.textContent=g.flows+' flows';row.appendChild(val);
+    w2.appendChild(bar);
+    const val=document.createElement('span');val.className='abv';
+    val.style.color=(g.flows>=5?'var(--crit)':'var(--ink)');val.textContent=g.flows+' flows';w2.appendChild(val);
     wrap.appendChild(row);});
   if(spec.note){const n=document.createElement('div');n.className='conc-note';n.textContent=spec.note+' Slice width = share of email volume (traffic); hover any slice for that flow’s emails and revenue.';host.appendChild(n);}}
 function auditCampSize(host,spec){
   const data=spec.data||[],mx=niceMax(Math.max(...data.map(d=>d.avgrev||0),1));
-  const W=1080,H=290,PL=64,PR=18,PT=22,PB=64,iw=W-PL-PR,ih=H-PT-PB,n=data.length;
+  const {W,H,PL,PR,PT,PB}=AG, iw=W-PL-PR,ih=H-PT-PB,n=data.length;
   const bw=iw/n*0.5,x=i=>PL+iw*(i+0.5)/n,y=v=>PT+ih-(v/mx)*ih;
   host.style.position='relative';
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
@@ -4514,7 +4547,7 @@ function auditStackArea(host,spec){
   const periods=spec.periods||[],series=spec.series||[],n=periods.length;
   const tot=periods.map((_,i)=>series.reduce((a,s)=>a+(s.vals[i]||0),0)||1);
   const share=series.map(s=>s.vals.map((v,i)=>v/tot[i]*100));
-  const W=1080,H=300,PL=48,PR=118,PT=16,PB=40,iw=W-PL-PR,ih=H-PT-PB;
+  const {W,H,PL,PR,PT,PB}=AG, iw=W-PL-PR,ih=H-PT-PB;
   host.style.position='relative';
   const x=i=>PL+(n<=1?iw/2:iw*i/(n-1)),y=v=>PT+ih-(v/100)*ih;
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
@@ -4541,7 +4574,7 @@ function auditChannelRev(host,S,spec){spec=spec||{};const cur=(S.current&&S.curr
   const em=(S.remail||[]).slice(-N).concat(cur?[cur.mtd.remail||0]:[]);
   const sm=(S.rsms||[]).slice(-N).concat(cur?[cur.mtd.rsms||0]:[]);
   const CS=S.currency_symbol||'$';
-  const W=1080,H=300,PL=60,PR=16,PT=16,PB=44,iw=W-PL-PR,ih=H-PT-PB,n=m.length,step=iw/n,bw=step*0.6;
+  const {W,H,PL,PR,PT,PB}=AG, iw=W-PL-PR,ih=H-PT-PB,n=m.length,step=iw/n,bw=step*0.6;
   const mx=niceMax(Math.max(...em.map((v,i)=>v+(sm[i]||0)),1)),ev=lblEvery(n);
   const y=v=>PT+ih-(v/mx)*ih,cx=i=>PL+step*i+step/2;
   host.style.position='relative';const box=document.createElement('div');host.appendChild(box);
@@ -4572,7 +4605,9 @@ function auditChannelRev(host,S,spec){spec=spec||{};const cur=(S.current&&S.curr
 function auditDumbbell(host,spec){
   const rows=spec.rows||[],n=rows.length; if(!n)return;
   const vfmt=spec.unit==='count'?kfmtplain:kfmt;
-  const rowH=spec.rowh||28,PL=spec.labelw||226,PR=104,PT=32,PB=34,W=1080;
+  // 264 = the 250px label column plus the 14px gap every .abar row uses, so a
+  // dumbbell and a bar chart on neighbouring cards start at the same x
+  const rowH=spec.rowh||28,PL=spec.labelw||264,PR=104,PT=32,PB=34,W=1080;
   const H=PT+PB+n*rowH,iw=W-PL-PR;
   const mx=niceMax(Math.max.apply(null,rows.map(r=>Math.max(+r.a||0,+r.b||0)).concat([1])));
   const X=v=>PL+(v/mx)*iw, ry=i=>PT+rowH*(i+0.5);
@@ -4629,6 +4664,29 @@ function auditDumbbell(host,spec){
   host.appendChild(svg);
   if(spec.note){const nn=document.createElement('div');nn.className='conc-note';
     nn.textContent=spec.note;host.appendChild(nn);}}
+// Enumerating the actual emails behind a claim. A two-column live/missing split
+// was being pressed into this job and read as a pass/fail list of things that
+// had gone wrong, when the rows are just the messages. Each row names the send,
+// quotes its subject line and opens that message in Klaviyo.
+function auditMsgList(host,spec){
+  const groups=spec.groups||[{rows:spec.rows||[]}];
+  const wrap=document.createElement('div');wrap.className='mlist';
+  groups.forEach(g=>{
+    if(g.title){const h=document.createElement('div');h.className='ml-h';
+      h.innerHTML='<span class="ml-ht">'+esc(g.title)+'</span>'
+        +(g.note?'<span class="ml-hn">'+esc(g.note)+'</span>':'');wrap.appendChild(h);}
+    (g.rows||[]).forEach(r=>{
+      const row=document.createElement('div');row.className='ml-r';
+      const sub=r.href
+        ?'<a class="klink" href="'+r.href+'" target="_blank" rel="noopener">'+esc(r.subject)+'</a>'
+        :esc(r.subject);
+      row.innerHTML='<span class="ml-s">'+sub+'</span>'
+        +(r.name?'<span class="ml-n">'+esc(r.name)+'</span>':'')
+        +(r.tag?'<span class="ml-t">'+esc(r.tag)+'</span>':'');
+      wrap.appendChild(row);});});
+  host.appendChild(wrap);
+  if(spec.note){const n=document.createElement('div');n.className='conc-note';
+    n.textContent=spec.note;host.appendChild(n);}}
 function renderAuditChart(host,spec,S){
   if(spec.type==='funnel')return auditFunnel(host,spec);
   if(spec.type==='reachladder')return auditReach(host,spec);
@@ -4644,6 +4702,7 @@ function renderAuditChart(host,spec,S){
   if(spec.type==='growthdeliv')return auditGrowthDeliv(host,spec);
   if(spec.type==='twin')return auditTwin(host,spec);
   if(spec.type==='dumbbell')return auditDumbbell(host,spec);
+  if(spec.type==='msglist')return auditMsgList(host,spec);
   if(spec.type==='compare')return auditCompare(host,spec);
   if(spec.type==='storeshare')return auditStoreShare(host,S,spec);
   if(spec.type==='growth')return auditGrowth(host,S,spec);
@@ -4658,7 +4717,7 @@ function renderAuditChart(host,spec,S){
     if(spec.source==='volume'&&(S.flow_summary||[]).length)return auditVolume(host,S,spec);
     return auditBars(host,spec,S);}}
 function auditArea(host,months,vals,fmt,label,ipIdx){
-  const W=1080,H=260,PL=64,PR=18,PT=16,PB=44,iw=W-PL-PR,ih=H-PT-PB,n=months.length;
+  const {W,H,PL,PR,PT,PB}=AG, iw=W-PL-PR,ih=H-PT-PB,n=months.length;
   const mx=niceMax(Math.max(...vals,0.0001));
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
   const x=i=>PL+(n<=1?iw/2:iw*i/(n-1)),y=v=>PT+ih-(v/mx)*ih,ev=lblEvery(n);
@@ -4686,7 +4745,7 @@ function auditMixed(host,S){
     const tog=document.createElement('button');tog.className='miniToggle';tog.style.cssText='position:static;margin:0 0 8px';
     tog.setAttribute('aria-pressed',mixShowRev);tog.innerHTML='<span class="dot"></span>Show revenue';
     tog.addEventListener('click',e=>{e.stopPropagation();mixShowRev=!mixShowRev;draw();});box.appendChild(tog);
-    const W=1080,H=300,PL=52,PR=62,PT=16,PB=44,iw=W-PL-PR,ih=H-PT-PB,n=m.length,step=iw/n,bw=step*0.5;
+    const {W,H,PL,PR,PT,PB}=AG, iw=W-PL-PR,ih=H-PT-PB,n=m.length,step=iw/n,bw=step*0.5;
     const cmax=niceMax(Math.max(...sends,...subs,1)),rmax=niceMax(Math.max(...rev,1));
     const yc=v=>PT+ih-(v/cmax)*ih,yr=v=>PT+ih-(v/rmax)*ih,cx=i=>PL+step*i+step/2,ev=lblEvery(n);
     const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
@@ -4881,7 +4940,7 @@ function auditConcentration(host,S,spec){
   note.textContent='The tick on each bar marks the same-rank flow at the benchmark (longest-managed client). Your top flow towers over a healthy distribution.';
   host.appendChild(note);}
 function auditDual(host,months,bars,line,bfmt,lfmt,blab,llab,line2,l2lab,ipIdx,bg,fillLine,ma){ipIdx=ipIdx==null?-1:ipIdx;
-  const W=1080,H=300,PL=56,PR=66,PT=16,PB=44,iw=W-PL-PR,ih=H-PT-PB,n=months.length,step=iw/n,bw=step*0.55;
+  const {W,H,PL,PR,PT,PB}=AG, iw=W-PL-PR,ih=H-PT-PB,n=months.length,step=iw/n,bw=step*0.55;
   const bmax=niceMax(Math.max(...bars,0));
   const lall=line.filter(v=>v!=null).concat((line2||[]).filter(v=>v!=null));
   const lmax=niceMax(Math.max(...lall,0.0001));
@@ -5024,7 +5083,7 @@ function auditFlowRpr(host,S){const cur=(S.current&&S.current.mtd)?S.current:nul
   const CS=S.currency_symbol||'$';
   auditDual(host,m,dv,rpr,nfmt,v=>v.toFixed(2),'Emails delivered / mo',CS+'/Rec (actual)',tgtRpr,'Realistic '+CS+'/Rec target (diminishing returns)',cur?m.length-1:-1);}
 function auditLineChart(host,months,series,fmt,ref,reflabel,ipIdx){
-  const W=1080,H=260,PL=54,PR=18,PT=16,PB=44,iw=W-PL-PR,ih=H-PT-PB,n=months.length;
+  const {W,H,PL,PR,PT,PB}=AG, iw=W-PL-PR,ih=H-PT-PB,n=months.length;
   const all=series.flatMap(s=>s.data.filter(v=>v!=null));if(ref!=null)all.push(ref);
   const mx=niceMax(Math.max(...all,0.0001));const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
   const x=i=>PL+(n<=1?iw/2:iw*i/(n-1)),y=v=>PT+ih-(v/mx)*ih,ev=lblEvery(n);
@@ -6096,7 +6155,7 @@ function renderFlowMix(){const{cur}=windows();const cc=document.getElementById('
   const mxA=niceMax(Math.max.apply(null,mon.map((_,i)=>series.reduce((a,s)=>a+(s.vals[i]||0),0))));
   const plot=abs?series.map(s=>s.vals.slice()):share;
   const yTop=abs?mxA:100;   // `top` is already the top-8 flow names in this scope
-  const W=1080,H=300,PL=abs?56:40,PR=16,PT=12,PB=44,iw=W-PL-PR,ih=H-PT-PB;
+  const {W,H,PR,PT,PB}=AG, PL=abs?56:40, iw=W-PL-PR,ih=H-PT-PB;
   const x=i=>PL+(n<=1?iw/2:iw*i/(n-1)),y=v=>PT+ih-(v/yTop)*ih,ev=lblEvery(n);
   const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img'});
   for(let g=0;g<=4;g++){const gv=yTop*g/4;
