@@ -3980,8 +3980,14 @@ function auditWins(host,wins){
 function gotoCard(href){
   if(!href||href.charAt(0)!=='#')return false;
   const t=document.getElementById(href.slice(1)); if(!t)return false;
+  // Opening a tall section reflows everything below it, so a scroll started
+  // before the layout settles lands short. Centre it, then centre it again once
+  // the section has finished opening and the page has stopped moving.
   const go=()=>{t.scrollIntoView({behavior:'smooth',block:'center'});
-    t.classList.add('flash');setTimeout(()=>t.classList.remove('flash'),1400);};
+    t.classList.add('flash');setTimeout(()=>t.classList.remove('flash'),1400);
+    setTimeout(()=>t.scrollIntoView({behavior:'smooth',block:'center'}),420);
+    setTimeout(()=>{const b=t.getBoundingClientRect();
+      if(b.top>innerHeight||b.bottom<0)t.scrollIntoView({block:'center'});},900);};
   const win=t.closest?t.closest('.win'):null; if(win)win.classList.add('open');
   const sec=t.closest?t.closest('.asection'):null;
   if(sec&&!sec.classList.contains('open')){
