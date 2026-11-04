@@ -3819,7 +3819,7 @@ function curView(){const a=document.getElementById('view-audit');return (a&&!a.h
 // when a section was expanded or collapsed: the position was a FRACTION of a
 // container whose height moves.
 const CMT_TARGETS=['.tile','.abar','.p-kpi','.rep-callout','.rs-call','.win',
-  '.rep-fig','.abody > p','.abody > ul','.abody > ol','.achart','.ahead',
+  '.rep-fig','.atl-r','.atldr','.abody > p','.abody > ul','.abody > ol','.achart','.ahead',
   '.conc-note','.asec-head','.afind','.rm-node','.rep-prose > p','.rep-prose > ul',
   '.rep-ask','.rep-ans','.rep-tldr','.rep-callouts','.card','.rep-prose'];
 function cmtHash(t){let h=5381;for(let i=0;i<t.length;i++)h=((h<<5)+h+t.charCodeAt(i))|0;
@@ -3857,6 +3857,14 @@ function anchorTitle(c){if(!c)return'';const id=c.id||'';
     if(c.classList.contains('abar')){
       const l=c.querySelector('.abl'),v=c.querySelector('.abv');
       return 'bar: '+((l?l.textContent:'')+' '+(v?v.textContent:'')).trim();}
+    if(c.classList.contains('atl-r')){
+      const k=c.querySelector('.atl-k'),v=c.querySelector('.atl-v'),
+            card=c.closest('.afind'),h=card?card.querySelector('h3'):null;
+      return ((k?k.textContent:'TL;DR')+' on “'+((h?h.textContent:'')||'').trim()+'”'
+             +(v?': '+v.textContent.replace(/\s+/g,' ').trim().slice(0,90):''));}
+    if(c.classList.contains('atldr')){
+      const card=c.closest('.afind'),h=card?card.querySelector('h3'):null;
+      return 'the TL;DR box on “'+((h?h.textContent:'')||'').trim()+'”';}
     if(c.classList.contains('p-kpi')){
       const l=c.querySelector('.l');return 'KPI: '+((l?l.textContent:'')||'').trim();}
     if(c.classList.contains('rep-callout')){
