@@ -1916,7 +1916,7 @@
         <button class="vidbtn" id="vidBtn" type="button" style="display:none">▶ Video walk-thru</button>
         <button class="btn ghost" id="todoBtn" type="button" style="display:none">📋 To-do list</button>
         <button class="btn ghost" id="auditBack">← All reports</button>
-        <button class="btn ghost" id="auditShare" type="button" style="display:none">🔗 Share link</button>
+        <button class="btn ghost" id="auditShare" type="button" style="display:none">🔗 Share audit</button>
         <button class="btn" onclick="printView('audit')">⤓ Save as PDF</button></div></div>
     <p class="view-sub" id="audit-sub"></p>
     <div id="audit-body"></div>
@@ -3101,9 +3101,10 @@ function wireShare(btnId, url){
   b.style.display=(url&&!SHARE_MODE)?'':'none';
   if(!url||b.dataset.wired)return;
   b.dataset.wired='1';
+  b.dataset.label=b.textContent;
   b.addEventListener('click',e=>{e.stopPropagation();
     const u=b.dataset.url||'';if(!u)return;
-    const done=()=>{b.textContent='✓ Link copied';setTimeout(()=>{b.textContent='🔗 Share link';},2200);};
+    const done=()=>{b.textContent='✓ Link copied';setTimeout(()=>{b.textContent=b.dataset.label||'🔗 Share link';},2200);};
     if(navigator.clipboard&&window.isSecureContext)
       navigator.clipboard.writeText(u).then(done).catch(()=>window.prompt('Share link',u));
     else window.prompt('Share link',u);});
