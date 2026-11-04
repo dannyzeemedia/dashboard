@@ -4100,7 +4100,7 @@ function renderAudit(){const S=SERIES[ACTIVE],A=S&&S.audit,body=document.getElem
   A.findings.forEach((f,i)=>{if(!done.has(i))body.appendChild(renderCardEl(f,i,++dispN));});
   renderPins();}
 function auditWins(host,wins){
-  const arr=wins.slice().sort((a,b)=>(b.dollars||0)-(a.dollars||0));
+  const arr=wins.slice().sort((a,b)=>((a.last?1:0)-(b.last?1:0))||((b.dollars||0)-(a.dollars||0)));
   const mx=Math.max(...arr.map(w=>w.dollars||0),1);
   const total=arr.reduce((a,w)=>a+(w.dollars||0),0);
   const wrap=document.createElement('div');wrap.className='wins';wrap.id='wins-board';
