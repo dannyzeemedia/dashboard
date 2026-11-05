@@ -3206,11 +3206,11 @@ function repChart(host,name,data){
 
       for(let g=0;g<=4;g++){const y=PT+ih-(ih/4)*g;
         S.appendChild(el('line',{x1:PL,x2:PL+iw,y1:y,y2:y,stroke:'var(--line)','stroke-width':1,opacity:g?0.5:1}));
-        S.appendChild(el('text',{x:PL-8,y:y+4,'text-anchor':'end',fill:'var(--muted)','font-size':11},
-          [document.createTextNode(V.fmt(yTop/4*g))]));}
+        const tx=el('text',{x:PL-8,y:y+4,'text-anchor':'end',fill:'var(--muted)','font-size':11});
+        tx.textContent=V.fmt(yTop/4*g);S.appendChild(tx);}
       if(V.line)for(let g=0;g<=4;g++){const y=PT+ih-(ih/4)*g;
-        S.appendChild(el('text',{x:PL+iw+8,y:y+4,fill:V.line.c,'font-size':11},
-          [document.createTextNode(V.line.pct?Math.round(lTop/4*g)+'%':V.fmt(lTop/4*g))]));}
+        const tx=el('text',{x:PL+iw+8,y:y+4,fill:V.line.c,'font-size':11});
+        tx.textContent=V.line.pct?Math.round(lTop/4*g)+'%':V.fmt(lTop/4*g);S.appendChild(tx);}
 
       const keep=labIdx(n);
       W.forEach((w,i)=>{
@@ -3218,15 +3218,20 @@ function repChart(host,name,data){
         V.bars.forEach(b=>{const v=w[b.k]||0;const h=Math.max(0,(v/yTop)*ih);
           S.appendChild(el('rect',{x:X(i)-BW/2,y:Y(base+v),width:BW,height:h,fill:b.c,
             rx:2,opacity:w.w===cur?1:0.62}));base+=v;});
-        if(keep.has(i))S.appendChild(el('text',{x:X(i),y:Hd-18,'text-anchor':'middle',
+        if(keep.has(i)){const tx=el('text',{x:X(i),y:Hd-18,'text-anchor':'middle',
           fill:w.w===cur?'var(--ink)':'var(--muted)','font-size':11,
-          'font-weight':w.w===cur?700:400},[document.createTextNode(w.lab)]));
+          'font-weight':w.w===cur?700:400});tx.textContent=w.lab;S.appendChild(tx);}
       });
       if(V.line){
         const pts=W.map((w,i)=>lineVals[i]==null?null:[X(i),YL(lineVals[i])]).filter(Boolean);
-        if(pts.length>1)S.appendChild(el('path',{d:'M'+pts.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join('L'),
-          fill:'none',stroke:V.line.c,'stroke-width':2,'stroke-linejoin':'round'}));
-        pts.forEach(p=>S.appendChild(el('circle',{cx:p[0],cy:p[1],r:2.6,fill:V.line.c})));
+        // Drawn over a halo so it stays readable where it crosses the bars.
+        if(pts.length>1){const d='M'+pts.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join('L');
+          S.appendChild(el('path',{d:d,fill:'none',stroke:'var(--card)','stroke-width':5.5,
+            'stroke-linejoin':'round','stroke-linecap':'round',opacity:0.9}));
+          S.appendChild(el('path',{d:d,fill:'none',stroke:V.line.c,'stroke-width':2.4,
+            'stroke-linejoin':'round','stroke-linecap':'round'}));}
+        pts.forEach(p=>{S.appendChild(el('circle',{cx:p[0],cy:p[1],r:3.4,fill:'var(--card)'}));
+          S.appendChild(el('circle',{cx:p[0],cy:p[1],r:2.2,fill:V.line.c}));});
       }
       // the week this report is about
       const ci=W.findIndex(w=>w.w===cur);
