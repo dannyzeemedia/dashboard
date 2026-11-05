@@ -804,6 +804,11 @@
   .bk-track i{display:block;height:100%;border-radius:7px;min-width:2px}
   .bk-v{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;text-align:right;color:var(--ink)}
   /* Reports view */
+  .wk-pick{display:inline-flex;align-items:center;gap:4px;vertical-align:middle}
+  .wk-pick select{padding:7px 10px;font:inherit;font-size:13px;cursor:pointer;min-width:168px}
+  .wk-pick button{min-width:34px;padding:7px 9px;line-height:1}
+  .wk-pick button[disabled]{opacity:.35;cursor:default}
+
   #reports-body{margin-top:8px}
   .rep-group{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:26px 0 12px}
   .rep-group:first-child{margin-top:6px}
@@ -2925,16 +2930,15 @@ function renderReports(){
     }
     if(weekly.length){
       rec+=card('Weekly report', weekly[0].date_range||'',
-        'The end-of-week report. Published every Friday; earlier weeks stay below.',
+        weekly.length>1
+          ? 'The end-of-week report. Published every Friday; '+weekly.length+' weeks to switch between inside.'
+          : 'The end-of-week report, published every Friday.',
         ' data-kind="custom" data-id="'+esc(weekly[0].id)+'"');
     }
     if(rec)html+='<div class="rep-group">Recurring</div><div class="rep-list">'+rec+'</div>';
-    if(weekly.length>1){
-      html+='<div class="rep-group">Previous weeks</div><div class="rep-list">'
-        +weekly.slice(1,13).map(r=>card('Week to '+String(r.id).replace('weekly-',''),
-          r.date_range||'', r.summary||'', ' data-kind="custom" data-id="'+esc(r.id)+'"')).join('')
-        +'</div>';
-    }
+    // Earlier weeks are NOT listed here. A recurring report is one report with a
+    // date on it, not twenty-two reports; the index was 22 near-identical cards
+    // burying the two that are actually different.
     const aud=SERIES[ACTIVE]&&SERIES[ACTIVE].audit;   // account audit (lead/prospect deliverable)
     const oneoff=[];
     if(aud)oneoff.push(card(aud.title||'Account audit', aud.date_range||'', aud.summary||'One-off account audit of the email & SMS program.', ' data-kind="audit"'));
@@ -2957,10 +2961,35 @@ function renderReports(){
   // interactive charts, a 22-week history, hover. Printing it produces a poor
   // version of itself, and a button that disappoints is worse than no button.
   const _wk=r.kind==='weekly';
+  const _weeks=_wk?list.filter(x=>x.kind==='weekly')
+    .sort((a,b)=>String(b.id).localeCompare(String(a.id))):[];
+  const _wi=_weeks.findIndex(x=>x.id===r.id);
   if(ctl)ctl.innerHTML='<button class="btn ghost" id="repBack">← All reports</button> '
+    +(_weeks.length>1
+      ? '<span class="wk-pick">'
+        +'<button class="btn ghost" id="wkPrev" type="button" title="Earlier week"'
+        +(_wi>=_weeks.length-1?' disabled':'')+'>‹</button>'
+        +'<select id="wkSel" class="btn ghost" aria-label="Week">'
+        +_weeks.map((x,i)=>'<option value="'+esc(x.id)+'"'+(i===_wi?' selected':'')+'>'
+          +esc(x.date_range||x.id)+'</option>').join('')
+        +'</select>'
+        +'<button class="btn ghost" id="wkNext" type="button" title="Later week"'
+        +(_wi<=0?' disabled':'')+'>›</button></span> '
+      : '')
     +(r.video_url?'<button class="vidbtn" id="repVid" type="button">▶ Video walk-thru</button> ':'')
     +(r.share&&!SHARE_MODE?'<button class="btn ghost" id="repShare">🔗 Share link</button> ':'')
     +(_wk?'':'<button class="btn" onclick="printView(&quot;paper&quot;)">⤓ Save as PDF</button>');
+  if(_weeks.length>1){
+    const go=id=>{REPORT_OPEN=id;renderReports();
+      // keep the reader where they were: switching week is not leaving the page
+      const h=document.getElementById('view-reports');if(h)h.scrollIntoView({block:'start'});};
+    const sel=document.getElementById('wkSel');
+    if(sel)sel.addEventListener('change',e=>go(e.target.value));
+    const pv=document.getElementById('wkPrev');
+    if(pv)pv.addEventListener('click',()=>{if(_wi<_weeks.length-1)go(_weeks[_wi+1].id);});
+    const nx=document.getElementById('wkNext');
+    if(nx)nx.addEventListener('click',()=>{if(_wi>0)go(_weeks[_wi-1].id);});
+  }
   {const vb=document.getElementById('repVid');
    if(vb)vb.addEventListener('click',e=>{e.stopPropagation();
      if(window.openVideo)window.openVideo(r.video_url);});}
