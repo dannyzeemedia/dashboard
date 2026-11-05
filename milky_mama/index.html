@@ -2953,10 +2953,14 @@ function renderReports(){
   }
   const r=list.find(x=>x.id===REPORT_OPEN);if(!r){REPORT_OPEN=null;return renderReports();}
   if(tt)tt.textContent=r.title;
+  // No "Save as PDF" on the weekly report. It is built for a screen now:
+  // interactive charts, a 22-week history, hover. Printing it produces a poor
+  // version of itself, and a button that disappoints is worse than no button.
+  const _wk=r.kind==='weekly';
   if(ctl)ctl.innerHTML='<button class="btn ghost" id="repBack">← All reports</button> '
     +(r.video_url?'<button class="vidbtn" id="repVid" type="button">▶ Video walk-thru</button> ':'')
     +(r.share&&!SHARE_MODE?'<button class="btn ghost" id="repShare">🔗 Share link</button> ':'')
-    +'<button class="btn" onclick="printView(&quot;paper&quot;)">⤓ Save as PDF</button>';
+    +(_wk?'':'<button class="btn" onclick="printView(&quot;paper&quot;)">⤓ Save as PDF</button>');
   {const vb=document.getElementById('repVid');
    if(vb)vb.addEventListener('click',e=>{e.stopPropagation();
      if(window.openVideo)window.openVideo(r.video_url);});}
@@ -3157,6 +3161,97 @@ function repChart(host,name,data){
   const svg=(w,h)=>{const s=el('svg',{viewBox:'0 0 '+w+' '+h,width:'100%'});s.style.display='block';s.style.maxWidth=w+'px';s.style.margin='0 auto';return s;};
   const ON='var(--flow)',OFF='var(--camp)',ACC='var(--aqua)';
   const money=v=>'A$'+Math.round(v).toLocaleString();
+
+  // ---- weekly report: the whole history in one chart -----------------------
+  // The Slack report could only ever show this week and a percentage. On a page
+  // we have room for the shape of the account, so every headline metric is
+  // plotted across every week we have, and the week being reported is marked.
+  // Four views rather than four charts: the question changes, the axis does not.
+  if(name==='wktrend'){
+    host.dataset.wk=host.dataset.wk||'rev';
+    const W=(data.weeks||[]), n=W.length;
+    if(!n)return;
+    const cur=data.current||W[n-1].w;
+    const sym=(typeof SYM!=='undefined'&&SYM)||'$';
+    const m0=v=>sym+Math.round(v||0).toLocaleString();
+    const draw=()=>{
+      host.querySelectorAll('svg,.tip,.ppm-seg,.legend').forEach(x=>x.remove());
+      const mode=host.dataset.wk;
+      const seg=document.createElement('div');seg.className='ppm-seg';
+      seg.innerHTML=[['rev','Revenue'],['mix','Flows vs campaigns'],['subs','Subscribers'],['test','Testing']]
+        .map(([k,t])=>'<button type="button" class="csg'+(mode===k?' on':'')+'" data-m="'+k+'">'+t+'</button>').join('');
+      seg.addEventListener('click',e=>{const b=e.target.closest('.csg');if(!b)return;host.dataset.wk=b.dataset.m;draw();});
+      host.appendChild(seg);
+
+      // series per view: bars are stacked, line is overlaid on its own scale
+      const V={
+        rev:  {bars:[{k:'attributed',lab:'Klaviyo attributed',c:'var(--flow)'}],
+               line:{k:'store',lab:'Store revenue',c:'var(--muted)'},fmt:m0},
+        mix:  {bars:[{k:'flows',lab:'Flows',c:'var(--flow)'},{k:'campaigns',lab:'Campaigns',c:'var(--camp)'}],
+               line:null,fmt:m0},
+        subs: {bars:[{k:'net_subs',lab:'Net new subscribers',c:'var(--aqua)'}],
+               line:{k:'new_subs',lab:'New subscribers',c:'var(--flow)'},fmt:v=>Math.round(v||0).toLocaleString()},
+        test: {bars:[{k:'tests_lau',lab:'Tests launched',c:'var(--flow)'},{k:'tests_con',lab:'Tests concluded',c:'var(--camp)'}],
+               line:{k:'win_rate',lab:'Win rate',c:'var(--aqua)',pct:true},fmt:v=>Math.round(v||0).toLocaleString()}
+      }[mode];
+
+      const PL=58,PR=V.line?52:14,PT=16,PB=42,Wd=760,Hd=300,iw=Wd-PL-PR,ih=Hd-PT-PB;
+      const stack=W.map(w=>V.bars.reduce((a,b)=>a+(w[b.k]||0),0));
+      const yTop=niceMax(Math.max.apply(null,stack.concat([1])));
+      const lineVals=V.line?W.map(w=>w[V.line.k]):null;
+      const lTop=V.line?niceMax(Math.max.apply(null,(lineVals.filter(v=>v!=null).concat([1])))):0;
+      const S=svg(Wd,Hd);
+      const X=i=>PL+(iw/n)*(i+0.5), BW=Math.max(5,Math.min(26,iw/n*0.62));
+      const Y=v=>PT+ih-(v/yTop)*ih, YL=v=>PT+ih-(v/lTop)*ih;
+
+      for(let g=0;g<=4;g++){const y=PT+ih-(ih/4)*g;
+        S.appendChild(el('line',{x1:PL,x2:PL+iw,y1:y,y2:y,stroke:'var(--line)','stroke-width':1,opacity:g?0.5:1}));
+        S.appendChild(el('text',{x:PL-8,y:y+4,'text-anchor':'end',fill:'var(--muted)','font-size':11},
+          [document.createTextNode(V.fmt(yTop/4*g))]));}
+      if(V.line)for(let g=0;g<=4;g++){const y=PT+ih-(ih/4)*g;
+        S.appendChild(el('text',{x:PL+iw+8,y:y+4,fill:V.line.c,'font-size':11},
+          [document.createTextNode(V.line.pct?Math.round(lTop/4*g)+'%':V.fmt(lTop/4*g))]));}
+
+      const keep=labIdx(n);
+      W.forEach((w,i)=>{
+        let base=0;
+        V.bars.forEach(b=>{const v=w[b.k]||0;const h=Math.max(0,(v/yTop)*ih);
+          S.appendChild(el('rect',{x:X(i)-BW/2,y:Y(base+v),width:BW,height:h,fill:b.c,
+            rx:2,opacity:w.w===cur?1:0.62}));base+=v;});
+        if(keep.has(i))S.appendChild(el('text',{x:X(i),y:Hd-18,'text-anchor':'middle',
+          fill:w.w===cur?'var(--ink)':'var(--muted)','font-size':11,
+          'font-weight':w.w===cur?700:400},[document.createTextNode(w.lab)]));
+      });
+      if(V.line){
+        const pts=W.map((w,i)=>lineVals[i]==null?null:[X(i),YL(lineVals[i])]).filter(Boolean);
+        if(pts.length>1)S.appendChild(el('path',{d:'M'+pts.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join('L'),
+          fill:'none',stroke:V.line.c,'stroke-width':2,'stroke-linejoin':'round'}));
+        pts.forEach(p=>S.appendChild(el('circle',{cx:p[0],cy:p[1],r:2.6,fill:V.line.c})));
+      }
+      // the week this report is about
+      const ci=W.findIndex(w=>w.w===cur);
+      if(ci>=0)S.appendChild(el('line',{x1:X(ci),x2:X(ci),y1:PT,y2:PT+ih,
+        stroke:'var(--ink)','stroke-width':1,'stroke-dasharray':'3 3',opacity:0.35}));
+
+      // hover: one band per week, so the pointer never has to find a bar
+      W.forEach((w,i)=>{
+        const hit=el('rect',{x:PL+(iw/n)*i,y:PT,width:iw/n,height:ih,fill:'transparent'});
+        hit.style.cursor='crosshair';
+        hit.addEventListener('mousemove',ev=>{
+          const rows=V.bars.map(b=>[b.lab,w[b.k]||0,b.c,V.fmt]);
+          if(V.line&&w[V.line.k]!=null)rows.push([V.line.lab,w[V.line.k],V.line.c,
+            V.line.pct?(v=>v.toFixed(0)+'%'):V.fmt]);
+          showTip(host,ev,w.full||w.lab,rows,V.fmt);});
+        hit.addEventListener('mouseleave',()=>hideTip(host));
+        S.appendChild(hit);});
+      host.appendChild(S);
+      const lg=document.createElement('div');lg.className='legend';
+      lg.innerHTML=V.bars.concat(V.line?[V.line]:[]).map(b=>
+        '<span><i style="background:'+b.c+'"></i>'+esc(b.lab)+'</span>').join('');
+      host.appendChild(lg);
+    };
+    draw();return;
+  }
   // ---- post-purchase transition report -----------------------------------
   // Metric blocks first, because the question is "is the new journey working",
   // and the answer is five numbers against the baseline the old flow set.
