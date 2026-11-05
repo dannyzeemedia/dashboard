@@ -2911,16 +2911,34 @@ function renderReports(){
       +'<div class="rep-card-d">'+esc(d||'')+'</div><div class="rep-card-s">'+esc(s||'')+'</div>'
       +'<span class="rep-card-go">Open the report →</span></button>';
     let html='';
+    // Weekly reports are recurring like the monthly one, so they belong beside
+    // it rather than in the one-off pile they are stored with. Newest opens from
+    // the Recurring card; the rest become a dated archive. Sorted by id
+    // (weekly-YYYY-MM-DD) so a republished week cannot jump the queue.
+    const weekly=list.filter(r=>r.kind==='weekly')
+                     .sort((a,b)=>String(b.id).localeCompare(String(a.id)));
+    const others=list.filter(r=>r.kind!=='weekly');
+    let rec='';
     if(monthly.length){
       const latest=monthly[0], ml=latest.month_label||latest.month||'';
-      html+='<div class="rep-group">Recurring</div><div class="rep-list">'
-        +card('Monthly report', ml?('Latest: '+ml):'', 'Rolling monthly performance report. Past months stay in the archive.', ' data-kind="monthly"')
+      rec+=card('Monthly report', ml?('Latest: '+ml):'', 'Rolling monthly performance report. Past months stay in the archive.', ' data-kind="monthly"');
+    }
+    if(weekly.length){
+      rec+=card('Weekly report', weekly[0].date_range||'',
+        'The end-of-week report. Published every Friday; earlier weeks stay below.',
+        ' data-kind="custom" data-id="'+esc(weekly[0].id)+'"');
+    }
+    if(rec)html+='<div class="rep-group">Recurring</div><div class="rep-list">'+rec+'</div>';
+    if(weekly.length>1){
+      html+='<div class="rep-group">Previous weeks</div><div class="rep-list">'
+        +weekly.slice(1,13).map(r=>card('Week to '+String(r.id).replace('weekly-',''),
+          r.date_range||'', r.summary||'', ' data-kind="custom" data-id="'+esc(r.id)+'"')).join('')
         +'</div>';
     }
     const aud=SERIES[ACTIVE]&&SERIES[ACTIVE].audit;   // account audit (lead/prospect deliverable)
     const oneoff=[];
     if(aud)oneoff.push(card(aud.title||'Account audit', aud.date_range||'', aud.summary||'One-off account audit of the email & SMS program.', ' data-kind="audit"'));
-    list.forEach(r=>oneoff.push(card(r.title, r.date_range, r.summary,
+    others.forEach(r=>oneoff.push(card(r.title, r.date_range, r.summary,
       ' data-kind="custom" data-id="'+esc(r.id)+'"')));
     if(oneoff.length){
       html+='<div class="rep-group">One-Off</div><div class="rep-list">'+oneoff.join('')+'</div>';
