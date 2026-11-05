@@ -842,6 +842,11 @@
   .rc-eye{font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
     color:var(--muted);margin-bottom:6px}
   .rc-big{font-size:26px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
+  /* "A$1,634,293" at 26px overran its tile. A currency prefix plus seven
+     figures is 11 characters, and the tiles are a fixed grid, so the type
+     steps down rather than the number getting clipped. */
+  .rc-big.lg{font-size:22px;letter-spacing:-.025em}
+  .rc-big.xl{font-size:19px;letter-spacing:-.03em}
   .rc-lab{font-size:12.5px;color:var(--ink2);line-height:1.45;margin-top:5px}
   .rep-prose{font-size:14.5px;color:var(--ink2);line-height:1.65;margin:6px 0}
   .rep-prose h3{font-size:18px;color:var(--ink);letter-spacing:-.01em;margin:26px 0 8px}
@@ -3010,7 +3015,7 @@ function renderReports(){
     if(bl.t==='callouts'){const c=document.createElement('div');c.className='rep-callouts';
       c.innerHTML=bl.items.map(it=>'<div class="rep-callout">'
         +(it.eye?'<div class="rc-eye">'+esc(it.eye)+'</div>':'')
-        +'<div class="rc-big">'+esc(it.big)+'</div>'
+        +'<div class="rc-big'+(String(it.big||'').length>12?' xl':String(it.big||'').length>9?' lg':'')+'">'+esc(it.big)+'</div>'
         +'<div class="rc-lab">'+esc(it.lab)+'</div></div>').join('');wrap.appendChild(c);}
     else if(bl.t==='tldr'){const d=document.createElement('div');d.className='rep-tldr';
       d.innerHTML='<div class="rep-tldr-h">'+esc(bl.label||'The short of it')+'</div><ul>'
