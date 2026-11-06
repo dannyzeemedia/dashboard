@@ -808,7 +808,9 @@
   .rep-fig .ppm-seg{margin-bottom:14px}
   .rep-fig .legend{margin-top:12px}
   .wk-pick{display:inline-flex;align-items:center;gap:4px;vertical-align:middle}
-  .wk-pick select{padding:7px 10px;font:inherit;font-size:13px;cursor:pointer;min-width:168px}
+  .wk-pick select{appearance:none;-webkit-appearance:none;padding:7px 32px 7px 13px;font:inherit;font-size:13px;cursor:pointer;min-width:168px}
+  .wk-sel{position:relative;display:inline-flex;align-items:center}
+  .wk-sel::after{content:'';position:absolute;right:13px;top:50%;width:6px;height:6px;margin-top:-5px;color:var(--ink);border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;transform:rotate(45deg);opacity:.5;pointer-events:none}
   .wk-pick button{min-width:34px;padding:7px 9px;line-height:1}
   .wk-pick button[disabled]{opacity:.35;cursor:default}
 
@@ -2977,10 +2979,10 @@ function renderReports(){
       ? '<span class="wk-pick">'
         +'<button class="btn ghost" id="wkPrev" type="button" title="Earlier week"'
         +(_wi>=_weeks.length-1?' disabled':'')+'>‹</button>'
-        +'<select id="wkSel" class="btn ghost" aria-label="Week">'
+        +'<span class="wk-sel"><select id="wkSel" class="btn ghost" aria-label="Week">'
         +_weeks.map((x,i)=>'<option value="'+esc(x.id)+'"'+(i===_wi?' selected':'')+'>'
           +esc(x.date_range||x.id)+'</option>').join('')
-        +'</select>'
+        +'</select></span>'
         +'<button class="btn ghost" id="wkNext" type="button" title="Later week"'
         +(_wi<=0?' disabled':'')+'>›</button></span> '
       : '')
