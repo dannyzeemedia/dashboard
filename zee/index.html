@@ -3180,8 +3180,7 @@ function renderReports(){
       const d=document.createElement('div');d.className='rep-prose';
       d.innerHTML=(bl.label?'<h3>'+esc(bl.label)+'</h3>':'')
         +'<div class="rep-subs">'+row('Joined',v.new,'var(--good)')+row('Left',v.unsub,'var(--crit)')
-        +'<div class="rsb-net">Net <b>'+((v.net||0)>=0?'+':'')+nf(v.net)+'</b>'
-        +(kept!=null?'. For every 100 who joined, <b>'+kept+'</b> left.':'.')
+        +'<div class="rsb-net">'+(kept!=null?'For every 100 who joined, <b>'+kept+'</b> left.':'')
         +(v.cust!=null?' <b>'+nf(v.cust)+'</b> became customers.':'')+'</div></div>'
         +(bl.note?'<p>'+bl.note+'</p>':'');
       wrap.appendChild(d);}
