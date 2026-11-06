@@ -25,6 +25,9 @@
     --grid:#3a3b33; --axis:#4a4b42; --border:rgba(220,228,231,.13);
     --flow:#5aa0d6; --camp:#F7E984; --aqua:#3aa0af;
     --ice-ok:#7FA6FF; --ice-no:#A9B8F0;
+    /* The status trio was only ever defined for the light ground, so a
+       green delta sat at 2.4:1 on the dark plane. Its own steps, not a flip. */
+    --good:#5bc47c; --warn:#e3bb57; --crit:#f08f78;
     --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.6);
   }}
   :root[data-theme="dark"]{
@@ -34,6 +37,9 @@
     --grid:#3a3b33; --axis:#4a4b42; --border:rgba(220,228,231,.13);
     --flow:#5aa0d6; --camp:#F7E984; --aqua:#3aa0af;
     --ice-ok:#7FA6FF; --ice-no:#A9B8F0;
+    /* The status trio was only ever defined for the light ground, so a
+       green delta sat at 2.4:1 on the dark plane. Its own steps, not a flip. */
+    --good:#5bc47c; --warn:#e3bb57; --crit:#f08f78;
     --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.6);
   }
   /* Range/comparison toggles rebuild the dashboard from scratch, which read as
@@ -839,8 +845,9 @@
   .rep-tldr li{font-size:14.5px;color:var(--ink2);line-height:1.6;margin:6px 0}
   .rep-tldr li b{color:var(--ink)}
   @media print{.rep-tldr{padding:11px 15px;margin:14px 0 4px}.rep-tldr li{margin:4px 0}}
-  .rep-callouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin:24px 0}
-  .rep-callout{border:1px solid var(--border);border-left:3px solid var(--aqua);border-radius:11px;padding:16px 18px;background:var(--surface-2)}
+  .rep-callouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(166px,1fr));gap:14px;margin:24px 0}
+  .rep-callout{border:1px solid var(--border);border-left:3px solid var(--aqua);border-radius:11px;
+    padding:16px 18px;background:var(--surface-2);display:flex;flex-direction:column}
   .rc-eye{font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
     color:var(--muted);margin-bottom:6px}
   .rc-big{font-size:26px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
@@ -849,7 +856,65 @@
      steps down rather than the number getting clipped. */
   .rc-big.lg{font-size:22px;letter-spacing:-.025em}
   .rc-big.xl{font-size:19px;letter-spacing:-.03em}
+  /* "A$1,634,293" is eleven characters and was clipped flat at 19px. */
+  .rc-big.xxl{font-size:17px;letter-spacing:-.035em}
   .rc-lab{font-size:12.5px;color:var(--ink2);line-height:1.45;margin-top:5px}
+  /* A tile was a label and a number with the movement buried in grey text at
+     the bottom. Direction is the thing the eye should catch first, so it gets
+     an arrow and a status colour (never colour alone), and the sparkline puts
+     the week in the shape of the quarter instead of leaving it a lone figure. */
+  .rc-d{display:inline-flex;align-items:baseline;gap:5px;font-size:12.5px;font-weight:700;margin-top:7px}
+  .rc-d .arw{font-size:9px;line-height:1;position:relative;top:-1px}
+  .rc-d.up{color:var(--good)}
+  .rc-d.dn{color:var(--crit)}
+  .rc-d.fl{color:var(--muted)}
+  .rc-d .cmp{font-weight:500;color:var(--muted);font-size:11.5px}
+  .rc-sub{font-size:11.5px;color:var(--muted);margin-top:3px}
+  /* Pushed to the floor of the tile so the sparklines line up across the row
+     whether or not a tile carries a second line under its delta. */
+  .rc-spark{display:block;width:100%;height:auto;aspect-ratio:160/34;margin-top:auto;padding-top:11px}
+  /* Top flows and campaigns were two columns of text. They are the week's
+     actual objects, so each is a chip you can open in Klaviyo, carrying its
+     share of the total as a bar rather than as another number to compare. */
+  /* Three to five across, one row, never a single orphan on a second line.
+     Column flow sizes to the count instead of to a minimum width. */
+  .rep-chips{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:11px;margin:10px 0 24px}
+  @media(max-width:760px){.rep-chips{grid-auto-flow:row;grid-template-columns:repeat(auto-fit,minmax(142px,1fr))}}
+  .rep-chip{display:block;border:1px solid var(--border);border-radius:12px;padding:12px 13px 11px;
+    background:var(--surface-2);text-decoration:none;color:inherit;transition:border-color .12s,box-shadow .12s}
+  a.rep-chip:hover,a.rep-chip:focus-visible{border-color:var(--flow);box-shadow:var(--shadow);outline:none}
+  .rch-n{font-size:12.5px;font-weight:700;color:var(--ink);line-height:1.32;
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .rch-v{font-size:18px;font-weight:800;color:var(--ink);margin-top:6px;letter-spacing:-.02em}
+  .rch-s{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.35}
+  .rch-bar{height:4px;border-radius:3px;background:var(--grid);margin-top:9px;overflow:hidden}
+  .rch-bar i{display:block;height:100%;border-radius:3px;background:var(--flow)}
+  .rch-go{margin-top:9px;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:10px;font-weight:800;
+    letter-spacing:.09em;text-transform:uppercase;color:var(--flow)}
+  .rch-go a{color:inherit;text-decoration:none;border-bottom:1px solid transparent}
+  .rch-go a:hover{border-bottom-color:currentColor}
+  /* Four counts in a column said nothing about the one thing that matters:
+     how much of what came in stayed. Two bars on one scale show the gap. */
+  .rep-subs{margin:10px 0 22px}
+  .rsb-row{display:grid;grid-template-columns:104px 1fr auto;align-items:center;gap:11px;margin:7px 0}
+  .rsb-l{font-size:12px;color:var(--ink2)}
+  .rsb-t{height:17px;border-radius:5px;background:var(--grid);overflow:hidden}
+  .rsb-t i{display:block;height:100%;border-radius:5px}
+  .rsb-v{font-size:13.5px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
+  .rsb-net{margin-top:11px;font-size:13px;color:var(--ink2)}
+  .rsb-net b{color:var(--ink)}
+  /* The work log was a six-row table of bare integers. Same numbers, read in
+     one sweep, with the win rate as a bar because a rate wants a track. */
+  .rep-wl{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:11px;margin:10px 0 16px}
+  @media(max-width:760px){.rep-wl{grid-auto-flow:row;grid-template-columns:repeat(auto-fit,minmax(118px,1fr))}}
+  .rwl{border:1px solid var(--border);border-radius:12px;padding:12px 13px;background:var(--surface-2)}
+  .rwl .ic{font-size:15px;line-height:1;
+    font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",var(--sans)}
+  .rwl .v{font-size:21px;font-weight:800;color:var(--ink);margin-top:7px;letter-spacing:-.02em}
+  .rwl .l{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.3}
+  .rwl.wr .v{color:var(--ink)}
+  .rwl-meter{height:4px;border-radius:3px;background:var(--grid);margin-top:8px;overflow:hidden}
+  .rwl-meter i{display:block;height:100%;border-radius:3px;background:var(--good)}
   .rep-prose{font-size:14.5px;color:var(--ink2);line-height:1.65;margin:6px 0}
   .rep-prose h3{font-size:18px;color:var(--ink);letter-spacing:-.01em;margin:26px 0 8px}
   .rep-prose p{margin:9px 0}.rep-prose b{color:var(--ink)}
@@ -2907,12 +2972,61 @@ function repPlain(r){
       const d=document.createElement('div');d.innerHTML=bl.html||'';
       out.push((d.textContent||'').replace(/\s+/g,' ').trim());}
     else if(bl.t==='chart'){out.push([bl.title,bl.cap].filter(Boolean).join('. '));}
+    else if(bl.t==='chips'){out.push([bl.label].concat((bl.items||[]).map(i=>i.name+', '+i.value)).filter(Boolean).join('. '));}
+    else if(bl.t==='subs'){const v=bl.v||{};out.push([bl.label,'Joined '+(v.new||0),'left '+(v.unsub||0),'net '+(v.net||0)].filter(Boolean).join(', '));}
+    else if(bl.t==='worklog'){out.push([bl.label].concat((bl.items||[]).map(i=>i.lab+' '+i.v)).filter(Boolean).join('. '));
+      if(bl.note){const d=document.createElement('div');d.innerHTML=bl.note;out.push((d.textContent||'').replace(/\s+/g,' ').trim());}}
   });
   return out.filter(Boolean).join('\n\n');
 }
 function repReadTime(r){
   const w=repPlain(r).split(/\s+/).filter(Boolean).length;
   return Math.max(1,Math.round(w/200));
+}
+// ---- weekly report: tile trend and direction ------------------------------
+// Twenty-two weeks are already published without the structured fields, so a
+// tile's movement is read from `pct` when the builder put one there and
+// recovered from its own printed label when it did not. Nothing has to be
+// republished to gain an arrow or a sparkline.
+const TILE_SERIES={'total store revenue':'store','klaviyo attributed':'attributed',
+  'flows':'flows','campaigns':'campaigns','net subscribers':'net_subs',
+  'new subscribers':'new_subs'};
+function tileParts(it){
+  let pct=(it.pct==null||it.pct==='')?null:+it.pct, cmp=it.cmp||'', sub=it.sub||'';
+  if(pct==null&&it.lab){
+    const m=String(it.lab).match(/^([+-]?\d+(?:\.\d+)?)%\s*(\S+)?/);
+    if(m){pct=parseFloat(m[1]);cmp=cmp||m[2]||'';
+      const rest=String(it.lab).slice(m[0].length).replace(/^[\s·]+/,'').trim();
+      if(rest&&!sub)sub=rest;}
+    else if(!sub&&String(it.lab).trim()&&String(it.lab).trim()!=='—')sub=it.lab;
+  }
+  if(pct!=null&&isNaN(pct))pct=null;
+  return {pct:pct,cmp:cmp,sub:sub,
+          key:it.spark||TILE_SERIES[String(it.eye||'').toLowerCase()]||null};
+}
+function sparkSVG(vals){
+  const n=vals.length;if(n<3)return '';
+  const W=160,H=34,P=4;
+  const mx=Math.max.apply(null,vals),mn=Math.min.apply(null,vals),rng=(mx-mn)||1;
+  const X=i=>P+(W-P*2)*(i/(n-1)),Y=v=>H-P-((v-mn)/rng)*(H-P*2);
+  const d=vals.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join('');
+  const area=d+'L'+X(n-1).toFixed(1)+' '+H+'L'+X(0).toFixed(1)+' '+H+'Z';
+  return '<svg class="rc-spark" viewBox="0 0 '+W+' '+H+'" aria-hidden="true">'
+    +'<path d="'+area+'" fill="var(--muted)" opacity=".16"/>'
+    +'<path d="'+d+'" fill="none" stroke="var(--muted)" stroke-width="1.7" '
+    +'stroke-linejoin="round" stroke-linecap="round" opacity=".95"/>'
+    +'<circle cx="'+X(n-1).toFixed(1)+'" cy="'+Y(vals[n-1]).toFixed(1)+'" r="2.9" '
+    +'fill="var(--flow)"/></svg>';
+}
+// Colour never carries direction on its own: the arrow says it too, and the
+// sign stays on the number.
+function deltaHTML(pct,cmp,goodUp){
+  if(pct==null)return '';
+  const flat=Math.abs(pct)<0.05,up=pct>0;
+  const cls=flat?'fl':((up===(goodUp!==false))?'up':'dn');
+  return '<div class="rc-d '+cls+'"><span class="arw">'+(flat?'●':up?'▲':'▼')+'</span>'
+    +(pct>0?'+':'')+pct.toFixed(1)+'%'
+    +(cmp?'<span class="cmp">'+esc(cmp)+'</span>':'')+'</div>';
 }
 function renderReports(){
   const body=document.getElementById('reports-body');if(!body)return;
@@ -3015,10 +3129,73 @@ function renderReports(){
   (r.blocks||[]).forEach(bl=>{
     _blk++;
     if(bl.t==='callouts'){const c=document.createElement('div');c.className='rep-callouts';
-      c.innerHTML=bl.items.map(it=>'<div class="rep-callout">'
-        +(it.eye?'<div class="rc-eye">'+esc(it.eye)+'</div>':'')
-        +'<div class="rc-big'+(String(it.big||'').length>12?' xl':String(it.big||'').length>9?' lg':'')+'">'+esc(it.big)+'</div>'
-        +'<div class="rc-lab">'+esc(it.lab)+'</div></div>').join('');wrap.appendChild(c);}
+      const WK=(((r.charts||{}).wktrend)||{}).weeks||[];
+      c.innerHTML=bl.items.map(it=>{
+        const P=tileParts(it);
+        let sp='';
+        if(P.key&&WK.length>2){
+          const vals=WK.slice(-12).map(w=>+(w[P.key]||0));
+          if(vals.some(v=>v))sp=sparkSVG(vals);
+        }
+        return '<div class="rep-callout">'
+          +(it.eye?'<div class="rc-eye">'+esc(it.eye)+'</div>':'')
+          +'<div class="rc-big'+(String(it.big||'').length>13?' xxl':String(it.big||'').length>10?' xl':String(it.big||'').length>8?' lg':'')+'">'+esc(it.big)+'</div>'
+          +deltaHTML(P.pct,P.cmp,it.goodUp)
+          +(P.sub?'<div class="rc-sub">'+esc(P.sub)+'</div>':'')
+          +sp+'</div>';
+      }).join('');wrap.appendChild(c);}
+    // The week's actual objects, each one a way into Klaviyo rather than a row
+    // of text. The bar is the chip's share of its own total, so the top line is
+    // read against the rest instead of against another number.
+    else if(bl.t==='chips'){const d=document.createElement('div');d.className='rep-prose';
+      d.innerHTML=(bl.label?'<h3>'+esc(bl.label)+'</h3>':'')
+        +'<div class="rep-chips">'+(bl.items||[]).map(it=>{
+          const body='<div class="rch-n">'+esc(it.name||'')+'</div>'
+            +'<div class="rch-v">'+esc(it.value||'')+'</div>'
+            +(it.sub?'<div class="rch-s">'+esc(it.sub)+'</div>':'')
+            +(it.share!=null?'<div class="rch-bar"><i style="width:'
+              +Math.max(2,Math.min(100,+it.share)).toFixed(1)+'%"></i></div>':'');
+          // A second destination cannot be a nested anchor, so it is a span the
+          // click handler below opens.
+          const extra=(it.links||[]).map(l=>'<span data-href="'+esc(l.href)+'">'+esc(l.lab)+'</span>').join('');
+          const go=extra?'<div class="rch-go">'+extra+'</div>':'';
+          const t=' title="'+esc(it.name||'')+'"';
+          return it.href
+            ? '<a class="rep-chip"'+t+' href="'+esc(it.href)+'" target="_blank" rel="noopener">'+body+go+'</a>'
+            : '<div class="rep-chip"'+t+'>'+body+go+'</div>';
+        }).join('')+'</div>';
+      d.querySelectorAll('.rch-go span[data-href]').forEach(sp=>{
+        sp.style.cursor='pointer';
+        sp.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();
+          window.open(sp.dataset.href,'_blank','noopener');});});
+      wrap.appendChild(d);}
+    // Four counts in a column never said how much of what came in stayed.
+    else if(bl.t==='subs'){const v=bl.v||{};
+      const mx=Math.max(v.new||0,v.unsub||0,1);
+      const nf=x=>(x==null?'—':Math.round(x).toLocaleString());
+      const row=(lab,val,col)=>'<div class="rsb-row"><div class="rsb-l">'+esc(lab)+'</div>'
+        +'<div class="rsb-t"><i style="width:'+Math.max(1.5,(val||0)/mx*100).toFixed(1)
+        +'%;background:'+col+'"></i></div><div class="rsb-v">'+nf(val)+'</div></div>';
+      const kept=(v.new?Math.round((v.unsub||0)/v.new*100):null);
+      const d=document.createElement('div');d.className='rep-prose';
+      d.innerHTML=(bl.label?'<h3>'+esc(bl.label)+'</h3>':'')
+        +'<div class="rep-subs">'+row('Joined',v.new,'var(--good)')+row('Left',v.unsub,'var(--crit)')
+        +'<div class="rsb-net">Net <b>'+((v.net||0)>=0?'+':'')+nf(v.net)+'</b>'
+        +(kept!=null?'. For every 100 who joined, <b>'+kept+'</b> left.':'.')
+        +(v.cust!=null?' <b>'+nf(v.cust)+'</b> became customers.':'')+'</div></div>'
+        +(bl.note?'<p>'+bl.note+'</p>':'');
+      wrap.appendChild(d);}
+    // Same counts the table held, read in one sweep.
+    else if(bl.t==='worklog'){const d=document.createElement('div');d.className='rep-prose';
+      d.innerHTML=(bl.label?'<h3>'+esc(bl.label)+'</h3>':'')
+        +'<div class="rep-wl">'+(bl.items||[]).map(it=>'<div class="rwl'+(it.meter!=null?' wr':'')+'">'
+          +'<div class="ic">'+esc(it.ic||'')+'</div><div class="v">'+esc(String(it.v))+'</div>'
+          +'<div class="l">'+esc(it.lab||'')+'</div>'
+          +(it.meter!=null?'<div class="rwl-meter"><i style="width:'
+            +Math.max(0,Math.min(100,+it.meter)).toFixed(0)+'%"></i></div>':'')
+          +'</div>').join('')+'</div>'
+        +(bl.note?'<p>'+bl.note+'</p>':'');
+      wrap.appendChild(d);}
     else if(bl.t==='tldr'){const d=document.createElement('div');d.className='rep-tldr';
       d.innerHTML='<div class="rep-tldr-h">'+esc(bl.label||'The short of it')+'</div><ul>'
         +(bl.items||[]).map(x=>'<li>'+x+'</li>').join('')+'</ul>';wrap.appendChild(d);}
@@ -3222,89 +3399,121 @@ function repChart(host,name,data){
       seg.addEventListener('click',e=>{const b=e.target.closest('.csg');if(!b)return;host.dataset.wk=b.dataset.m;draw();});
       host.appendChild(seg);
 
-      // series per view: bars are stacked, line is overlaid on its own scale
+      // One scale, always. The first version put store revenue on a second axis
+      // at the right so it could share the plot with a number a third its size,
+      // which is the oldest way to make two series look like they move together
+      // when they do not. Where one measure contains the other, the container is
+      // a wide pale bar and the part sits inside it: same axis, and the share is
+      // the picture. Where the units genuinely differ (a win rate against test
+      // counts) the second measure gets its own strip underneath.
       const V={
-        rev:  {bars:[{k:'attributed',lab:'Klaviyo attributed',c:'var(--flow)'}],
-               line:{k:'store',lab:'Store revenue',c:'var(--muted)'},fmt:m0},
-        mix:  {bars:[{k:'flows',lab:'Flows',c:'var(--flow)'},{k:'campaigns',lab:'Campaigns',c:'var(--camp)'}],
-               line:null,fmt:m0},
-        subs: {bars:[{k:'net_subs',lab:'Net new subscribers',c:'var(--aqua)'}],
-               line:{k:'new_subs',lab:'New subscribers',c:'var(--flow)'},fmt:v=>Math.round(v||0).toLocaleString()},
-        test: {bars:[{k:'tests_lau',lab:'Tests launched',c:'var(--flow)'},{k:'tests_con',lab:'Tests concluded',c:'var(--camp)'}],
-               line:{k:'win_rate',lab:'Win rate',c:'var(--aqua)',pct:true},fmt:v=>Math.round(v||0).toLocaleString()}
+        rev:  {back:{k:'store',lab:'Store revenue',c:'var(--muted)'},
+               bars:[{k:'attributed',lab:'Klaviyo attributed',c:'var(--flow)'}],fmt:m0,
+               share:['attributed','store']},
+        mix:  {bars:[{k:'flows',lab:'Flows',c:'var(--flow)'},{k:'campaigns',lab:'Campaigns',c:'var(--camp)'}],fmt:m0},
+        subs: {back:{k:'new_subs',lab:'New subscribers',c:'var(--muted)'},
+               bars:[{k:'net_subs',lab:'Net new subscribers',c:'var(--aqua)'}],
+               fmt:v=>Math.round(v||0).toLocaleString(),share:['net_subs','new_subs']},
+        test: {bars:[{k:'tests_lau',lab:'Tests launched',c:'var(--flow)'},
+                     {k:'tests_con',lab:'Tests concluded',c:'var(--camp)'}],group:true,
+               strip:{k:'win_rate',lab:'Win rate',c:'var(--aqua)'},
+               fmt:v=>Math.round(v||0).toLocaleString()}
       }[mode];
 
-      const stack=W.map(w=>V.bars.reduce((a,b)=>a+(w[b.k]||0),0));
-      const yTop=niceMax(Math.max.apply(null,stack.concat([1])));
-      const lineVals=V.line?W.map(w=>w[V.line.k]):null;
-      const lTop=V.line?niceMax(Math.max.apply(null,(lineVals.filter(v=>v!=null).concat([1])))):0;
+      const stack=W.map(w=>V.group?Math.max.apply(null,V.bars.map(b=>w[b.k]||0))
+                                  :V.bars.reduce((a,b)=>a+(w[b.k]||0),0));
+      const backs=V.back?W.map(w=>w[V.back.k]||0):[];
+      const yTop=niceMax(Math.max.apply(null,stack.concat(backs).concat([1])));
+      const hasStrip=!!(V.strip&&W.some(w=>w[V.strip.k]!=null));
 
-      // "A$1,000,000" is ~72px at 11px type, so PL=58 and PR=52 had both axes
-      // overhanging their own plot. Pad for the widest label this view will
-      // actually print, and give the bars air at each end so the first and last
-      // week are not flush against an axis. The scales have to exist first.
-      const PT=22,PB=52,Wd=760,Hd=320;
+      const PT=22,PB=52,Wd=760,SH=hasStrip?62:0,Hd=320+SH;
       const widest=a=>a.reduce((m,t)=>Math.max(m,String(t).length),0)*6.6+16;
       const yLabs=[0,1,2,3,4].map(g=>V.fmt(yTop/4*g));
       const PL=Math.max(46,widest(yLabs));
-      const lLabs=V.line?[0,1,2,3,4].map(g=>V.line.pct?Math.round(lTop/4*g)+'%':V.fmt(lTop/4*g)):[];
-      const PR=V.line?Math.max(46,widest(lLabs)):18;
-      const iw=Wd-PL-PR,ih=Hd-PT-PB;
+      const PR=18;
+      const iw=Wd-PL-PR,ih=320-PT-PB;
       const S=svg(Wd,Hd);
       const INS=Math.min(18,iw/n*0.5), bw0=iw-INS*2;
-      const X=i=>PL+INS+(bw0/n)*(i+0.5), BW=Math.max(5,Math.min(26,bw0/n*0.62));
-      const Y=v=>PT+ih-(v/yTop)*ih, YL=v=>PT+ih-(v/lTop)*ih;
+      const X=i=>PL+INS+(bw0/n)*(i+0.5);
+      const BW=Math.max(5,Math.min(26,bw0/n*0.62));
+      const BWB=Math.max(7,Math.min(34,bw0/n*0.86));   // the containing bar
+      const Y=v=>PT+ih-(v/yTop)*ih;
 
       for(let g=0;g<=4;g++){const y=PT+ih-(ih/4)*g;
         S.appendChild(el('line',{x1:PL,x2:PL+iw,y1:y,y2:y,stroke:'var(--line)','stroke-width':1,opacity:g?0.5:1}));
         const tx=el('text',{x:PL-8,y:y+4,'text-anchor':'end',fill:'var(--muted)','font-size':11});
         tx.textContent=V.fmt(yTop/4*g);S.appendChild(tx);}
-      if(V.line)for(let g=0;g<=4;g++){const y=PT+ih-(ih/4)*g;
-        const tx=el('text',{x:PL+iw+8,y:y+4,fill:V.line.c,'font-size':11});
-        tx.textContent=V.line.pct?Math.round(lTop/4*g)+'%':V.fmt(lTop/4*g);S.appendChild(tx);}
 
       const keep=labIdx(n);
       W.forEach((w,i)=>{
-        let base=0;
-        V.bars.forEach(b=>{const v=w[b.k]||0;const h=Math.max(0,(v/yTop)*ih);
-          S.appendChild(el('rect',{x:X(i)-BW/2,y:Y(base+v),width:BW,height:h,fill:b.c,
-            rx:2,opacity:w.w===cur?1:0.62}));base+=v;});
-        if(keep.has(i)){const tx=el('text',{x:X(i),y:Hd-24,'text-anchor':'middle',
+        if(V.back){const v=w[V.back.k]||0;
+          S.appendChild(el('rect',{x:X(i)-BWB/2,y:Y(v),width:BWB,height:Math.max(0,(v/yTop)*ih),
+            fill:V.back.c,rx:2,opacity:w.w===cur?0.34:0.2}));}
+        if(V.group){
+          const g2=V.bars.length,gw=Math.max(4,Math.min(16,bw0/n*0.38));
+          V.bars.forEach((b,j)=>{const v=w[b.k]||0;
+            S.appendChild(el('rect',{x:X(i)-(g2*gw+2)/2+j*(gw+2),y:Y(v),width:gw,
+              height:Math.max(0,(v/yTop)*ih),fill:b.c,rx:2,opacity:w.w===cur?1:0.62}));});
+        }else{
+          let base=0;
+          V.bars.forEach(b=>{const v=w[b.k]||0;
+            S.appendChild(el('rect',{x:X(i)-BW/2,y:Y(base+v),width:BW,height:Math.max(0,(v/yTop)*ih),
+              fill:b.c,rx:2,opacity:w.w===cur?1:0.62}));base+=v;});
+        }
+        if(keep.has(i)){const tx=el('text',{x:X(i),y:316-24,'text-anchor':'middle',
           fill:w.w===cur?'var(--ink)':'var(--muted)','font-size':11,
           'font-weight':w.w===cur?700:400});tx.textContent=w.lab;S.appendChild(tx);}
       });
-      if(V.line){
-        const pts=W.map((w,i)=>lineVals[i]==null?null:[X(i),YL(lineVals[i])]).filter(Boolean);
-        // Drawn over a halo so it stays readable where it crosses the bars.
-        if(pts.length>1){const d='M'+pts.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join('L');
-          S.appendChild(el('path',{d:d,fill:'none',stroke:'var(--card)','stroke-width':5.5,
-            'stroke-linejoin':'round','stroke-linecap':'round',opacity:0.9}));
-          S.appendChild(el('path',{d:d,fill:'none',stroke:V.line.c,'stroke-width':2.4,
-            'stroke-linejoin':'round','stroke-linecap':'round'}));}
-        pts.forEach(p=>{S.appendChild(el('circle',{cx:p[0],cy:p[1],r:3.4,fill:'var(--card)'}));
-          S.appendChild(el('circle',{cx:p[0],cy:p[1],r:2.2,fill:V.line.c}));});
-      }
+
       // the week this report is about
       const ci=W.findIndex(w=>w.w===cur);
-      if(ci>=0)S.appendChild(el('line',{x1:X(ci),x2:X(ci),y1:PT,y2:PT+ih,
+      if(ci>=0)S.appendChild(el('line',{x1:X(ci),x2:X(ci),y1:PT,y2:PT+ih+(hasStrip?SH:0),
         stroke:'var(--ink)','stroke-width':1,'stroke-dasharray':'3 3',opacity:0.35}));
+
+      // its own strip, its own scale, same weeks underneath
+      if(hasStrip){
+        const sy0=320+6,sh=SH-20;
+        const SY=v=>sy0+sh-(Math.max(0,Math.min(100,v))/100)*sh;
+        S.appendChild(el('line',{x1:PL,x2:PL+iw,y1:sy0+sh,y2:sy0+sh,stroke:'var(--line)','stroke-width':1}));
+        [0,50,100].forEach(t=>{const tx=el('text',{x:PL-8,y:SY(t)+4,'text-anchor':'end',
+          fill:'var(--muted)','font-size':10});tx.textContent=t+'%';S.appendChild(tx);});
+        const pts=W.map((w,i)=>w[V.strip.k]==null?null:[X(i),SY(w[V.strip.k])]).filter(Boolean);
+        if(pts.length>1){const d='M'+pts.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join('L');
+          S.appendChild(el('path',{d:d,fill:'none',stroke:V.strip.c,'stroke-width':2.2,
+            'stroke-linejoin':'round','stroke-linecap':'round'}));}
+        pts.forEach(p=>{S.appendChild(el('circle',{cx:p[0],cy:p[1],r:3.2,fill:'var(--card)'}));
+          S.appendChild(el('circle',{cx:p[0],cy:p[1],r:2.1,fill:V.strip.c}));});
+        const lt=el('text',{x:PL,y:sy0-4,fill:V.strip.c,'font-size':10.5,'font-weight':700});
+        lt.textContent=V.strip.lab;S.appendChild(lt);
+      }
 
       // hover: one band per week, so the pointer never has to find a bar
       W.forEach((w,i)=>{
-        const hit=el('rect',{x:PL+INS+(bw0/n)*i,y:PT,width:bw0/n,height:ih,fill:'transparent'});
+        const hit=el('rect',{x:PL+INS+(bw0/n)*i,y:PT,width:bw0/n,height:ih+(hasStrip?SH:0),fill:'transparent'});
         hit.style.cursor='crosshair';
         hit.addEventListener('mousemove',ev=>{
           const rows=V.bars.map(b=>[b.lab,w[b.k]||0,b.c,V.fmt]);
-          if(V.line&&w[V.line.k]!=null)rows.push([V.line.lab,w[V.line.k],V.line.c,
-            V.line.pct?(v=>v.toFixed(0)+'%'):V.fmt]);
+          if(V.back)rows.push([V.back.lab,w[V.back.k]||0,V.back.c,V.fmt]);
+          if(V.share){const a=w[V.share[0]]||0,b=w[V.share[1]]||0;
+            if(b)rows.push(['Share',a/b*100,'var(--ink)',v=>v.toFixed(0)+'%']);}
+          if(V.strip&&w[V.strip.k]!=null)rows.push([V.strip.lab,w[V.strip.k],V.strip.c,v=>v.toFixed(0)+'%']);
           showTip(host,ev,w.full||w.lab,rows,V.fmt);});
         hit.addEventListener('mouseleave',()=>hideTip(host));
         S.appendChild(hit);});
       host.appendChild(S);
       const lg=document.createElement('div');lg.className='legend';
-      lg.innerHTML=V.bars.concat(V.line?[V.line]:[]).map(b=>
+      lg.innerHTML=V.bars.concat(V.back?[V.back]:[]).concat(V.strip&&hasStrip?[V.strip]:[]).map(b=>
         '<span><i style="background:'+b.c+'"></i>'+esc(b.lab)+'</span>').join('');
       host.appendChild(lg);
+      // The caption is stored once with the block, but each view answers a
+      // different question, so the figure writes its own.
+      const cap=host.parentElement&&host.parentElement.querySelector('.rep-fig-cap');
+      if(cap)cap.textContent=({
+        rev:'The pale bar is the whole store and the solid bar is the part Klaviyo brought in, on the same scale.',
+        mix:'Flows and campaigns stacked, so the height of the bar is everything Klaviyo earned that week.',
+        subs:'The pale bar is everyone who joined; the solid bar is what was left of them after unsubscribes.',
+        test:'Tests launched beside tests concluded, with the win rate on its own strip underneath.'
+      }[mode]||'')+' The dashed week is the one this report covers. Hover any week for its numbers.';
     };
     draw();return;
   }
@@ -4059,6 +4268,9 @@ function anchorTitle(c){if(!c)return'';const id=c.id||'';
     if(h)return h.textContent;
     const k=c.dataset.blkKind;
     if(k==='callouts')return 'the four summary boxes';
+    if(k==='chips')return 'the top flows and campaigns';
+    if(k==='subs')return 'the subscriber movement';
+    if(k==='worklog')return 'what we did this week';
     if(k==='tldr')return 'the summary box';
     if(k==='method')return 'the method note';
     return (c.textContent||'').replace(/\s+/g,' ').trim().slice(0,70);
