@@ -921,7 +921,9 @@
   /* Four counts in a column said nothing about the one thing that matters:
      how much of what came in stayed. Two bars on one scale show the gap. */
   .rep-subs{margin:10px 0 22px}
-  .rsb-row{display:grid;grid-template-columns:104px 1fr auto;align-items:center;gap:11px;margin:7px 0}
+  .rsb-row{display:grid;grid-template-columns:104px 1fr auto;align-items:center;gap:11px;margin:7px 0;
+    padding:2px 0;border-radius:6px;transition:background .1s}
+  .rsb-row:hover{background:color-mix(in srgb,var(--ink) 4%,transparent)}
   .rsb-l{font-size:13px;color:var(--ink2)}
   /* The leavers are one bar cut into where they left from, so the campaigns
      and flows shares are read against each other and against the whole, not
@@ -951,7 +953,7 @@
   .rwl .l{font-size:12.5px;color:var(--ink2);margin-top:4px;line-height:1.3}
   .rwl.wr .v{color:var(--ink)}
   .rwl-meter{height:4px;border-radius:3px;background:var(--grid);margin-top:8px;overflow:hidden}
-  .rwl-meter i{display:block;height:100%;border-radius:3px;background:var(--good)}
+  .rwl-meter i{display:block;height:100%;border-radius:3px;background:var(--aqua)}
   /* Danny, 10 Nov 2026: "what we did should have a line break to separate it
      from the rest." A hairline and some air, so the week's work reads as its
      own chapter rather than as more of the subscriber section. */
@@ -3241,6 +3243,13 @@ function renderReports(){
       // The residual needs to read as a filled segment, not as the empty rest
       // of the track, on every client palette. Derived from ink rather than
       // from a grey token, because --axis is close to --grid on some brands.
+      // Danny, 10 Nov 2026: "what's with the green colour? Not on brand but
+      // the others are." --good is a status step and no client palette holds
+      // it. Only the Left bar needs identity, because only it carries a
+      // legend, so the whole-row bars take the brand's own ink and the hues
+      // are spent where they mean something. A loss keeps --crit: that one is
+      // a status and is meant to read as one.
+      const TOTC='color-mix(in srgb,var(--ink) 76%,var(--surface-2))';
       const SEGC={camp:'var(--camp)',flow:'var(--flow)',
                   mute:'color-mix(in srgb,var(--ink) 38%,var(--surface-2))'};
       // A list that loses more than it gains is not a list that "Retained 0".
@@ -3251,29 +3260,48 @@ function renderReports(){
       const kept=(net!=null&&net>=0)?net:null, lost=(net!=null&&net<0)?-net:null;
       const mx=Math.max(v.new||0,v.unsub||0,kept||0,lost||0,1);
       const nf=x=>(x==null?'—':Math.round(x).toLocaleString());
-      const row=(lab,val,parts)=>'<div class="rsb-row"><div class="rsb-l">'+esc(lab)+'</div>'
+      const ROWS=[];
+      const row=(lab,val,parts,tip)=>{ROWS.push({lab:lab,rows:tip});
+        return '<div class="rsb-row" data-r="'+(ROWS.length-1)+'"><div class="rsb-l">'+esc(lab)+'</div>'
         +'<div class="rsb-t">'+parts.map(pp=>'<i style="width:'+Math.max(0.4,(pp.v||0)/mx*100).toFixed(2)
-          +'%;background:'+pp.c+'" title="'+esc(pp.lab||lab)+': '+nf(pp.v)+'"></i>').join('')
-        +'</div><div class="rsb-v">'+nf(val)+'</div></div>';
+          +'%;background:'+pp.c+'"></i>').join('')
+        +'</div><div class="rsb-v">'+nf(val)+'</div></div>';};
       const segs=(bl.segs||[]).filter(x=>x&&x.v);
       const left=segs.length?segs.map(x=>({v:x.v,c:SEGC[x.c]||'var(--axis)',lab:x.lab}))
-                            :[{v:v.unsub,c:lost!=null?'var(--crit)':'var(--axis)'}];
+                            :[{v:v.unsub,c:lost!=null?'var(--crit)':TOTC}];
       const leg=segs.length?'<div class="rsb-leg">'+segs.map(x=>'<span><i style="background:'
         +(SEGC[x.c]||'var(--axis)')+'"></i>'+esc(x.lab)+' <b>'+nf(x.v)+'</b></span>').join('')+'</div>':'';
       const d=document.createElement('div');d.className='rep-prose';
       d.innerHTML=(bl.label?'<h3>'+esc(bl.label)+'</h3>':'')
         +'<div class="rep-subs">'
-        +row('Joined',v.new,[{v:v.new,c:'var(--good)'}])
-        +row('Left',v.unsub,left)
-        +(kept!=null?row('Retained',kept,[{v:kept,c:'var(--aqua)'}]):'')
-        +(lost!=null?row('Net loss',lost,[{v:lost,c:'var(--crit)'}]):'')
+        +row('Joined',v.new,[{v:v.new,c:TOTC}],
+             [['Joined this window',v.new,TOTC]].concat(
+               v.cust!=null?[['Became customers',v.cust,'var(--aqua)']]:[]))
+        +row('Left',v.unsub,left,
+             (segs.length?segs.map(x=>[x.lab,x.v,SEGC[x.c]||'var(--axis)']):[])
+               .concat([['Everyone who left',v.unsub,lost!=null?'var(--crit)':TOTC]]))
+        +(kept!=null?row('Retained',kept,[{v:kept,c:TOTC}],
+             [['Joined and stayed',kept,TOTC]]):'')
+        +(lost!=null?row('Net loss',lost,[{v:lost,c:'var(--crit)'}],
+             [['More left than joined',lost,'var(--crit)']]):'')
         +leg
         +'<div class="rsb-net">'+(v.new?'For every 100 who joined, <b>'
           +Math.round((v.unsub||0)/v.new*100)+'</b> left.':'')
         +(v.cust!=null?' <b>'+nf(v.cust)+'</b> became customers.':'')+'</div>'
         +(bl.cap?'<div class="rsb-cap">'+esc(bl.cap)+'</div>':'')+'</div>'
         +(bl.note?bl.note:'');
-      wrap.appendChild(d);}
+      wrap.appendChild(d);
+      // Danny, 10 Nov 2026: "should have hover help tips on these charts."
+      // They had a native title attribute, which arrives late, cannot be
+      // styled, and never says which row it belongs to.
+      const shost=d.querySelector('.rep-subs');
+      // The number that IS the base does not need its own share of itself.
+      const pcOf=x=>((v.new&&x!=null&&x!==v.new)?Math.round(x/v.new*100)+'% of those who joined':'');
+      shost.querySelectorAll('.rsb-row').forEach(rw=>{
+        const R=ROWS[+rw.dataset.r];if(!R||!R.rows)return;
+        rw.addEventListener('mousemove',e=>showTip(shost,e,R.lab,R.rows,
+          x=>nf(x)+(pcOf(x)?' · '+pcOf(x):'')));
+        rw.addEventListener('mouseleave',()=>hideTip(shost));});}
     // Same counts the table held, read in one sweep.
     else if(bl.t==='worklog'){const d=document.createElement('div');d.className='rep-prose rep-sec';
       d.innerHTML=(bl.label?'<h3>'+esc(bl.label)+'</h3>':'')
