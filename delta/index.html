@@ -75,6 +75,10 @@
 
   /* Zee.Media platform mark in the top bar (theme-adaptive; client palette owns the rest) */
   .zbrand{display:inline-flex;align-items:center;flex:none;text-decoration:none}
+  /* A proposal where another agency leads the account is THEIR document to
+     hand over, so our mark comes off the top of it. The group logo stays,
+     because that is the agency the client actually buys from. */
+  body.wl .zbrand,body.wl .zsep{display:none!important}
   .zbrand:hover{opacity:.8}
   .zsep{flex:none;width:1px;height:26px;align-self:center;background:var(--border)}
   .cmenu:empty{display:none}
@@ -3034,6 +3038,7 @@ function renderReports(){
   const ctl=document.getElementById('reports-ctl');if(ctl)ctl.innerHTML='';
   const tt=document.getElementById('reports-title');
   if(!REPORT_OPEN){
+    document.body.classList.remove('wl');
     if(tt)tt.textContent='Reports';
     const monthly=REPORTS[ACTIVE]||[];   // recurring monthly report (archive of months)
     const card=(t,d,s,attrs)=>'<button class="rep-card"'+attrs+'><div class="rep-card-t">'+esc(t)+'</div>'
@@ -3087,6 +3092,7 @@ function renderReports(){
     return;
   }
   const r=list.find(x=>x.id===REPORT_OPEN);if(!r){REPORT_OPEN=null;return renderReports();}
+  document.body.classList.toggle('wl',r.kind==='proposal'&&!!(SERIES[ACTIVE]||{}).group_logo);
   if(tt)tt.textContent=r.title;
   // No "Save as PDF" on the weekly report. It is built for a screen now:
   // interactive charts, a 22-week history, hover. Printing it produces a poor
