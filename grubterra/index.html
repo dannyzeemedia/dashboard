@@ -3046,7 +3046,11 @@ function renderReports(){
     // (weekly-YYYY-MM-DD) so a republished week cannot jump the queue.
     const weekly=list.filter(r=>r.kind==='weekly')
                      .sort((a,b)=>String(b.id).localeCompare(String(a.id)));
-    const others=list.filter(r=>r.kind!=='weekly');
+    // A proposal is an ask, not a report of what happened, so it gets its own
+    // heading rather than sitting in the one-off pile beside the audit.
+    const props=list.filter(r=>r.kind==='proposal')
+                    .sort((a,b)=>String(b.id).localeCompare(String(a.id)));
+    const others=list.filter(r=>r.kind!=='weekly'&&r.kind!=='proposal');
     let rec='';
     if(monthly.length){
       const latest=monthly[0], ml=latest.month_label||latest.month||'';
@@ -3060,6 +3064,9 @@ function renderReports(){
         ' data-kind="custom" data-id="'+esc(weekly[0].id)+'"');
     }
     if(rec)html+='<div class="rep-group">Recurring</div><div class="rep-list">'+rec+'</div>';
+    if(props.length)html+='<div class="rep-group">Proposals</div><div class="rep-list">'
+      +props.map(r=>card(r.title,r.date_range,r.summary,
+        ' data-kind="custom" data-id="'+esc(r.id)+'"')).join('')+'</div>';
     // Earlier weeks are NOT listed here. A recurring report is one report with a
     // date on it, not twenty-two reports; the index was 22 near-identical cards
     // burying the two that are actually different.
