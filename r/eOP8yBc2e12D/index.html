@@ -199,11 +199,14 @@
   .afind h3{font-size:16.5px;letter-spacing:-.01em}
   .afind .abody{color:var(--ink2);font-size:14.5px;line-height:1.6;max-width:none}
   /* every flow, metric, segment and cross-reference the audit names is one click */
-  .afind .abody a.klink,.achart a.klink{color:var(--flow);font-weight:600;
+  /* The weekly report links flows in its commentary too, and those were
+     rendering as the browser's default blue because this rule only ever
+     covered the audit. */
+  .afind .abody a.klink,.achart a.klink,.rep-prose a.klink{color:var(--flow);font-weight:600;
     text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2.5px;
     text-decoration-color:color-mix(in srgb,var(--flow) 45%,transparent)}
-  .afind .abody a.klink:hover{text-decoration-color:var(--flow)}
-  .afind .abody a.klink[target]::after{content:'\2197';font-size:.82em;
+  .afind .abody a.klink:hover,.rep-prose a.klink:hover{text-decoration-color:var(--flow)}
+  .afind .abody a.klink[target]::after,.rep-prose a.klink[target]::after{content:'\2197';font-size:.82em;
     vertical-align:.12em;margin-left:1px;text-decoration:none;display:inline-block}
   /* ---------------------------------------------------------------------
      AUDIT READING SIZE. Danny, 3 Nov 2026: "i hate all the text.. first it's
@@ -836,14 +839,14 @@
   .rep-card-go{margin-top:10px;font-size:13px;font-weight:700;color:var(--flow)}
   .rep-detail{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:38px 42px;max-width:860px;margin:0 auto}
   .rep-head{border-bottom:2px solid var(--ink);padding-bottom:18px;margin-bottom:6px}
-  .rep-ey{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .rep-ey{font-size:11.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
   .rep-h1{font-size:30px;letter-spacing:-.03em;margin:8px 0 6px;text-wrap:balance}
   .rep-sum{font-size:15px;color:var(--ink2)}
   .rep-rt{margin-left:10px;padding-left:10px;border-left:1px solid var(--border);
     font-weight:700;color:var(--ink2);letter-spacing:.04em}
   .rep-tldr{border:1px solid var(--border);border-left:3px solid var(--flow);
     border-radius:11px;background:var(--surface-2);padding:16px 20px;margin:20px 0 6px}
-  .rep-tldr-h{font-size:11px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;
+  .rep-tldr-h{font-size:11.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
     color:var(--muted);margin-bottom:9px}
   .rep-tldr ul{margin:0;padding-left:19px}
   .rep-tldr li{font-size:14.5px;color:var(--ink2);line-height:1.6;margin:6px 0}
@@ -859,7 +862,7 @@
   /* Danny, 10 Nov 2026: "the text here is too small... check all instances of
      this on the report and fix it." Supporting lines are 12.5px, eyebrows
      10.5px, and nothing on a report is smaller than that. */
-  .rc-eye{font-size:10.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;
+  .rc-eye{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
     color:var(--muted);margin-bottom:6px}
   .rc-big{font-size:26px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
   /* "A$1,634,293" at 26px overran its tile. A currency prefix plus seven
@@ -882,7 +885,7 @@
   .rc-d.up{color:var(--good)}
   .rc-d.dn{color:var(--crit)}
   .rc-d.fl{color:var(--muted)}
-  .rc-d .cmp{font-weight:500;color:var(--muted);font-size:12px}
+  .rc-d .cmp{font-weight:500;color:var(--muted);font-size:12.5px}
   .rc-sub{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.35}
   /* Pushed to the floor of the tile so the sparklines line up across the row
      whether or not a tile carries a second line under its delta. */
@@ -898,7 +901,9 @@
     padding:12px 13px 11px;min-width:0;
     background:var(--surface-2);text-decoration:none;color:inherit;transition:border-color .12s,box-shadow .12s}
   a.rep-chip:hover,a.rep-chip:focus-visible{border-color:var(--flow);box-shadow:var(--shadow);outline:none}
-  .rch-n{font-size:12.5px;font-weight:700;color:var(--ink);line-height:1.32;
+  /* Two lines reserved, so a one word flow name does not sit its value half a
+     line above the chip beside it. Three lines is the ceiling. */
+  .rch-n{font-size:12.5px;font-weight:700;color:var(--ink);line-height:1.32;min-height:2.64em;
     display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
   .rch-v{font-size:18px;font-weight:800;color:var(--ink);margin-top:6px;letter-spacing:-.02em}
   /* Three facts on one 11px line were unreadable at five chips across. One
@@ -3193,11 +3198,15 @@ function renderReports(){
           +sp+'</div>';
       }).join('');wrap.appendChild(c);
       // A character count is a guess at a width. Having drawn it, measure it:
-      // a tile's number steps down until it actually fits its own tile.
-      c.querySelectorAll('.rc-big').forEach(e=>{
+      // each number steps down until it fits, and then the whole row takes the
+      // smallest of those, because five headline figures at five sizes reads
+      // as an accident rather than a hierarchy.
+      const BIG=[...c.querySelectorAll('.rc-big')];let floor=99;
+      BIG.forEach(e=>{
         let fs=parseFloat(getComputedStyle(e).fontSize),g=0;
         while(e.scrollWidth>e.clientWidth+1&&fs>12.5&&g++<30){fs-=0.5;e.style.fontSize=fs+'px';}
-      });}
+        floor=Math.min(floor,fs);});
+      if(floor<99)BIG.forEach(e=>{e.style.fontSize=floor+'px';});}
     // The week's actual objects, each one a way into Klaviyo rather than a row
     // of text. The bar is the chip's share of its own total, so the top line is
     // read against the rest instead of against another number.
