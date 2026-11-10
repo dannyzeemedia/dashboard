@@ -849,10 +849,17 @@
   .rep-tldr li{font-size:14.5px;color:var(--ink2);line-height:1.6;margin:6px 0}
   .rep-tldr li b{color:var(--ink)}
   @media print{.rep-tldr{padding:11px 15px;margin:14px 0 4px}.rep-tldr li{margin:4px 0}}
-  .rep-callouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(166px,1fr));gap:14px;margin:24px 0}
+  /* Danny, 10 Nov 2026: "i don't like how our fee is on another line. just
+     looks bad." A fifth tile wrapped because the row was sized to a minimum
+     width. Sized to the count instead, the row holds whatever it is given. */
+  .rep-callouts{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:10px;margin:24px 0}
+  @media(max-width:820px){.rep-callouts{grid-auto-flow:row;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}}
   .rep-callout{border:1px solid var(--border);border-left:3px solid var(--aqua);border-radius:11px;
-    padding:16px 18px;background:var(--surface-2);display:flex;flex-direction:column}
-  .rc-eye{font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+    padding:15px 13px;background:var(--surface-2);display:flex;flex-direction:column;min-width:0}
+  /* Danny, 10 Nov 2026: "the text here is too small... check all instances of
+     this on the report and fix it." Supporting lines are 12.5px, eyebrows
+     10.5px, and nothing on a report is smaller than that. */
+  .rc-eye{font-size:10.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;
     color:var(--muted);margin-bottom:6px}
   .rc-big{font-size:26px;font-weight:800;letter-spacing:-.02em;color:var(--ink)}
   /* "A$1,634,293" at 26px overran its tile. A currency prefix plus seven
@@ -862,6 +869,9 @@
   .rc-big.xl{font-size:19px;letter-spacing:-.03em}
   /* "A$1,634,293" is eleven characters and was clipped flat at 19px. */
   .rc-big.xxl{font-size:17px;letter-spacing:-.035em}
+  /* Five tiles across leaves about 120px of line, and "A$1,641,562" is eleven
+     characters, so the ladder steps earlier than it did at four across. */
+  .rc-big.xs{font-size:15px;letter-spacing:-.035em}
   .rc-lab{font-size:12.5px;color:var(--ink2);line-height:1.45;margin-top:5px}
   /* A tile was a label and a number with the movement buried in grey text at
      the bottom. Direction is the thing the eye should catch first, so it gets
@@ -872,8 +882,8 @@
   .rc-d.up{color:var(--good)}
   .rc-d.dn{color:var(--crit)}
   .rc-d.fl{color:var(--muted)}
-  .rc-d .cmp{font-weight:500;color:var(--muted);font-size:11.5px}
-  .rc-sub{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .rc-d .cmp{font-weight:500;color:var(--muted);font-size:12px}
+  .rc-sub{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.35}
   /* Pushed to the floor of the tile so the sparklines line up across the row
      whether or not a tile carries a second line under its delta. */
   .rc-spark{display:block;width:100%;height:auto;aspect-ratio:160/34;margin-top:auto;padding-top:11px}
@@ -884,28 +894,46 @@
      Column flow sizes to the count instead of to a minimum width. */
   .rep-chips{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:11px;margin:10px 0 24px}
   @media(max-width:760px){.rep-chips{grid-auto-flow:row;grid-template-columns:repeat(auto-fit,minmax(142px,1fr))}}
-  .rep-chip{display:block;border:1px solid var(--border);border-radius:12px;padding:12px 13px 11px;
+  .rep-chip{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:12px;
+    padding:12px 13px 11px;min-width:0;
     background:var(--surface-2);text-decoration:none;color:inherit;transition:border-color .12s,box-shadow .12s}
   a.rep-chip:hover,a.rep-chip:focus-visible{border-color:var(--flow);box-shadow:var(--shadow);outline:none}
   .rch-n{font-size:12.5px;font-weight:700;color:var(--ink);line-height:1.32;
     display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
   .rch-v{font-size:18px;font-weight:800;color:var(--ink);margin-top:6px;letter-spacing:-.02em}
-  .rch-s{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.35}
-  .rch-bar{height:4px;border-radius:3px;background:var(--grid);margin-top:9px;overflow:hidden}
+  /* Three facts on one 11px line were unreadable at five chips across. One
+     fact per line buys the type size back without losing a chip. */
+  .rch-s{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.35}
+  .rch-s + .rch-s{margin-top:1px}
+  .rch-bar{height:4px;border-radius:3px;background:var(--grid);margin-top:9px;overflow:hidden;flex:none}
   .rch-bar i{display:block;height:100%;border-radius:3px;background:var(--flow)}
-  .rch-go{margin-top:9px;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:10px;font-weight:800;
-    letter-spacing:.09em;text-transform:uppercase;color:var(--flow)}
+  /* Always on the floor of the chip, whatever the name above it costs. */
+  .rch-go{margin-top:auto;padding-top:10px;display:flex;flex-wrap:wrap;gap:3px 12px;
+    font-size:11px;font-weight:800;
+    letter-spacing:.08em;text-transform:uppercase;color:var(--flow)}
   .rch-go a{color:inherit;text-decoration:none;border-bottom:1px solid transparent}
   .rch-go a:hover{border-bottom-color:currentColor}
   /* Four counts in a column said nothing about the one thing that matters:
      how much of what came in stayed. Two bars on one scale show the gap. */
   .rep-subs{margin:10px 0 22px}
   .rsb-row{display:grid;grid-template-columns:104px 1fr auto;align-items:center;gap:11px;margin:7px 0}
-  .rsb-l{font-size:12px;color:var(--ink2)}
-  .rsb-t{height:17px;border-radius:5px;background:var(--grid);overflow:hidden}
-  .rsb-t i{display:block;height:100%;border-radius:5px}
-  .rsb-v{font-size:13.5px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
-  .rsb-net{margin-top:11px;font-size:13px;color:var(--ink2)}
+  .rsb-l{font-size:13px;color:var(--ink2)}
+  /* The leavers are one bar cut into where they left from, so the campaigns
+     and flows shares are read against each other and against the whole, not
+     as a second chart. 2px of surface between segments keeps them separate. */
+  .rsb-t{height:18px;border-radius:5px;background:var(--grid);overflow:hidden;display:flex;gap:2px}
+  .rsb-t i{display:block;height:100%;min-width:2px}
+  .rsb-t i:first-child{border-radius:5px 0 0 5px}
+  .rsb-t i:last-child{border-radius:0 5px 5px 0}
+  .rsb-t i:only-child{border-radius:5px}
+  .rsb-v{font-size:14px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
+  /* Identity is never colour alone: every segment is named with its number. */
+  .rsb-leg{display:flex;flex-wrap:wrap;gap:6px 18px;margin:11px 0 0 115px;font-size:12.5px;color:var(--ink2)}
+  .rsb-leg span{display:inline-flex;align-items:center;gap:6px}
+  .rsb-leg i{width:9px;height:9px;border-radius:2px;flex:none}
+  .rsb-leg b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .rsb-cap{margin-top:9px;font-size:12.5px;color:var(--muted);line-height:1.45}
+  .rsb-net{margin-top:11px;font-size:13.5px;color:var(--ink2)}
   .rsb-net b{color:var(--ink)}
   /* The work log was a six-row table of bare integers. Same numbers, read in
      one sweep, with the win rate as a bar because a rate wants a track. */
@@ -915,10 +943,14 @@
   .rwl .ic{font-size:15px;line-height:1;
     font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",var(--sans)}
   .rwl .v{font-size:21px;font-weight:800;color:var(--ink);margin-top:7px;letter-spacing:-.02em}
-  .rwl .l{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.3}
+  .rwl .l{font-size:12.5px;color:var(--ink2);margin-top:4px;line-height:1.3}
   .rwl.wr .v{color:var(--ink)}
   .rwl-meter{height:4px;border-radius:3px;background:var(--grid);margin-top:8px;overflow:hidden}
   .rwl-meter i{display:block;height:100%;border-radius:3px;background:var(--good)}
+  /* Danny, 10 Nov 2026: "what we did should have a line break to separate it
+     from the rest." A hairline and some air, so the week's work reads as its
+     own chapter rather than as more of the subscriber section. */
+  .rep-sec{border-top:1px solid var(--border);margin-top:30px;padding-top:4px}
   .rep-prose{font-size:14.5px;color:var(--ink2);line-height:1.65;margin:6px 0}
   .rep-prose h3{font-size:18px;color:var(--ink);letter-spacing:-.01em;margin:26px 0 8px}
   .rep-prose p{margin:9px 0}.rep-prose b{color:var(--ink)}
@@ -2977,7 +3009,10 @@ function repPlain(r){
       out.push((d.textContent||'').replace(/\s+/g,' ').trim());}
     else if(bl.t==='chart'){out.push([bl.title,bl.cap].filter(Boolean).join('. '));}
     else if(bl.t==='chips'){out.push([bl.label].concat((bl.items||[]).map(i=>i.name+', '+i.value)).filter(Boolean).join('. '));}
-    else if(bl.t==='subs'){const v=bl.v||{};out.push([bl.label,'Joined '+(v.new||0),'left '+(v.unsub||0),'net '+(v.net||0)].filter(Boolean).join(', '));}
+    else if(bl.t==='subs'){const v=bl.v||{};
+      out.push([bl.label,'Joined '+(v.new||0),'left '+(v.unsub||0),
+        'retained '+((v.new||0)-(v.unsub||0))].filter(Boolean).join(', ')
+        +(bl.segs&&bl.segs.length?'. '+bl.segs.map(x=>x.lab+' '+x.v).join(', '):''));}
     else if(bl.t==='worklog'){out.push([bl.label].concat((bl.items||[]).map(i=>i.lab+' '+i.v)).filter(Boolean).join('. '));
       if(bl.note){const d=document.createElement('div');d.innerHTML=bl.note;out.push((d.textContent||'').replace(/\s+/g,' ').trim());}}
   });
@@ -3152,20 +3187,27 @@ function renderReports(){
         }
         return '<div class="rep-callout">'
           +(it.eye?'<div class="rc-eye">'+esc(it.eye)+'</div>':'')
-          +'<div class="rc-big'+(String(it.big||'').length>13?' xxl':String(it.big||'').length>10?' xl':String(it.big||'').length>8?' lg':'')+'">'+esc(it.big)+'</div>'
+          +'<div class="rc-big'+(String(it.big||'').length>13?' xs':String(it.big||'').length>10?' xxl':String(it.big||'').length>8?' lg':'')+'">'+esc(it.big)+'</div>'
           +deltaHTML(P.pct,P.cmp,it.goodUp)
           +(P.sub?'<div class="rc-sub">'+esc(P.sub)+'</div>':'')
           +sp+'</div>';
-      }).join('');wrap.appendChild(c);}
+      }).join('');wrap.appendChild(c);
+      // A character count is a guess at a width. Having drawn it, measure it:
+      // a tile's number steps down until it actually fits its own tile.
+      c.querySelectorAll('.rc-big').forEach(e=>{
+        let fs=parseFloat(getComputedStyle(e).fontSize),g=0;
+        while(e.scrollWidth>e.clientWidth+1&&fs>12.5&&g++<30){fs-=0.5;e.style.fontSize=fs+'px';}
+      });}
     // The week's actual objects, each one a way into Klaviyo rather than a row
     // of text. The bar is the chip's share of its own total, so the top line is
     // read against the rest instead of against another number.
     else if(bl.t==='chips'){const d=document.createElement('div');d.className='rep-prose';
       d.innerHTML=(bl.label?'<h3>'+esc(bl.label)+'</h3>':'')
         +'<div class="rep-chips">'+(bl.items||[]).map(it=>{
+          const subs=it.subs&&it.subs.length?it.subs:(it.sub?[it.sub]:[]);
           const body='<div class="rch-n">'+esc(it.name||'')+'</div>'
             +'<div class="rch-v">'+esc(it.value||'')+'</div>'
-            +(it.sub?'<div class="rch-s">'+esc(it.sub)+'</div>':'')
+            +subs.map(x=>'<div class="rch-s">'+esc(x)+'</div>').join('')
             +(it.share!=null?'<div class="rch-bar"><i style="width:'
               +Math.max(2,Math.min(100,+it.share)).toFixed(1)+'%"></i></div>':'');
           // A second destination cannot be a nested anchor, so it is a span the
@@ -3183,22 +3225,37 @@ function renderReports(){
           window.open(sp.dataset.href,'_blank','noopener');});});
       wrap.appendChild(d);}
     // Four counts in a column never said how much of what came in stayed.
+    // Joined against left, with the leavers cut into where they left from, and
+    // the difference drawn as its own bar instead of left to be worked out.
     else if(bl.t==='subs'){const v=bl.v||{};
-      const mx=Math.max(v.new||0,v.unsub||0,1);
+      const SEGC={camp:'var(--camp)',flow:'var(--flow)',mute:'var(--axis)'};
+      const kept=(v.new!=null&&v.unsub!=null)?Math.max(0,v.new-v.unsub):null;
+      const mx=Math.max(v.new||0,v.unsub||0,kept||0,1);
       const nf=x=>(x==null?'—':Math.round(x).toLocaleString());
-      const row=(lab,val,col)=>'<div class="rsb-row"><div class="rsb-l">'+esc(lab)+'</div>'
-        +'<div class="rsb-t"><i style="width:'+Math.max(1.5,(val||0)/mx*100).toFixed(1)
-        +'%;background:'+col+'"></i></div><div class="rsb-v">'+nf(val)+'</div></div>';
-      const kept=(v.new?Math.round((v.unsub||0)/v.new*100):null);
+      const row=(lab,val,parts)=>'<div class="rsb-row"><div class="rsb-l">'+esc(lab)+'</div>'
+        +'<div class="rsb-t">'+parts.map(pp=>'<i style="width:'+Math.max(0.4,(pp.v||0)/mx*100).toFixed(2)
+          +'%;background:'+pp.c+'" title="'+esc(pp.lab||lab)+': '+nf(pp.v)+'"></i>').join('')
+        +'</div><div class="rsb-v">'+nf(val)+'</div></div>';
+      const segs=(bl.segs||[]).filter(x=>x&&x.v);
+      const left=segs.length?segs.map(x=>({v:x.v,c:SEGC[x.c]||'var(--axis)',lab:x.lab}))
+                            :[{v:v.unsub,c:'var(--axis)'}];
+      const leg=segs.length?'<div class="rsb-leg">'+segs.map(x=>'<span><i style="background:'
+        +(SEGC[x.c]||'var(--axis)')+'"></i>'+esc(x.lab)+' <b>'+nf(x.v)+'</b></span>').join('')+'</div>':'';
       const d=document.createElement('div');d.className='rep-prose';
       d.innerHTML=(bl.label?'<h3>'+esc(bl.label)+'</h3>':'')
-        +'<div class="rep-subs">'+row('Joined',v.new,'var(--good)')+row('Left',v.unsub,'var(--crit)')
-        +'<div class="rsb-net">'+(kept!=null?'For every 100 who joined, <b>'+kept+'</b> left.':'')
-        +(v.cust!=null?' <b>'+nf(v.cust)+'</b> became customers.':'')+'</div></div>'
-        +(bl.note?'<p>'+bl.note+'</p>':'');
+        +'<div class="rep-subs">'
+        +row('Joined',v.new,[{v:v.new,c:'var(--good)'}])
+        +row('Left',v.unsub,left)
+        +(kept!=null?row('Retained',kept,[{v:kept,c:'var(--aqua)'}]):'')
+        +leg
+        +'<div class="rsb-net">'+(v.new?'For every 100 who joined, <b>'
+          +Math.round((v.unsub||0)/v.new*100)+'</b> left.':'')
+        +(v.cust!=null?' <b>'+nf(v.cust)+'</b> became customers.':'')+'</div>'
+        +(bl.cap?'<div class="rsb-cap">'+esc(bl.cap)+'</div>':'')+'</div>'
+        +(bl.note?bl.note:'');
       wrap.appendChild(d);}
     // Same counts the table held, read in one sweep.
-    else if(bl.t==='worklog'){const d=document.createElement('div');d.className='rep-prose';
+    else if(bl.t==='worklog'){const d=document.createElement('div');d.className='rep-prose rep-sec';
       d.innerHTML=(bl.label?'<h3>'+esc(bl.label)+'</h3>':'')
         +'<div class="rep-wl">'+(bl.items||[]).map(it=>'<div class="rwl'+(it.meter!=null?' wr':'')+'">'
           +'<div class="ic">'+esc(it.ic||'')+'</div><div class="v">'+esc(String(it.v))+'</div>'
@@ -3206,7 +3263,7 @@ function renderReports(){
           +(it.meter!=null?'<div class="rwl-meter"><i style="width:'
             +Math.max(0,Math.min(100,+it.meter)).toFixed(0)+'%"></i></div>':'')
           +'</div>').join('')+'</div>'
-        +(bl.note?'<p>'+bl.note+'</p>':'');
+        +(bl.note||'');
       wrap.appendChild(d);}
     else if(bl.t==='tldr'){const d=document.createElement('div');d.className='rep-tldr';
       d.innerHTML='<div class="rep-tldr-h">'+esc(bl.label||'The short of it')+'</div><ul>'
