@@ -3237,7 +3237,11 @@ function renderReports(){
     // Joined against left, with the leavers cut into where they left from, and
     // the difference drawn as its own bar instead of left to be worked out.
     else if(bl.t==='subs'){const v=bl.v||{};
-      const SEGC={camp:'var(--camp)',flow:'var(--flow)',mute:'var(--axis)'};
+      // The residual needs to read as a filled segment, not as the empty rest
+      // of the track, on every client palette. Derived from ink rather than
+      // from a grey token, because --axis is close to --grid on some brands.
+      const SEGC={camp:'var(--camp)',flow:'var(--flow)',
+                  mute:'color-mix(in srgb,var(--ink) 38%,var(--surface-2))'};
       const kept=(v.new!=null&&v.unsub!=null)?Math.max(0,v.new-v.unsub):null;
       const mx=Math.max(v.new||0,v.unsub||0,kept||0,1);
       const nf=x=>(x==null?'—':Math.round(x).toLocaleString());
