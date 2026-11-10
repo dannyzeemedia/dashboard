@@ -3015,8 +3015,9 @@ function repPlain(r){
     else if(bl.t==='chart'){out.push([bl.title,bl.cap].filter(Boolean).join('. '));}
     else if(bl.t==='chips'){out.push([bl.label].concat((bl.items||[]).map(i=>i.name+', '+i.value)).filter(Boolean).join('. '));}
     else if(bl.t==='subs'){const v=bl.v||{};
+      const _net=(v.new||0)-(v.unsub||0);
       out.push([bl.label,'Joined '+(v.new||0),'left '+(v.unsub||0),
-        'retained '+((v.new||0)-(v.unsub||0))].filter(Boolean).join(', ')
+        (_net<0?'net loss ':'retained ')+Math.abs(_net)].filter(Boolean).join(', ')
         +(bl.segs&&bl.segs.length?'. '+bl.segs.map(x=>x.lab+' '+x.v).join(', '):''));}
     else if(bl.t==='worklog'){out.push([bl.label].concat((bl.items||[]).map(i=>i.lab+' '+i.v)).filter(Boolean).join('. '));
       if(bl.note){const d=document.createElement('div');d.innerHTML=bl.note;out.push((d.textContent||'').replace(/\s+/g,' ').trim());}}
@@ -3242,8 +3243,13 @@ function renderReports(){
       // from a grey token, because --axis is close to --grid on some brands.
       const SEGC={camp:'var(--camp)',flow:'var(--flow)',
                   mute:'color-mix(in srgb,var(--ink) 38%,var(--surface-2))'};
-      const kept=(v.new!=null&&v.unsub!=null)?Math.max(0,v.new-v.unsub):null;
-      const mx=Math.max(v.new||0,v.unsub||0,kept||0,1);
+      // A list that loses more than it gains is not a list that "Retained 0".
+      // Printed that way it reads as a rounding error instead of the problem,
+      // and the Left bar drawn in --axis looks like an empty track beside a
+      // filled green one, so the longer bar was the one you couldn't see.
+      const net=(v.new!=null&&v.unsub!=null)?(v.new-v.unsub):null;
+      const kept=(net!=null&&net>=0)?net:null, lost=(net!=null&&net<0)?-net:null;
+      const mx=Math.max(v.new||0,v.unsub||0,kept||0,lost||0,1);
       const nf=x=>(x==null?'—':Math.round(x).toLocaleString());
       const row=(lab,val,parts)=>'<div class="rsb-row"><div class="rsb-l">'+esc(lab)+'</div>'
         +'<div class="rsb-t">'+parts.map(pp=>'<i style="width:'+Math.max(0.4,(pp.v||0)/mx*100).toFixed(2)
@@ -3251,7 +3257,7 @@ function renderReports(){
         +'</div><div class="rsb-v">'+nf(val)+'</div></div>';
       const segs=(bl.segs||[]).filter(x=>x&&x.v);
       const left=segs.length?segs.map(x=>({v:x.v,c:SEGC[x.c]||'var(--axis)',lab:x.lab}))
-                            :[{v:v.unsub,c:'var(--axis)'}];
+                            :[{v:v.unsub,c:lost!=null?'var(--crit)':'var(--axis)'}];
       const leg=segs.length?'<div class="rsb-leg">'+segs.map(x=>'<span><i style="background:'
         +(SEGC[x.c]||'var(--axis)')+'"></i>'+esc(x.lab)+' <b>'+nf(x.v)+'</b></span>').join('')+'</div>':'';
       const d=document.createElement('div');d.className='rep-prose';
@@ -3260,6 +3266,7 @@ function renderReports(){
         +row('Joined',v.new,[{v:v.new,c:'var(--good)'}])
         +row('Left',v.unsub,left)
         +(kept!=null?row('Retained',kept,[{v:kept,c:'var(--aqua)'}]):'')
+        +(lost!=null?row('Net loss',lost,[{v:lost,c:'var(--crit)'}]):'')
         +leg
         +'<div class="rsb-net">'+(v.new?'For every 100 who joined, <b>'
           +Math.round((v.unsub||0)/v.new*100)+'</b> left.':'')
