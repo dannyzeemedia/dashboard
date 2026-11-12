@@ -838,6 +838,64 @@
   .rep-card-s{font-size:14px;color:var(--ink2);line-height:1.5;margin-top:2px}
   .rep-card-go{margin-top:10px;font-size:13px;font-weight:700;color:var(--flow)}
   .rep-detail{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:38px 42px;max-width:860px;margin:0 auto}
+  /* ---------------------------------------------------------------------
+     REPORT READING SIZE. Danny, 12 Nov 2026: "you need to see how small
+     everything is. from a text perspective. too difficult to see." Same
+     complaint, and the same answer, as the audit scale above: ONE scale, set
+     here, for every block type a report can hold. A client reads these on a
+     laptop they are not leaning into, so body copy is 17px and no label,
+     caption or axis tick is allowed to fall below 12.5. Change it HERE, never
+     per report. The 10 Nov pass lifted supporting lines to 12.5 and left the
+     sentences at 14.5, which is why it did not take.
+     --------------------------------------------------------------------- */
+  .rep-detail{max-width:920px}
+  .rep-detail .rep-h1{font-size:33px}
+  .rep-detail .rep-ey{font-size:12.5px}
+  .rep-detail .rep-sum{font-size:17px;line-height:1.6}
+  .rep-detail .rep-tldr{padding:18px 22px}
+  .rep-detail .rep-tldr-h{font-size:12.5px}
+  .rep-detail .rep-tldr li{font-size:17px;line-height:1.62}
+  .rep-detail .rep-prose{font-size:17px;line-height:1.7}
+  .rep-detail .rep-prose h3{font-size:21px;margin:30px 0 10px}
+  .rep-detail .rep-prose li{margin:8px 0}
+  .rep-detail .rc-eye{font-size:12px}
+  .rep-detail .rc-big{font-size:30px}
+  .rep-detail .rc-big.lg{font-size:25px}
+  .rep-detail .rc-big.xl{font-size:22px}
+  .rep-detail .rc-big.xxl{font-size:19px}
+  .rep-detail .rc-big.xs{font-size:17px}
+  .rep-detail .rc-lab,.rep-detail .rc-sub,.rep-detail .rc-d,.rep-detail .rc-d .cmp{font-size:14.5px}
+  .rep-detail .rc-lab{line-height:1.5}
+  .rep-detail .rep-callout{padding:17px 15px}
+  .rep-detail .rch-n{font-size:14.5px}
+  .rep-detail .rch-v{font-size:22px}
+  .rep-detail .rch-s{font-size:14px;line-height:1.4}
+  .rep-detail .rch-go{font-size:12.5px}
+  .rep-detail .rwl{padding:14px 15px}
+  .rep-detail .rwl .ic{font-size:19px}
+  .rep-detail .rwl .v{font-size:25px}
+  .rep-detail .rwl .l{font-size:14.5px;line-height:1.4}
+  .rep-detail .rsb-l{font-size:15px}
+  .rep-detail .rsb-v{font-size:16.5px}
+  .rep-detail .rsb-leg,.rep-detail .rsb-cap{font-size:14px}
+  .rep-detail .rsb-net{font-size:15.5px}
+  .rep-detail .rep-fig{padding:24px}
+  .rep-detail .rep-fig-t{font-size:16px;margin-bottom:14px}
+  .rep-detail .rep-fig-cap{font-size:14px;line-height:1.55}
+  .rep-detail table.rtbl{font-size:15.5px}
+  .rep-detail table.rtbl th{font-size:12.5px}
+  .rep-detail .rep-ask h3{font-size:21px}
+  .rep-detail .rep-ask .q{font-size:15.5px}
+  .rep-detail .rep-ans{font-size:17px;line-height:1.6}
+  /* Chart text is drawn as SVG presentation attributes, which any CSS rule
+     beats. Stepping each size rather than flattening them to one keeps the
+     hierarchy a chart depends on: a value label still reads above its tick. */
+  .rep-detail .rep-fig svg text[font-size="10"]{font-size:11.5px}
+  .rep-detail .rep-fig svg text[font-size="10.5"]{font-size:12.5px}
+  .rep-detail .rep-fig svg text[font-size="11"]{font-size:13px}
+  .rep-detail .rep-fig svg text[font-size="11.5"]{font-size:13.5px}
+  .rep-detail .rep-fig svg text[font-size="12"]{font-size:14px}
+  .rep-detail .legend{font-size:14px}
   .rep-head{border-bottom:2px solid var(--ink);padding-bottom:18px;margin-bottom:6px}
   .rep-ey{font-size:11.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
   .rep-h1{font-size:30px;letter-spacing:-.03em;margin:8px 0 6px;text-wrap:balance}
