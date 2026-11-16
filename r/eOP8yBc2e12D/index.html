@@ -1837,6 +1837,61 @@
     .rm-row{grid-template-columns:1fr;gap:9px}
     .rm-note{text-align:left}
   }
+/* ── AM review of a weekly report ───────────────────────────────────────────
+   Danny, 13 Nov 2026: "hold it until the AM approves it for public". The chrome
+   below only ever appears for an @zee.media account that already has access to
+   the client; the client's own session never loads a draft at all, because the
+   RLS policy on report_drafts refuses it. */
+.rv-bar{position:sticky;top:0;z-index:40;display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+  margin:0 0 18px;padding:11px 14px;border-radius:10px;border:1px solid var(--border);
+  background:color-mix(in srgb,var(--surface-2) 92%,var(--ink));backdrop-filter:blur(6px)}
+.rv-bar .rv-st{font-size:12.5px;font-weight:700;letter-spacing:.01em}
+.rv-bar .rv-sub{font-size:12.5px;color:var(--muted);flex:1 1 220px;min-width:0}
+.rv-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:1px}
+.rv-dot.pend{background:var(--warn,#d08a1e)}
+.rv-dot.ok{background:var(--flow)}
+.rv-bar button{font:inherit;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:7px;
+  border:1px solid var(--border);background:var(--surface);color:var(--ink);cursor:pointer}
+.rv-bar button:hover{border-color:var(--ink2)}
+.rv-bar button.go{background:var(--flow);border-color:var(--flow);color:#fff}
+.rv-bar button.go:hover{filter:brightness(1.07)}
+.rv-bar button:disabled{opacity:.5;cursor:default}
+.rv-link{flex:1 1 100%;font-size:12.5px;display:flex;gap:8px;align-items:center}
+.rv-link input{flex:1;font:inherit;font-size:12px;padding:6px 9px;border-radius:6px;
+  border:1px solid var(--border);background:var(--surface);color:var(--ink)}
+.rv-sec{position:relative}
+.rv-sec:hover{outline:1px dashed color-mix(in srgb,var(--ink) 22%,transparent);outline-offset:9px}
+.rv-edit{position:absolute;top:-6px;right:-4px;opacity:0;transition:opacity .12s;
+  font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;cursor:pointer;
+  border:1px solid var(--border);background:var(--surface);color:var(--ink2);z-index:3}
+.rv-sec:hover .rv-edit,.rv-edit:focus{opacity:1}
+.rv-panel{margin:12px 0 4px;padding:13px;border-radius:9px;border:1px solid var(--border);
+  background:var(--surface-2)}
+.rv-f{margin-bottom:10px}
+.rv-f label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--muted);margin-bottom:4px}
+.rv-f textarea{width:100%;box-sizing:border-box;font:inherit;font-size:13px;line-height:1.5;
+  padding:9px 10px;border-radius:7px;border:1px solid var(--border);
+  background:var(--surface);color:var(--ink);resize:vertical;min-height:70px}
+.rv-ai{display:flex;gap:7px;margin-top:11px;padding-top:11px;border-top:1px solid var(--border)}
+.rv-ai input{flex:1;font:inherit;font-size:13px;padding:8px 10px;border-radius:7px;
+  border:1px solid var(--border);background:var(--surface);color:var(--ink)}
+.rv-btns{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}
+.rv-btns button,.rv-ai button{font:inherit;font-size:12.5px;font-weight:600;padding:7px 12px;
+  border-radius:7px;border:1px solid var(--border);background:var(--surface);
+  color:var(--ink);cursor:pointer}
+.rv-btns button.go,.rv-ai button.go{background:var(--ink);border-color:var(--ink);
+  color:var(--surface)}
+.rv-btns button:disabled,.rv-ai button:disabled{opacity:.5;cursor:default}
+.rv-msg{margin-top:9px;font-size:12.5px;color:var(--muted);line-height:1.45}
+.rv-msg.err{color:var(--crit)}
+.rv-prop{margin-top:11px;padding:11px;border-radius:7px;border:1px solid var(--flow);
+  background:color-mix(in srgb,var(--flow) 7%,var(--surface))}
+.rv-prop .rv-ph{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--flow);margin-bottom:6px}
+.rv-prop .rv-pb{font-size:13px;line-height:1.5}
+.rv-prop .rv-pn{margin-top:8px;font-size:12.5px;color:var(--ink2);font-style:italic}
+
 </style>
 </head>
 <body>
@@ -2207,6 +2262,7 @@ let revChannel=false;
 let revTrend=false;
 let inProgress=true;   // "Include current (in-progress)" on by default
 let REPORT=null, SLUG='', RANGE=12, CMP='prev', REPORT_OPEN=null;
+// REVIEW_OPEN and the draft store are declared with the review code below.
 // A path of /r/<token>/ is a public share link. Decided from the URL alone, so
 // no auth code runs and no client switcher is built.
 const SHARE_MODE=/\/r\/[A-Za-z0-9_-]+\/?$/.test(location.pathname);
@@ -2355,7 +2411,8 @@ function switchTo(slug){ACTIVE=slug;
   const seg=document.getElementById('viewSeg');
   const A=SERIES[slug]&&SERIES[slug].audit;
   // Reports tab houses the recurring monthly report, any one-off reports, AND the account audit.
-  const hasReports=reps.length>0 || !!(SERIES[slug]&&(SERIES[slug].reports||[]).length) || !!A;
+  const hasReports=reps.length>0 || !!(SERIES[slug]&&(SERIES[slug].reports||[]).length) || !!A
+                   || draftsFor(slug).length>0;
   // Retention map: only for clients we have actually mapped (client_series.data.retention_map).
   const _S=SERIES[slug]||{};
   const hasMap=!!(_S.has_map||(_S.retention_map&&(_S.retention_map.flows||[]).length));
@@ -2376,7 +2433,7 @@ function switchTo(slug){ACTIVE=slug;
   updateInviteBtn();
   RM_FLOW=null;RM_SEL=null;RM_Z=1;RM_L=null;if(RM_FULL)rmFullscreen(false);
   if(hasMap)ensureMap(slug).then(renderMap);
-  REPORT_OPEN=null;
+  REPORT_OPEN=null;REVIEW_OPEN=null;RV_DIRTY=false;
   loadChanges().then(()=>{renderChanges();renderDash();buildJumpBar();});
   renderDash();renderBoard();renderReports();
   if(IS_OWNER)updateFab();}
@@ -3133,12 +3190,219 @@ function deltaHTML(pct,cmp,goodUp){
     +(pct>0?'+':'')+pct.toFixed(1)+'%'
     +(cmp?'<span class="cmp">'+esc(cmp)+'</span>':'')+'</div>';
 }
+// ---- the account manager's review of a weekly report ----------------------
+// Danny, 13 Nov 2026: "each report needs to be viewable by him the account
+// manager. with a little 'to AI' input field that will change things he wants
+// changed. Alt. each section should be editable by the AM, saveable and then he
+// has a link he can deliver to the client." Both, in the end: the hand edit
+// always works, and the To AI box is the fast path on top of it.
+//
+// Nothing here is a security boundary. report_drafts refuses to return a row to
+// anyone who is not an @zee.media account with access to that client, so a
+// client's session simply has no draft to render.
+let DRAFTS={}, REVIEW_OPEN=null, RV_DIRTY=false;
+const draftsFor=s=>(DRAFTS[s]||[]);
+const draftOf=(s,id)=>draftsFor(s).find(d=>d.report_id===id);
+const rvShareUrl=D=>location.origin+'/r/v/?t='+encodeURIComponent(D.share_token||'');
+
+async function loadDrafts(){
+  DRAFTS={};
+  if(!sb||SHARE_MODE)return;
+  try{
+    const {data,error}=await sb.from('report_drafts')
+      .select('client_slug,report_id,entry,original,status,share_token,updated_at');
+    if(error||!data)return;
+    data.sort((a,b)=>String(b.report_id).localeCompare(String(a.report_id)));
+    data.forEach(d=>{(DRAFTS[d.client_slug]=DRAFTS[d.client_slug]||[]).push(d);});
+  }catch(e){}
+}
+
+// Which parts of a block an account manager may rewrite. Prose only: the
+// callout figures, the chips and the subscriber counts are measured, and a
+// report whose numbers can be typed over is a report nobody can trust.
+function rvFields(bl){
+  if(!bl)return [];
+  switch(bl.t){
+    case 'h':       return [{k:'html', lab:'Section', main:true}];
+    case 'method':  return [{k:'label',lab:'Heading'},{k:'html',lab:'Section',main:true}];
+    case 'tldr':    return [{k:'label',lab:'Heading'},{k:'items',lab:'One bullet per line',list:true,main:true}];
+    case 'worklog': return [{k:'label',lab:'Heading'},{k:'note',lab:'What we did',main:true}];
+    case 'chips':   return [{k:'label',lab:'Heading'}];
+    case 'chart':   return [{k:'title',lab:'Chart heading'},{k:'cap',lab:'Caption',main:true}];
+    case 'subs':    return [{k:'label',lab:'Heading'},{k:'cap',lab:'Caption',main:true}];
+    default:        return [];
+  }
+}
+const rvGet=(bl,f)=>f.list?((bl[f.k]||[]).join('\n')):(bl[f.k]||'');
+function rvSet(bl,f,v){
+  bl[f.k]=f.list?v.split('\n').map(x=>x.trim()).filter(Boolean):v;
+}
+
+async function rvAsk(D,bi,instruction,msg){
+  const bl=D.entry.blocks[bi];
+  const fs=rvFields(bl); const f=fs.find(x=>x.main)||fs[0];
+  if(!f)throw new Error('there is nothing to rewrite in this section');
+  const {data:sess}=await sb.auth.getSession();
+  const tok=sess&&sess.session&&sess.session.access_token;
+  if(!tok)throw new Error('your session has expired, reload the page');
+  msg.textContent='Sending it over…';
+  const res=await fetch(SB_URL+'/functions/v1/report-ai-edit',{
+    method:'POST',
+    headers:{'Authorization':'Bearer '+tok,'apikey':SB_ANON,'Content-Type':'application/json'},
+    body:JSON.stringify({slug:ACTIVE,report_id:D.report_id,path:'blocks.'+bi+'.'+f.k,
+      label:(bl.label||bl.title||'this section'),instruction:instruction,current:rvGet(bl,f)})});
+  let out={}; try{out=await res.json();}catch(e){}
+  if(!res.ok)throw new Error(out.error||('could not file that edit ('+res.status+')'));
+  if(out.warning)msg.textContent=out.warning;
+  // It runs in GitHub Actions on Danny's Claude subscription, so the answer is
+  // a minute or two away rather than instant. Poll rather than block.
+  for(let i=0;i<80;i++){
+    await new Promise(r=>setTimeout(r,i<4?2500:4000));
+    let row=null;
+    try{
+      const q=await sb.from('report_ai_requests')
+        .select('status,result_html,note,error').eq('id',out.id).maybeSingle();
+      row=q.data;
+    }catch(e){}
+    if(!row)continue;
+    if(row.status==='done')return row;
+    if(row.status==='failed')throw new Error(row.error||'the rewrite failed');
+    msg.textContent=(row.status==='running')
+      ? 'Claude is writing it…'
+      : 'Waiting for the runner to start…';
+  }
+  throw new Error('this is taking longer than it should. It may still land; reopen the section in a minute.');
+}
+
+function rvEditor(host,D,bi){
+  const old=host.querySelector('.rv-panel');
+  if(old){old.remove();return;}
+  const bl=D.entry.blocks[bi], fs=rvFields(bl);
+  if(!fs.length)return;
+  const p=document.createElement('div');p.className='rv-panel';
+  p.innerHTML=fs.map((f,i)=>'<div class="rv-f"><label>'+esc(f.lab)+'</label>'
+      +'<textarea data-f="'+i+'" rows="'+(f.main?8:2)+'">'+esc(rvGet(bl,f))+'</textarea></div>').join('')
+    +'<div class="rv-ai"><input type="text" data-ai placeholder="Or tell Claude: shorten the second paragraph">'
+    +'<button class="go" data-ask type="button">Ask</button></div>'
+    +'<div class="rv-msg" data-msg></div>'
+    +'<div class="rv-btns"><button class="go" data-ok type="button">Apply</button>'
+    +'<button data-cancel type="button">Cancel</button></div>';
+  host.appendChild(p);
+  const msg=p.querySelector('[data-msg]'), ask=p.querySelector('[data-ask]');
+  const mainIdx=fs.findIndex(x=>x.main); const mi=mainIdx<0?0:mainIdx;
+  p.querySelector('[data-cancel]').addEventListener('click',()=>p.remove());
+  p.querySelector('[data-ok]').addEventListener('click',()=>{
+    fs.forEach((f,i)=>rvSet(bl,f,p.querySelector('[data-f="'+i+'"]').value));
+    RV_DIRTY=true;p.remove();renderReports();});
+  ask.addEventListener('click',async()=>{
+    const q=p.querySelector('[data-ai]').value.trim();
+    if(q.length<2){msg.className='rv-msg err';msg.textContent='Say what you want changed.';return;}
+    ask.disabled=true;msg.className='rv-msg';
+    try{
+      const row=await rvAsk(D,bi,q,msg);
+      msg.textContent='';
+      const prop=document.createElement('div');prop.className='rv-prop';
+      prop.innerHTML='<div class="rv-ph">Claude suggests</div>'
+        +'<div class="rv-pb">'+row.result_html+'</div>'
+        +(row.note?'<div class="rv-pn">'+esc(row.note)+'</div>':'')
+        +'<div class="rv-btns"><button class="go" data-use type="button">Use this</button>'
+        +'<button data-drop type="button">Discard</button></div>';
+      p.insertBefore(prop,p.querySelector('.rv-btns'));
+      prop.querySelector('[data-drop]').addEventListener('click',()=>prop.remove());
+      prop.querySelector('[data-use]').addEventListener('click',()=>{
+        const ta=p.querySelector('[data-f="'+mi+'"]');
+        ta.value=fs[mi].list
+          ? String(row.result_html).replace(/<\/li>/g,'\n').replace(/<[^>]+>/g,'').split('\n')
+              .map(x=>x.trim()).filter(Boolean).join('\n')
+          : row.result_html;
+        prop.remove();});
+    }catch(e){msg.className='rv-msg err';msg.textContent=String(e.message||e);}
+    finally{ask.disabled=false;}
+  });
+}
+
+function rvBar(D){
+  const ok=D.status==='approved';
+  const bar=document.createElement('div');bar.className='rv-bar';
+  bar.innerHTML='<span class="rv-st"><span class="rv-dot '+(ok?'ok':'pend')+'"></span>'
+      +(ok?'Approved':'Draft')+'</span>'
+    +'<span class="rv-sub">'+(RV_DIRTY
+        ? 'You have changes that are not saved yet.'
+        : (ok ? 'This is what the client sees. Change anything and publish again to replace it.'
+              : 'The client cannot see this yet. Hover a section to change it, then approve.'))+'</span>'
+    +'<button data-save type="button"'+(RV_DIRTY?'':' disabled')+'>Save draft</button>'
+    +'<button data-revert type="button">Revert to original</button>'
+    +'<button class="go" data-approve type="button">'+(ok?'Publish again':'Approve &amp; publish')+'</button>'
+    +(D.share_token?'<div class="rv-link"><span>Client link</span>'
+       +'<input readonly value="'+esc(rvShareUrl(D))+'">'
+       +'<button data-copy type="button">Copy</button></div>':'');
+  const note=document.createElement('div');note.className='rv-msg';
+  bar.appendChild(note);
+  const save=async()=>{
+    const {error}=await sb.rpc('save_report_draft',
+      {p_slug:ACTIVE,p_report_id:D.report_id,p_entry:D.entry});
+    if(error)throw new Error(error.message||'could not save');
+    RV_DIRTY=false;
+  };
+  bar.querySelector('[data-save]').addEventListener('click',async e=>{
+    e.target.disabled=true;note.className='rv-msg';note.textContent='Saving…';
+    try{await save();note.textContent='Saved. The client still cannot see it.';renderReports();}
+    catch(err){note.className='rv-msg err';note.textContent=String(err.message||err);e.target.disabled=false;}
+  });
+  bar.querySelector('[data-revert]').addEventListener('click',()=>{
+    if(!window.confirm('Put every section back to what the report said when it was built?'))return;
+    D.entry=JSON.parse(JSON.stringify(D.original));RV_DIRTY=true;renderReports();});
+  bar.querySelector('[data-approve]').addEventListener('click',async e=>{
+    const first=D.status!=='approved';
+    if(!window.confirm(first
+       ? 'Publish this to the client’s dashboard and create a link you can send?'
+       : 'Replace what the client currently sees with this version?'))return;
+    e.target.disabled=true;note.className='rv-msg';note.textContent='Publishing…';
+    try{
+      if(RV_DIRTY)await save();
+      const {data,error}=await sb.rpc('approve_report',
+        {p_slug:ACTIVE,p_report_id:D.report_id});
+      if(error)throw new Error(error.message||'could not publish');
+      D.status='approved';D.share_token=data;
+      // the client's own copy has changed, so the rest of the page should agree
+      const live=(SERIES[ACTIVE]&&SERIES[ACTIVE].reports)||[];
+      const at=live.findIndex(x=>x.id===D.report_id);
+      if(at>=0)live[at]=JSON.parse(JSON.stringify(D.entry));
+      else live.unshift(JSON.parse(JSON.stringify(D.entry)));
+      renderReports();
+    }catch(err){note.className='rv-msg err';note.textContent=String(err.message||err);e.target.disabled=false;}
+  });
+  const cp=bar.querySelector('[data-copy]');
+  if(cp)cp.addEventListener('click',()=>{
+    const u=rvShareUrl(D);
+    const done=()=>{cp.textContent='Copied';setTimeout(()=>{cp.textContent='Copy';},2000);};
+    if(navigator.clipboard&&navigator.clipboard.writeText)
+      navigator.clipboard.writeText(u).then(done).catch(()=>window.prompt('Client link',u));
+    else window.prompt('Client link',u);});
+  return bar;
+}
+
+// Hangs the edit affordance off the block elements the renderer already tags
+// with data-blk, so there is one renderer and the AM reads exactly what the
+// client will read.
+function rvAttach(wrap,D){
+  wrap.querySelectorAll('[data-blk]').forEach(el=>{
+    const bi=+el.dataset.blk;
+    if(!rvFields(D.entry.blocks[bi]).length)return;
+    el.classList.add('rv-sec');
+    const b=document.createElement('button');
+    b.className='rv-edit';b.type='button';b.textContent='edit';
+    b.addEventListener('click',ev=>{ev.stopPropagation();rvEditor(el,D,bi);});
+    el.appendChild(b);
+  });
+}
+
 function renderReports(){
   const body=document.getElementById('reports-body');if(!body)return;
   const list=(SERIES[ACTIVE]&&SERIES[ACTIVE].reports)||[];
   const ctl=document.getElementById('reports-ctl');if(ctl)ctl.innerHTML='';
   const tt=document.getElementById('reports-title');
-  if(!REPORT_OPEN){
+  if(!REPORT_OPEN&&!REVIEW_OPEN){
     document.body.classList.remove('wl');
     if(tt)tt.textContent='Reports';
     const monthly=REPORTS[ACTIVE]||[];   // recurring monthly report (archive of months)
@@ -3169,6 +3433,17 @@ function renderReports(){
           : 'The end-of-week report, published every Friday.',
         ' data-kind="custom" data-id="'+esc(weekly[0].id)+'"');
     }
+    // A week waiting on the account manager comes first: it is the only thing
+    // on this page that is asking him for something.
+    const pend=draftsFor(ACTIVE);
+    if(pend.length)html+='<div class="rep-group">Your review</div><div class="rep-list">'
+      +pend.map(d=>card(
+        d.status==='approved'?'Weekly report (published)':'Weekly report (needs your review)',
+        (d.entry&&d.entry.date_range)||d.report_id,
+        d.status==='approved'
+          ? 'Approved and live on the client\u2019s dashboard. Open it to change it and publish again.'
+          : 'Built and waiting. The client cannot see it until you approve it.',
+        ' data-kind="review" data-id="'+esc(d.report_id)+'"')).join('')+'</div>';
     if(rec)html+='<div class="rep-group">Recurring</div><div class="rep-list">'+rec+'</div>';
     if(props.length)html+='<div class="rep-group">Proposals</div><div class="rep-list">'
       +props.map(r=>card(r.title,r.date_range,r.summary,
@@ -3188,18 +3463,31 @@ function renderReports(){
     body.querySelectorAll('.rep-card').forEach(c=>c.addEventListener('click',()=>{
       if(c.dataset.kind==='monthly'){openMonthlyReport();}
       else if(c.dataset.kind==='audit'){openAudit();}
+      else if(c.dataset.kind==='review'){REVIEW_OPEN=c.dataset.id;REPORT_OPEN=null;RV_DIRTY=false;
+        renderReports();window.scrollTo({top:0});}
       else{REPORT_OPEN=c.dataset.id;renderReports();window.scrollTo({top:0});}
     }));
     return;
   }
-  const r=list.find(x=>x.id===REPORT_OPEN);if(!r){REPORT_OPEN=null;return renderReports();}
+  // A draft is rendered by exactly the same code as the published report, so
+  // what the AM signs off is what the client gets.
+  let r,D=null;
+  if(REVIEW_OPEN){
+    D=draftOf(ACTIVE,REVIEW_OPEN);
+    if(!D){REVIEW_OPEN=null;return renderReports();}
+    r=D.entry;
+  }else{
+    r=list.find(x=>x.id===REPORT_OPEN);if(!r){REPORT_OPEN=null;return renderReports();}
+  }
   document.body.classList.toggle('wl',r.kind==='proposal'&&!!(SERIES[ACTIVE]||{}).group_logo);
   if(tt)tt.textContent=r.title;
   // No "Save as PDF" on the weekly report. It is built for a screen now:
   // interactive charts, a 22-week history, hover. Printing it produces a poor
   // version of itself, and a button that disappoints is worse than no button.
   const _wk=r.kind==='weekly';
-  const _weeks=_wk?list.filter(x=>x.kind==='weekly')
+  // No week picker while reviewing: there is one draft, and switching away
+  // from it mid-edit would quietly drop the changes.
+  const _weeks=(_wk&&!D)?list.filter(x=>x.kind==='weekly')
     .sort((a,b)=>String(b.id).localeCompare(String(a.id))):[];
   const _wi=_weeks.findIndex(x=>x.id===r.id);
   if(ctl)ctl.innerHTML='<button class="btn ghost" id="repBack">← All reports</button> '
@@ -3215,7 +3503,7 @@ function renderReports(){
         +(_wi<=0?' disabled':'')+'>›</button></span> '
       : '')
     +(r.video_url?'<button class="vidbtn" id="repVid" type="button">▶ Video walk-thru</button> ':'')
-    +(r.share&&!SHARE_MODE?'<button class="btn ghost" id="repShare">🔗 Share link</button> ':'')
+    +(r.share&&!SHARE_MODE&&!D?'<button class="btn ghost" id="repShare">🔗 Share link</button> ':'')
     +(_wk?'':'<button class="btn" onclick="printView(&quot;paper&quot;)">⤓ Save as PDF</button>');
   if(_weeks.length>1){
     const go=id=>{REPORT_OPEN=id;renderReports();
@@ -3235,7 +3523,9 @@ function renderReports(){
   wrap.innerHTML='<div class="rep-head"><div class="rep-ey">'+esc(r.date_range||'')
     +'<span class="rep-rt">'+repReadTime(r)+' min read</span></div>'
     +'<h1 class="rep-h1">'+esc(r.title)+'</h1><div class="rep-sum">'+esc(r.summary||'')+'</div></div>';
-  body.innerHTML='';body.appendChild(wrap);
+  body.innerHTML='';
+  if(D)body.appendChild(rvBar(D));
+  body.appendChild(wrap);
   // Each block is its own comment target. Before this a pin on a report had
   // nothing closer to land on than the whole view, so its recorded position was
   // a fraction of the entire page and I read it as the wrong chart twice.
@@ -3388,8 +3678,10 @@ function renderReports(){
        if(bl.c)last.dataset.chart=bl.c;
        if(bl.title)last.dataset.blkTitle=bl.title;}}
   });
+  if(D)rvAttach(wrap,D);
   const back=document.getElementById('repBack');if(back)back.addEventListener('click',()=>{
-    REPORT_OPEN=null;renderReports();window.scrollTo({top:0});});
+    if(D&&RV_DIRTY&&!window.confirm('You have changes that are not saved. Leave anyway?'))return;
+    REPORT_OPEN=null;REVIEW_OPEN=null;RV_DIRTY=false;renderReports();window.scrollTo({top:0});});
   const sh=document.getElementById('repShare');
   if(sh)sh.addEventListener('click',()=>{
     const done=()=>{sh.textContent='✓ Link copied';setTimeout(()=>{sh.textContent='🔗 Share link';},2200);};
@@ -7015,7 +7307,7 @@ function wireControls(){
     document.getElementById('view-reports').hidden=v!=='reports';
     document.getElementById('view-map').hidden=v!=='map';
     if(v!=='map'&&RM_FULL)rmFullscreen(false);
-    if(v==='reports'){REPORT_OPEN=null;renderReports();}
+    if(v==='reports'){REPORT_OPEN=null;REVIEW_OPEN=null;RV_DIRTY=false;renderReports();}
     if(v==='map'){ensureMap(ACTIVE).then(renderMap);}
     updateVidBtn();});
   document.getElementById('boardMonth').addEventListener('change',e=>{const reps=REPORTS[ACTIVE]||[];REPORT=reps[+e.target.value]||reps[0]||null;renderBoard();});
@@ -9430,6 +9722,7 @@ async function loadAndRender(){ try{
     return;
   }
   await loadOwnerComments();
+  await loadDrafts();   // weeks waiting on an account manager
   SERIES={}; ser.data.forEach(r=>{const d=r.data||r; if(d&&d.client_slug)SERIES[d.client_slug]=d;});
   // client_series_light builds its own column list and does NOT carry
   // `features`, so feat() read undefined for every client and a flag set in
@@ -9513,9 +9806,19 @@ document.getElementById('lform').addEventListener('submit',async e=>{
 async function shareBoot(){
   document.getElementById('login').hidden=true;
   try{
-    const res=await fetch('report.json',{cache:'no-store'});
-    if(!res.ok)throw new Error('not found');
-    const pkg=await res.json();
+    let pkg=null;
+    const tok=new URLSearchParams(location.search).get('t');
+    if(tok){
+      // Minted by approve_report(). get_share() is the only way in, so the
+      // token is the secret and the table itself is unreadable.
+      const {data,error}=await sb.rpc('get_share',{p_token:tok});
+      if(error||!data)throw new Error('not found');
+      pkg=data;
+    }else{
+      const res=await fetch('report.json',{cache:'no-store'});
+      if(!res.ok)throw new Error('not found');
+      pkg=await res.json();
+    }
     SERIES={}; REPORTS={}; ACTIVE=pkg.client_slug||'shared';
     SERIES[ACTIVE]=pkg.data||{}; SERIES[ACTIVE].reports=pkg.reports||[];
     document.getElementById('app').hidden=false;
