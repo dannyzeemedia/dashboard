@@ -113,6 +113,9 @@
   .lform button:hover:not(:disabled){filter:brightness(1.1);transform:translateY(-1px)}
   .lform button:disabled{opacity:.6}
   .lerr{color:#ff8b8b;font-size:13px}
+  .lforgot{text-align:center;font-size:12.5px;font-weight:600;color:rgba(255,255,255,.58);
+    text-decoration:underline;text-underline-offset:3px}
+  .lforgot:hover{color:#fff}
   .mark{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--flow),var(--camp));
     display:grid;place-items:center;color:#fff;font-size:14px;font-weight:800}
   .clogo{width:auto;display:block;max-width:240px}
@@ -1905,6 +1908,7 @@
     <label>Password<input type="password" id="lpass" autocomplete="current-password" required></label>
     <div class="lerr" id="lerr" hidden></div>
     <button type="submit" id="lbtn">Sign in</button>
+    <a class="lforgot" href="https://clients.zee.media/login/?forgot=1">Forgot your password?</a>
     <div class="lfoot">Klaviyo email that makes the math work.</div>
   </form>
 </div>
