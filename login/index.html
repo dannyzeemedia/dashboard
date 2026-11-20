@@ -119,13 +119,19 @@ function setErr(id,t){const e=$(id);if(!t){e.hidden=true;return;}e.textContent=t
 // so a shared screenshot or a browser-history entry can't be replayed.
 function clean(){try{history.replaceState(null,'',location.pathname);}catch(e){}}
 
-// Where a signed-in person belongs. The folder is the client's slug, or its
-// group's when several brands share one (e.g. /igloo/), which is exactly how
-// the dashboard folders are laid out. The switcher inside shows the rest.
+// Where a signed-in person belongs. Each client has a folder of its own named
+// for its slug; the switcher inside shows the rest of the brands they can read.
+// data.group is the OWNER (ronsee, joshhoughton), not a folder, so it is no use
+// here. A slug with no folder yet falls back to /zee/, which renders whatever
+// the signed-in account can read rather than a 404.
 const PREF=['drwoof','asc','jelibuilt','farmulated'];
+async function exists(slug){
+  try{const r=await fetch('../'+slug+'/',{method:'HEAD',cache:'no-store'});return r.ok;}
+  catch(e){return false;}
+}
 async function go(){
-  show('wait','Loading your dashboard…');
-  let dest=null,broke=false;
+  show('wait','Loading your dashboard\u2026');
+  let slugs=[],broke=false;
   try{
     let {data,error}=await sb.rpc('client_series_light');
     if(error){ // almost always a stale token, not an empty account
@@ -133,19 +139,18 @@ async function go(){
       ({data,error}=await sb.rpc('client_series_light'));
     }
     if(error)broke=true;
-    if(!error&&data){
-      const groups=[];
-      data.forEach(r=>{const d=(r&&r.data)||r; if(!d||!d.client_slug||d.hidden)return;
-        const g=d.group||d.client_slug; if(groups.indexOf(g)<0)groups.push(g);});
-      const ord=PREF.filter(s=>groups.indexOf(s)>=0)
-        .concat(groups.filter(s=>PREF.indexOf(s)<0).sort());
-      dest=ord[0]||null;
-    }
+    if(!error&&data)data.forEach(r=>{const d=(r&&r.data)||r;
+      if(d&&d.client_slug&&!d.hidden&&slugs.indexOf(d.client_slug)<0)slugs.push(d.client_slug);});
   }catch(e){broke=true;}
-  if(!dest){
+  if(!slugs.length){
     if(broke)$('nonemsg').textContent='We couldn\u2019t reach the dashboard just now. Refresh the page, and if it keeps happening email danny@zee.media.';
-    show('none');return;}
-  location.replace('../'+dest+'/');
+    show('none');return;
+  }
+  const ord=PREF.filter(s=>slugs.indexOf(s)>=0)
+    .concat(slugs.filter(s=>PREF.indexOf(s)<0).sort());
+  let dest=null;
+  for(let i=0;i<ord.length&&i<5;i++){ if(await exists(ord[i])){dest=ord[i];break;} }
+  location.replace('../'+(dest||'zee')+'/');
 }
 
 // A recovery link opens a real session, so supabase-js announces it here
